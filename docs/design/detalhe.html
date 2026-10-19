@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MARIA DA SILVA · Radar Público</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="componentes.css">
+</head>
+<body>
+<!-- Referência estática: detalhe de um vínculo de aposentado. Dados fictícios.
+     Para ativos: pílula Ativo, "Remuneração", UF preenchida, seção "Carreira" no lugar de "Aposentadoria". -->
+
+<header class="topo">
+  <div class="container">
+    <a class="marca" href="busca.html">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+        <circle cx="14" cy="14" r="12.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="14" cy="14" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.45"/>
+        <path d="M14 14 L14 1.5 A12.5 12.5 0 0 1 24.8 7.75 Z" fill="var(--primary)"/>
+        <circle cx="14" cy="14" r="2" fill="currentColor"/>
+      </svg>
+      Radar Público
+    </a>
+    <nav class="nav" aria-label="Principal">
+      <a href="busca.html" aria-current="page">Buscar</a>
+      <a href="#">Sobre os dados</a>
+      <a href="#">API</a>
+    </nav>
+    <button class="menu-celular" type="button" aria-label="Abrir menu" aria-expanded="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="container pagina" style="padding-top: var(--s-5)">
+  <nav class="trilha" aria-label="Você está em">
+    <ol>
+      <li><a href="busca.html">Busca: nome MARIA DA SILVA</a></li>
+      <li aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></li>
+      <li aria-current="page" style="color: var(--ink)">Vínculo 2 de 11</li>
+    </ol>
+  </nav>
+
+  <div class="cabecalho-vinculo">
+    <div class="cabecalho-vinculo__id">
+      <span class="pilula pilula--aposentado"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Aposentado</span>
+      <h1 class="titulo-pagina" style="letter-spacing: -0.005em">MARIA DA SILVA</h1>
+      <p class="fonte-dado" style="font-size: 1.0625rem; color: var(--ink-2)">AGENTE ADMINISTRATIVO · MINISTERIO DA SAUDE (MS)</p>
+      <div class="acoes">
+        <button class="btn btn--secundario" type="button" style="min-height: 44px; padding: 0 16px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+          Copiar link
+        </button>
+        <a class="btn btn--secundario" href="#" style="min-height: 44px; padding: 0 16px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+          Ver JSON da API
+        </a>
+      </div>
+    </div>
+    <div class="cabecalho-vinculo__valor">
+      <span class="aux">Valor da aposentadoria</span>
+      <span class="valor-grande">R$ 6.233,17</span>
+      <span class="aux">Referência 05/2026</span>
+    </div>
+  </div>
+
+  <div class="colunas">
+    <section aria-labelledby="sec-vinculo">
+      <h2 class="subtitulo" id="sec-vinculo">Vínculo</h2>
+      <dl class="dados">
+        <div><dt>Cargo</dt><dd>AGENTE ADMINISTRATIVO</dd></div>
+        <div><dt>Órgão</dt><dd>MINISTERIO DA SAUDE</dd></div>
+        <div><dt>Sigla do órgão</dt><dd>MS</dd></div>
+        <div><dt>UF</dt><dd class="ausente">Não informada — o conjunto de aposentados não traz UF</dd></div>
+      </dl>
+    </section>
+    <section aria-labelledby="sec-apos">
+      <h2 class="subtitulo" id="sec-apos">Aposentadoria</h2>
+      <dl class="dados">
+        <div><dt>Tipo</dt><dd>VOLUNTARIA</dd></div>
+        <div><dt>Fundamento legal</dt><dd>EC47 3º</dd></div>
+        <div><dt>Portaria</dt><dd>DEC 009498/2018, PUB: DO 11SET2018</dd></div>
+        <div><dt>Data da aposentadoria</dt><dd class="num">03/09/2018</dd></div>
+        <div><dt>Ingresso no serviço público</dt><dd><span class="num">15/03/1984</span> · ADMISSAO POR CONCURSO PUBLICO</dd></div>
+      </dl>
+    </section>
+  </div>
+
+  <section aria-labelledby="sec-outros" style="display: flex; flex-direction: column; gap: var(--s-3)">
+    <div>
+      <h2 class="subtitulo" id="sec-outros">Outros vínculos com o nome MARIA DA SILVA</h2>
+      <p class="aux" style="max-width: 75ch">Pode ser a mesma pessoa ou homônimos: a fonte não traz um identificador único que permita confirmar.</p>
+    </div>
+    <div class="tabela-caixa" style="display: block">
+      <table class="tabela tabela--compacta">
+        <thead>
+          <tr><th scope="col">Situação</th><th scope="col">Cargo</th><th scope="col">Órgão</th><th scope="col">UF</th><th scope="col" class="direita">Valor (R$)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo</span></td><td class="fonte-dado"><a href="detalhe.html">TECNICO DE ENFERMAGEM</a></td><td class="secundario">MINISTERIO DA SAUDE</td><td class="num secundario">PE</td><td class="num direita">5.410,92</td></tr>
+          <tr><td><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo</span></td><td class="fonte-dado"><a href="detalhe.html">PROFESSOR DO MAGISTERIO SUPERIOR</a></td><td class="secundario">UNIVERSIDADE FEDERAL DO CEARA</td><td class="num secundario">CE</td><td class="num direita">16.802,51</td></tr>
+          <tr><td><span class="pilula pilula--aposentado"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Aposentado</span></td><td class="fonte-dado"><a href="detalhe.html">AUXILIAR DE ENFERMAGEM</a></td><td class="secundario">INSTITUTO NACIONAL DE SEGURO SOCIAL</td><td class="num secundario"><span aria-label="não informado">—</span></td><td class="num direita">4.120,08</td></tr>
+          <tr><td><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo</span></td><td class="fonte-dado"><a href="detalhe.html">ASSISTENTE EM ADMINISTRACAO</a></td><td class="secundario">UNIVERSIDADE FEDERAL DE PERNAMBUCO</td><td class="num secundario">PE</td><td class="num direita">5.977,30</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <a href="busca.html" style="align-self: flex-start; display: inline-flex; align-items: center; min-height: 44px; font-weight: 600">Ver os 11 vínculos</a>
+  </section>
+
+  <p class="nota-fonte">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+    <span>Fonte: Gestão de Pessoas do Executivo Federal — Aposentados, dados.gov.br, arquivo de 05/2026. Valores como publicados, sem correção. <a href="#">Sobre os dados</a></span>
+  </p>
+</main>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscar servidores · Radar Público</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="componentes.css">
+</head>
+<body>
+<!-- Referência estática: busca por "Nome parecido" (%MARIA%SILVA% + órgão Ministério da Saúde).
+     Nomes fictícios. Abaixo de 640 px a tabela vira lista e os filtros recolhem. -->
+
+<header class="topo">
+  <div class="container">
+    <a class="marca" href="busca.html">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
+        <circle cx="14" cy="14" r="12.5" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <circle cx="14" cy="14" r="7.5" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.45"/>
+        <path d="M14 14 L14 1.5 A12.5 12.5 0 0 1 24.8 7.75 Z" fill="var(--primary)"/>
+        <circle cx="14" cy="14" r="2" fill="currentColor"/>
+      </svg>
+      Radar Público
+    </a>
+    <nav class="nav" aria-label="Principal">
+      <a href="busca.html" aria-current="page">Buscar</a>
+      <a href="#">Sobre os dados</a>
+      <a href="#">API</a>
+    </nav>
+    <button class="menu-celular" type="button" aria-label="Abrir menu" aria-expanded="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="container pagina">
+  <div>
+    <h1 class="titulo-pagina">Buscar servidores federais</h1>
+    <p class="lead">Consulte 1.504.516 vínculos de servidores ativos e aposentados do Poder Executivo Federal, com dados abertos do governo.</p>
+  </div>
+
+  <form class="busca" role="search" aria-label="Buscar servidores">
+    <div class="campo">
+      <div class="busca__nome-topo">
+        <label class="campo__rotulo" for="nome">Nome</label>
+        <div class="alternador" role="group" aria-label="Como buscar o nome">
+          <button type="button" aria-pressed="false">Nome exato</button>
+          <button type="button" aria-pressed="true">Nome parecido</button>
+        </div>
+      </div>
+      <div class="busca__linha">
+        <input class="controle controle--grande controle--mono" id="nome" name="similar" type="text" value="%MARIA%SILVA%" aria-describedby="dica-nome">
+        <label class="limite">Até <input name="limit" type="number" value="100" min="1" max="100" aria-describedby="dica-nome"></label>
+        <button class="btn btn--primario btn--grande" type="submit">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          Buscar
+        </button>
+        <p class="aux" id="dica-nome">Use % no lugar das partes que você não sabe: %MARIA%SILVA%, MARIA SILVA% ou MARIA%SILVA. Pelo menos 3 letras. Mostra os mais parecidos primeiro.</p>
+      </div>
+    </div>
+
+    <button class="busca__abrir-filtros" type="button" aria-expanded="false" aria-controls="filtros">
+      <span>Filtros <span class="contador">1</span></span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+
+    <div class="busca__filtros" id="filtros">
+      <label class="campo">
+        <span class="campo__rotulo">Cargo</span>
+        <input class="controle" name="cargo" type="text" placeholder="Ex.: professor" list="sugestoes-cargo">
+      </label>
+      <label class="campo">
+        <span class="campo__rotulo">Órgão</span>
+        <input class="controle" name="orgao" type="text" value="Ministério da Saúde" placeholder="Nome ou sigla, ex.: INSS">
+      </label>
+      <label class="campo">
+        <span class="campo__rotulo">UF <small>(só ativos)</small></span>
+        <select class="controle" name="uf">
+          <option value="">Todas</option>
+          <option>AC</option><option>AL</option><option>AM</option><option>AP</option><option>BA</option><option>CE</option><option>DF</option>
+          <option>ES</option><option>GO</option><option>MA</option><option>MG</option><option>MS</option><option>MT</option><option>PA</option>
+          <option>PB</option><option>PE</option><option>PI</option><option>PR</option><option>RJ</option><option>RN</option><option>RO</option>
+          <option>RR</option><option>RS</option><option>SC</option><option>SE</option><option>SP</option><option>TO</option>
+        </select>
+      </label>
+      <label class="campo">
+        <span class="campo__rotulo">Situação</span>
+        <select class="controle" name="situacao">
+          <option value="todos">Ativos e aposentados</option>
+          <option value="ativo">Só ativos</option>
+          <option value="aposentado">Só aposentados</option>
+        </select>
+      </label>
+    </div>
+  </form>
+
+  <section class="resultados" aria-labelledby="res-titulo">
+    <div class="resultados__topo">
+      <div>
+        <h2 class="titulo-secao" id="res-titulo" aria-live="polite">Os 100 nomes mais parecidos com <span class="mono">%MARIA%SILVA%</span></h2>
+        <div class="filtros-ativos">
+          <span class="aux">Filtros:</span>
+          <span class="chip">Órgão: Ministério da Saúde
+            <button type="button" aria-label="Remover filtro órgão"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </span>
+          <button class="btn btn--texto" type="button">Limpar tudo</button>
+        </div>
+      </div>
+      <label class="por-pagina">Por página
+        <select><option>20</option><option>50</option><option>100</option></select>
+      </label>
+    </div>
+
+    <div class="tabela-caixa">
+      <table class="tabela">
+        <caption class="sr-only">Resultados da busca</caption>
+        <thead>
+          <tr>
+            <th scope="col">Nome</th>
+            <th scope="col" aria-sort="descending">Semelhança</th>
+            <th scope="col">Situação</th>
+            <th scope="col">Cargo</th>
+            <th scope="col">Órgão</th>
+            <th scope="col">UF</th>
+            <th scope="col" class="direita">Valor (R$)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row"><a href="detalhe.html">MARIA SILVA</a></th>
+            <td><div class="semelhanca"><div class="semelhanca__barra" aria-hidden="true"><span style="width: 100%"></span></div><span class="num">1,00</span></div></td>
+            <td><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo</span></td>
+            <td class="secundario">ENFERMEIRO</td>
+            <td class="secundario">MINISTERIO DA SAUDE</td>
+            <td class="num secundario">RJ</td>
+            <td class="num direita">9.812,40</td>
+          </tr>
+          <tr>
+            <th scope="row"><a href="detalhe.html">MARIA DA SILVA</a></th>
+            <td><div class="semelhanca"><div class="semelhanca__barra" aria-hidden="true"><span style="width: 86%"></span></div><span class="num">0,86</span></div></td>
+            <td><span class="pilula pilula--aposentado"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Aposentado</span></td>
+            <td class="secundario">AGENTE ADMINISTRATIVO</td>
+            <td class="secundario">MINISTERIO DA SAUDE</td>
+            <td class="num secundario"><span aria-label="não informado">—</span></td>
+            <td class="num direita">6.233,17</td>
+          </tr>
+          <tr>
+            <th scope="row"><a href="detalhe.html">MARIA DA SILVA</a></th>
+            <td><div class="semelhanca"><div class="semelhanca__barra" aria-hidden="true"><span style="width: 86%"></span></div><span class="num">0,86</span></div></td>
+            <td><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo</span></td>
+            <td class="secundario">TECNICO DE ENFERMAGEM</td>
+            <td class="secundario">MINISTERIO DA SAUDE</td>
+            <td class="num secundario">PE</td>
+            <td class="num direita">5.410,92</td>
+          </tr>
+          <tr>
+            <th scope="row"><a href="detalhe.html">MARIA SILVA COSTA</a></th>
+            <td><div class="semelhanca"><div class="semelhanca__barra" aria-hidden="true"><span style="width: 75%"></span></div><span class="num">0,75</span></div></td>
+            <td><span class="pilula pilula--aposentado"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Aposentado</span></td>
+            <td class="secundario">AUXILIAR DE ENFERMAGEM</td>
+            <td class="secundario">MINISTERIO DA SAUDE</td>
+            <td class="num secundario"><span aria-label="não informado">—</span></td>
+            <td class="num direita">4.987,55</td>
+          </tr>
+          <tr>
+            <th scope="row"><a href="detalhe.html">ANA MARIA SILVA</a></th>
+            <td><div class="semelhanca"><div class="semelhanca__barra" aria-hidden="true"><span style="width: 71%"></span></div><span class="num">0,71</span></div></td>
+            <td><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo</span></td>
+            <td class="secundario">MEDICO</td>
+            <td class="secundario">MINISTERIO DA SAUDE</td>
+            <td class="num secundario">DF</td>
+            <td class="num direita">18.740,03</td>
+          </tr>
+          <tr>
+            <th scope="row"><a href="detalhe.html">MARIA JOSE SILVA</a></th>
+            <td><div class="semelhanca"><div class="semelhanca__barra" aria-hidden="true"><span style="width: 69%"></span></div><span class="num">0,69</span></div></td>
+            <td><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo</span></td>
+            <td class="secundario">ASSISTENTE SOCIAL</td>
+            <td class="secundario">MINISTERIO DA SAUDE</td>
+            <td class="num secundario">BA</td>
+            <td class="num direita">8.361,28</td>
+          </tr>
+          <tr>
+            <th scope="row"><a href="detalhe.html">MARIA DAS GRACAS SILVA</a></th>
+            <td><div class="semelhanca"><div class="semelhanca__barra" aria-hidden="true"><span style="width: 66%"></span></div><span class="num">0,66</span></div></td>
+            <td><span class="pilula pilula--aposentado"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Aposentado</span></td>
+            <td class="secundario">AGENTE DE SAUDE PUBLICA</td>
+            <td class="secundario">MINISTERIO DA SAUDE</td>
+            <td class="num secundario"><span aria-label="não informado">—</span></td>
+            <td class="num direita">5.122,64</td>
+          </tr>
+          <tr>
+            <th scope="row"><a href="detalhe.html">MARIA LUCIA DA SILVA</a></th>
+            <td><div class="semelhanca"><div class="semelhanca__barra" aria-hidden="true"><span style="width: 64%"></span></div><span class="num">0,64</span></div></td>
+            <td><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo</span></td>
+            <td class="secundario">ENFERMEIRO</td>
+            <td class="secundario">MINISTERIO DA SAUDE</td>
+            <td class="num secundario">RJ</td>
+            <td class="num direita">11.095,77</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <ul class="lista" aria-label="Resultados da busca">
+      <li><a href="detalhe.html">
+        <div class="lista__linha"><strong class="fonte-dado">MARIA SILVA</strong><span class="num">R$ 9.812,40</span></div>
+        <span class="aux fonte-dado">ENFERMEIRO</span>
+        <div class="lista__meta"><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo · RJ</span><span class="mono">semelhança 1,00</span></div>
+      </a></li>
+      <li><a href="detalhe.html">
+        <div class="lista__linha"><strong class="fonte-dado">MARIA DA SILVA</strong><span class="num">R$ 6.233,17</span></div>
+        <span class="aux fonte-dado">AGENTE ADMINISTRATIVO</span>
+        <div class="lista__meta"><span class="pilula pilula--aposentado"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Aposentado</span><span class="mono">semelhança 0,86</span></div>
+      </a></li>
+      <li><a href="detalhe.html">
+        <div class="lista__linha"><strong class="fonte-dado">MARIA DA SILVA</strong><span class="num">R$ 5.410,92</span></div>
+        <span class="aux fonte-dado">TECNICO DE ENFERMAGEM</span>
+        <div class="lista__meta"><span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo · PE</span><span class="mono">semelhança 0,86</span></div>
+      </a></li>
+      <li><a href="detalhe.html">
+        <div class="lista__linha"><strong class="fonte-dado">MARIA SILVA COSTA</strong><span class="num">R$ 4.987,55</span></div>
+        <span class="aux fonte-dado">AUXILIAR DE ENFERMAGEM</span>
+        <div class="lista__meta"><span class="pilula pilula--aposentado"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Aposentado</span><span class="mono">semelhança 0,75</span></div>
+      </a></li>
+    </ul>
+
+    <nav class="paginacao" aria-label="Paginação">
+      <span class="aux">Mostrando 1–20 de 100 · página 1 de 5</span>
+      <div class="paginacao__paginas">
+        <a href="#" aria-label="Página anterior" aria-disabled="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg></a>
+        <a href="?page=1" aria-current="page">1</a>
+        <a href="?page=2">2</a>
+        <a href="?page=3">3</a>
+        <a href="?page=4">4</a>
+        <a href="?page=5">5</a>
+        <a href="?page=2" aria-label="Próxima página"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg></a>
+      </div>
+      <div class="paginacao__celular">
+        <a href="#" aria-disabled="true">Anterior</a>
+        <span class="aux">1 de 5</span>
+        <a href="?page=2">Próxima</a>
+      </div>
+    </nav>
+
+    <p class="nota-fonte">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+      <span>Fonte: Gestão de Pessoas do Executivo Federal, dados.gov.br. Ativos com referência em 08/2026; aposentados, 05/2026. O conjunto de aposentados não informa a UF, por isso ela aparece como “—”. <a href="#">Sobre os dados</a></span>
+    </p>
+  </section>
+</main>
+</body>
+</html>

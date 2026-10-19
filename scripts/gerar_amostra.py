@@ -86,8 +86,10 @@ def data(rng: random.Random, anos: tuple[int, int]) -> str:
 def gerar_ativos(rng: random.Random) -> list[str]:
     linhas = [
         "CARREIRA.082026".ljust(L_TITULO),
-        "Nome;CPF;Código da carreira;Descrição do cargo emprego;UF da UPAG de vinculação;"
-        "Denominação do órgão de atuação;Mês de referência;Valor da remuneração;",
+        (
+            "Nome;CPF;Código da carreira;Descrição do cargo emprego;UF da UPAG de vinculação;"
+            "Denominação do órgão de atuação;Mês de referência;Valor da remuneração;"
+        ),
     ]
     por_carreira: dict[str, list[tuple[str, float]]] = {codigo: [] for codigo, _ in CARREIRAS}
     for i in range(QTD_ATIVOS):
@@ -126,15 +128,19 @@ def linha_total(rotulo: str, total: float) -> str:
 
 def gerar_aposentados(rng: random.Random) -> list[str]:
     linhas = [
-        "Nome;CPF;Matricula;Orgao;Sigla Orgao;Orgao vinculacao;Cargo emprego;Classe;Padrao;"
-        "Referencia;Nivel;Tipo aposentadoria;Fund legal aposentadoria;Portaria aposentadoria;"
-        "Dt ocorrencia inatividade;Nome ocorrencia;Dt ingresso servico publico;Valor aposentadoria"
+        (
+            "Nome;CPF;Matricula;Orgao;Sigla Orgao;Orgao vinculacao;Cargo emprego;Classe;Padrao;"
+            "Referencia;Nivel;Tipo aposentadoria;Fund legal aposentadoria;Portaria aposentadoria;"
+            "Dt ocorrencia inatividade;Nome ocorrencia;Dt ingresso servico publico;Valor aposentadoria"
+        )
     ]
     for i in range(QTD_APOSENTADOS):
         orgao, sigla = rng.choice(ORGAOS)
         _, cargo = rng.choice(CARREIRAS)
         cargo = "" if i == 1 else cargo  # há aposentados sem cargo na fonte
-        portaria = PORTARIA_COM_PONTO_E_VIRGULA if i == 2 else f"DEC {rng.randrange(10**6):06d}/2018"
+        portaria = (
+            PORTARIA_COM_PONTO_E_VIRGULA if i == 2 else f"DEC {rng.randrange(10**6):06d}/2018"
+        )
         ingresso = "" if i == 3 else data(rng, ANO_INGRESSO)  # e sem data de ingresso
         linha = ";".join(
             [

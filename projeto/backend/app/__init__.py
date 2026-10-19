@@ -2,7 +2,7 @@
 
 from flask import Flask
 
-from app.config import Config
+from app.config import load_config
 from app.db import init_db
 from app.errors import register_error_handlers
 
@@ -13,7 +13,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     # Mensagens com acento saem como "não", e não "não".
     app.json.ensure_ascii = False
 
-    app.config.from_object(Config)
+    app.config.update(load_config())
 
     if test_config:
         app.config.update(test_config)

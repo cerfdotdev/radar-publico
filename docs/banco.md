@@ -51,6 +51,20 @@ O backend conecta como `radar_api` (`POSTGRES_API_USER`), nunca como o dono do b
 
 Testado: `DELETE` falha com *read-only transaction* e `pg_sleep(6)` é cancelado por *statement timeout*.
 
+## Pool de conexões do backend
+
+Cada worker do Gunicorn tem seu próprio pool (`psycopg_pool`), aberto no primeiro uso, já dentro do worker. Configuração por variáveis de ambiente (padrões em `projeto/backend/app/config.py`):
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `DATABASE_URL` | obrigatória | Conexão do usuário `radar_api` (o compose já define) |
+| `DB_POOL_MAX` | = `GUNICORN_THREADS` (4) | Conexões por worker; uma por thread |
+| `DB_POOL_MIN` | 1 | Conexões mantidas abertas por worker |
+| `DB_POOL_TIMEOUT_S` | 3 | Espera por uma conexão livre; depois disso a API responde 503 `SERVIDOR_OCUPADO` |
+| `DB_CONNECT_TIMEOUT_S` | 5 | Tempo máximo para abrir uma conexão nova |
+
+Workers × `DB_POOL_MAX` nunca passa de 45 (o limite de 50 do usuário menos uma folga): se a configuração pedir mais, o pool de cada worker é reduzido e um aviso vai para o log. Conexões quebradas (ex.: banco reiniciado) são descartadas e trocadas antes de serem entregues.
+
 ## Índices e desempenho
 
 | Índice | Para |

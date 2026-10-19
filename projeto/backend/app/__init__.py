@@ -21,8 +21,10 @@ def create_app(test_config: dict | None = None) -> Flask:
     init_db(app)
 
     from app.routes.health import health_bp
+    from app.routes.servidores import servidores_bp
 
     app.register_blueprint(health_bp, url_prefix="/api")
+    app.register_blueprint(servidores_bp, url_prefix="/api")
     register_error_handlers(app)
 
     return app

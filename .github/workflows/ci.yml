@@ -86,10 +86,10 @@ jobs:
       - name: Análise de segurança (bandit)
         run: bandit -r . -x ./tests,./.venv -ll
       - name: Vulnerabilidades nas dependências (pip-audit)
-        run: pip-audit -r requirements.txt --strict
+        run: pip-audit --strict
       - name: Testes (pytest + cobertura mínima de 70%)
         if: needs.detect.outputs.backend_tests == 'true'
-        run: pytest --cov=. --cov-report=term-missing --cov-fail-under=70
+        run: python -m pytest --cov=. --cov-report=term-missing --cov-fail-under=70
 
   frontend:
     needs: detect

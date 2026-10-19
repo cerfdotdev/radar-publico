@@ -1,0 +1,259 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "24"
+  HADOLINT_IMAGE: hadolint/hadolint:v2.14.0@sha256:27086352fd5e1907ea2b934eb1023f217c5ae087992eb59fde121dce9c9ff21e
+
+jobs:
+  # Descobre quais partes do projeto já existem, para os jobs pularem o que ainda não foi criado.
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      backend: ${{ steps.d.outputs.backend }}
+      backend_tests: ${{ steps.d.outputs.backend_tests }}
+      frontend_node: ${{ steps.d.outputs.frontend_node }}
+      frontend_js: ${{ steps.d.outputs.frontend_js }}
+      dockerfiles: ${{ steps.d.outputs.dockerfiles }}
+      stack: ${{ steps.d.outputs.stack }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: d
+        run: |
+          has() { if eval "$1"; then echo "$2=true"; else echo "$2=false"; fi >> "$GITHUB_OUTPUT"; }
+          has '[ -f projeto/backend/requirements.txt ]' backend
+          has '[ -d projeto/backend/tests ]' backend_tests
+          has '[ -f projeto/frontend/package.json ]' frontend_node
+          has '[ -n "$(find projeto/frontend -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" -o -name "*.vue" -o -name "*.svelte" | grep -v node_modules | head -1)" ]' frontend_js
+          has '[ -n "$(find projeto -name Dockerfile | head -1)" ]' dockerfiles
+          has '[ -f projeto/backend/Dockerfile ] && [ -f projeto/frontend/Dockerfile ]' stack
+          cat "$GITHUB_OUTPUT"
+
+  backend:
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: projeto/backend
+    services:
+      postgres:
+        # contexto env não está disponível em services; manter igual ao docker-compose.yml
+        image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        env:
+          POSTGRES_DB: radar_test
+          POSTGRES_USER: radar
+          POSTGRES_PASSWORD: radar
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U radar -d radar_test"
+          --health-interval 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://radar:radar@localhost:5432/radar_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar ferramentas de CI (com hash verificado)
+        run: pip install --require-hashes --no-deps -r ../../.github/ci/requirements.txt
+      - name: Instalar dependências do backend
+        run: pip install -r requirements.txt
+      - name: Lint (ruff)
+        run: ruff check . && ruff format --check .
+      - name: Análise de segurança (bandit)
+        run: bandit -r . -x ./tests,./.venv -ll
+      - name: Vulnerabilidades nas dependências (pip-audit)
+        run: pip-audit -r requirements.txt --strict
+      - name: Testes (pytest + cobertura mínima de 70%)
+        if: needs.detect.outputs.backend_tests == 'true'
+        run: pytest --cov=. --cov-report=term-missing --cov-fail-under=70
+
+  frontend:
+    needs: detect
+    if: needs.detect.outputs.frontend_node == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: projeto/frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Exigir lockfile
+        run: test -f package-lock.json || { echo "::error::package-lock.json é obrigatório"; exit 1; }
+      - name: Instalar (sem scripts de instalação)
+        run: npm ci --ignore-scripts
+      - name: Verificar assinaturas do registry
+        run: npm audit signatures
+      - name: Vulnerabilidades (npm audit)
+        run: npm audit --audit-level=high
+      - run: npm run lint --if-present
+      - run: npm test --if-present
+      - run: npm run build --if-present
+
+  docker:
+    needs: detect
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validar docker-compose.yml
+        run: docker compose -f projeto/docker-compose.yml config --quiet
+      - name: Lint dos Dockerfiles (hadolint)
+        if: needs.detect.outputs.dockerfiles == 'true'
+        run: |
+          find projeto -name Dockerfile -print0 | while IFS= read -r -d '' f; do
+            echo "::group::$f"
+            docker run --rm -i "$HADOLINT_IMAGE" hadolint --failure-threshold warning - < "$f"
+            echo "::endgroup::"
+          done
+      - name: Build das imagens
+        if: needs.detect.outputs.stack == 'true'
+        run: docker compose -f projeto/docker-compose.yml build
+      - name: Scan de vulnerabilidades da imagem do backend
+        if: needs.detect.outputs.stack == 'true'
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: projeto-backend
+          fail-build: true
+          severity-cutoff: high
+          only-fixed: true
+          output-format: table
+      - name: Scan de vulnerabilidades da imagem do frontend
+        if: needs.detect.outputs.stack == 'true'
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
+        with:
+          image: projeto-frontend
+          fail-build: true
+          severity-cutoff: high
+          only-fixed: true
+          output-format: table
+      - name: Smoke test (docker compose up)
+        if: needs.detect.outputs.stack == 'true'
+        run: |
+          docker compose -f projeto/docker-compose.yml up -d --wait --wait-timeout 300
+          curl -fsS --retry 10 --retry-delay 3 --retry-all-errors http://localhost:5000/api/health
+          curl -fsS --retry 10 --retry-delay 3 --retry-all-errors -o /dev/null http://localhost:8080/
+      - name: Logs em caso de falha
+        if: failure() && needs.detect.outputs.stack == 'true'
+        run: docker compose -f projeto/docker-compose.yml logs --tail 200
+      - name: Derrubar containers
+        if: always() && needs.detect.outputs.stack == 'true'
+        run: docker compose -f projeto/docker-compose.yml down -v
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          deny-licenses: AGPL-3.0-only, AGPL-3.0-or-later, GPL-3.0-only, GPL-3.0-or-later
+          show-openssf-scorecard: true
+
+  workflows-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Auditoria de segurança dos workflows (zizmor)
+        uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        with:
+          advanced-security: false
+          min-severity: medium
+
+  codeql:
+    needs: detect
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, python, javascript-typescript]
+    steps:
+      - name: Verificar se há código para analisar
+        id: gate
+        env:
+          LANG_: ${{ matrix.language }}
+          HAS_PY: ${{ needs.detect.outputs.backend }}
+          HAS_JS: ${{ needs.detect.outputs.frontend_js }}
+        run: |
+          run=true
+          [ "$LANG_" = python ] && [ "$HAS_PY" != true ] && run=false
+          [ "$LANG_" = javascript-typescript ] && [ "$HAS_JS" != true ] && run=false
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+      - if: steps.gate.outputs.run == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: steps.gate.outputs.run == 'true'
+        uses: github/codeql-action/init@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+      - if: steps.gate.outputs.run == 'true'
+        uses: github/codeql-action/analyze@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          category: /language:${{ matrix.language }}
+
+  # Único check obrigatório na proteção da main: falha se qualquer job acima falhar.
+  ci-ok:
+    if: always()
+    needs: [detect, backend, frontend, docker, dependency-review, workflows-audit, codeql]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - env:
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -Eq '"(failure|cancelled)"'; then
+            echo "::error::Algum job do CI falhou"; exit 1
+          fi

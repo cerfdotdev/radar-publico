@@ -1,0 +1,35 @@
+version: 2
+
+# cooldown: espera alguns dias antes de propor uma versão nova, para não puxar
+# um pacote comprometido logo após a publicação.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      actions: { patterns: ["*"] }
+
+  - package-ecosystem: pip
+    directories: [/projeto/backend, /.github/ci]
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      python: { patterns: ["*"] }
+
+  - package-ecosystem: npm
+    directory: /projeto/frontend
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+    groups:
+      npm: { patterns: ["*"] }
+
+  - package-ecosystem: docker
+    directories: [/projeto/backend, /projeto/frontend]
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+
+  - package-ecosystem: docker-compose
+    directory: /projeto
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }

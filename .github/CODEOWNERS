@@ -1,0 +1,9 @@
+# O líder técnico revisa tudo; cada área também tem seu dono.
+*                         @cerfdotdev
+/projeto/backend/         @cerfdotdev @joaoarenda
+/projeto/frontend/        @cerfdotdev @Alisson-dutra
+/desktop/                 @cerfdotdev @Alisson-dutra
+
+# Arquivos sensíveis de CI/CD e segurança: só o líder técnico aprova.
+/.github/                 @cerfdotdev
+/SECURITY.md              @cerfdotdev

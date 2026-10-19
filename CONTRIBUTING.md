@@ -33,3 +33,24 @@ No início de cada sprint e ao fim de cada bloco de trabalho, cada integrante co
 ## Pontos (story points)
 
 Fibonacci: 1, 2, 3, 5, 8. Issues acima de 8 devem ser quebradas.
+
+## CI e segurança
+
+Todo PR roda o workflow **CI**. O merge só é liberado com o check `ci-ok` verde, aprovação de um code owner e todas as conversas resolvidas.
+
+| Área | O que o CI verifica | Rodar localmente |
+|---|---|---|
+| Backend | `ruff`, `bandit`, `pip-audit`, `pytest` com cobertura mínima de 70% e Postgres real | `pip install -r .github/ci/requirements.txt` e os mesmos comandos dentro de `projeto/backend` |
+| Frontend | `npm ci --ignore-scripts`, `npm audit signatures`, `npm audit`, lint, testes, build | `npm ci && npm run lint && npm test` |
+| Docker | `docker compose config`, `hadolint`, build, scan de vulnerabilidades (Grype), smoke test com `docker compose up` | `docker compose up --build` |
+| Geral | CodeQL, revisão de dependências do PR, auditoria dos workflows (zizmor) | — |
+
+O backend espera os testes em `projeto/backend/tests/` e lê o banco de `DATABASE_URL`.
+
+### Regras de cadeia de suprimentos
+
+- Fixe versões exatas no `requirements.txt` (`flask==x.y.z`) e versione o `package-lock.json`.
+- Imagens base dos Dockerfiles com tag e digest: `FROM python:3.13-slim@sha256:...` (o Dependabot atualiza).
+- Containers não rodam como root: use `USER` no Dockerfile.
+- Actions novas só fixadas por SHA de commit, nunca por tag. O repositório recusa actions não fixadas.
+- Nunca commite `.env` nem credenciais. Use `projeto/.env.example` como modelo.

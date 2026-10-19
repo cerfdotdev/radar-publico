@@ -39,6 +39,7 @@ Para recarregar do zero: `docker compose down -v && docker compose up --build`.
 - Cada linha entra inteira numa tabela temporária e é quebrada em SQL, para que `;` e `"` dentro dos valores não quebrem a importação.
 - Linhas de título, cabeçalho e totais (`TOTAL DA CARREIRA nnn:`, `TOTAL GERAL:`) são descartadas.
 - A portaria das 123 linhas com `;` é remontada a partir dos campos do meio.
+- Nomes, cargos e órgãos normalizados como a API compara a entrada do usuário: maiúsculas, sem acento e com espaços simples (a fonte tem exceções, como um cargo com "Ã" e 28 nomes com espaço duplo).
 - Espaços de preenchimento removidos; vazios viram `NULL`; `1.234,56` vira número; `DDMMYYYY` vira data (datas impossíveis viram `NULL`).
 
 Conferência após a carga: 1.092.162 ativos, 412.354 aposentados, 230 órgãos, 2.999 cargos, 27 UFs; nenhum ativo sem UF; 2 aposentados sem data de aposentadoria e 4.312 sem data de ingresso, como na fonte.
@@ -92,6 +93,7 @@ Workers × `DB_POOL_MAX` nunca passa de 45 (o limite de 50 do usuário menos uma
 
 Conclusões para o backend:
 
-1. **Resolva os ids de `cargo` e `orgao` antes** (`SELECT id FROM cargo WHERE nome LIKE ...`) e passe como `= ANY(%s)`. Com subconsulta no `IN`, o Postgres não sabe quantos ids vêm e `orgao=INSS` leva 536 ms em vez de 0,2 ms.
+1. **Resolva os ids de `cargo` e `orgao` antes** (`SELECT id FROM cargo WHERE nome LIKE ...`) e passe como `= ANY(%s)` (ou `= %s` quando for um id só). Com subconsulta no `IN`, o Postgres não sabe quantos ids vêm e `orgao=INSS` leva 536 ms em vez de 0,2 ms.
+   Para órgãos e cargos raros (1 a 20 vínculos), as estatísticas padrão estimavam ~1.000 linhas e o planejador percorria o índice de nome inteiro: 1,5 a 2 s por consulta. O `04-indices.sql` aumenta as estatísticas de `orgao_id` e `cargo_id` (`SET STATISTICS 1000/3000`) e essas buscas caem para 4 a 20 ms.
 2. **Não conte tudo**: conte no máximo 10.001 linhas (`SELECT count(*) FROM (... LIMIT 10001)`). Contagem exata em filtros amplos custa até 0,8 s por requisição.
 3. **Limite a navegação** aos primeiros 10.000 resultados, porque `OFFSET` grande lê todas as linhas anteriores.

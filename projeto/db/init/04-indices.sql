@@ -18,4 +18,10 @@ CREATE INDEX cargo_nome_trgm_idx ON cargo USING gin (nome gin_trgm_ops);
 CREATE INDEX orgao_nome_trgm_idx ON orgao USING gin (nome gin_trgm_ops);
 CREATE INDEX orgao_sigla_idx     ON orgao (upper(sigla));
 
+-- Estatísticas mais detalhadas para cargo e órgão: com o padrão, um órgão ou cargo raro
+-- (1 a 20 vínculos) é estimado em ~1.000 linhas e o planejador percorre o índice de nome
+-- inteiro (1,5 a 2 s por consulta). Com mais amostras a estimativa fica certa (< 1 ms).
+ALTER TABLE servidor ALTER COLUMN orgao_id SET STATISTICS 1000;
+ALTER TABLE servidor ALTER COLUMN cargo_id SET STATISTICS 3000;
+
 VACUUM ANALYZE;

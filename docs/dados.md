@@ -20,7 +20,7 @@ Os dois arquivos usam:
 - datas como `DDMMYYYY`, vazias quando não informadas;
 - CPF já mascarado pela fonte (`***123456**`).
 
-Nomes, cargos e órgãos estão em **maiúsculas, sem acentos**. Nomes de órgãos e cargos são truncados em 40 caracteres pela fonte (ex.: `DEP.DE CENTRAL.SERV.DE INATIVOS E PENS.`).
+Nomes, cargos e órgãos estão em **maiúsculas, quase sempre sem acentos** (há exceções, como um cargo com "Ã" e 28 nomes com espaço duplo; a carga normaliza tudo). Nomes de órgãos e cargos são truncados em 40 caracteres pela fonte (ex.: `DEP.DE CENTRAL.SERV.DE INATIVOS E PENS.`).
 
 ### CARREIRA_082026.txt (ativos)
 

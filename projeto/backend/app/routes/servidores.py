@@ -1,205 +1,167 @@
-"""Rota de consulta a servidores públicos ativos e aposentados."""
+"""GET /api/servidores: busca de servidores ativos e aposentados (docs/api.md).
+
+Recomendações de desempenho seguidas (docs/banco.md): ids de cargo e órgão resolvidos
+antes, contagem limitada a 10.000 resultados e paginação só dentro desse limite.
+"""
 
 import math
 from http import HTTPStatus
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
+from psycopg import Cursor, sql
+from psycopg.rows import dict_row
 
 from app.db import get_db_connection
-from app.errors import error_response
+from app.errors import ApiError
+from app.search_params import MAX_TOTAL, SearchParams, Situacao, parse_search_params
 
 servidores_bp = Blueprint("servidores", __name__)
 
-UFS = {
-    "AC",
-    "AL",
-    "AP",
-    "AM",
-    "BA",
-    "CE",
-    "DF",
-    "ES",
-    "GO",
-    "MA",
-    "MT",
-    "MS",
-    "MG",
-    "PA",
-    "PB",
-    "PR",
-    "PE",
-    "PI",
-    "RJ",
-    "RN",
-    "RS",
-    "RO",
-    "RR",
-    "SC",
-    "SP",
-    "SE",
-    "TO",
-}
+# Uma linha a mais que o teto: basta para saber se o total passou de MAX_TOTAL.
+COUNT_LIMIT = MAX_TOTAL + 1
+LIKE_ESCAPE = "\\"
 
-MAX_TOTAL = 10000
-COUNT_LIMIT = 10001
+CARGO_LOOKUP = sql.SQL("SELECT id FROM cargo WHERE nome LIKE %s")
+ORGAO_LOOKUP = sql.SQL("SELECT id FROM orgao WHERE nome LIKE %s OR sigla = %s")
+COUNT_QUERY = sql.SQL(
+    "SELECT count(*) FROM (SELECT 1 FROM servidor s WHERE {where} LIMIT %s) AS limitado"
+)
+# Pagina primeiro só os ids (dá para usar os índices (filtro, nome, id) sem ler a
+# tabela) e depois busca as colunas e junta cargo e órgão apenas das linhas da página.
+PAGE_QUERY = sql.SQL(
+    """
+    WITH pagina AS (
+        SELECT s.id FROM servidor s
+        WHERE {where}
+        ORDER BY s.nome, s.id
+        LIMIT %s OFFSET %s
+    )
+    SELECT s.id, s.nome, s.situacao, c.nome AS cargo, o.nome AS orgao,
+           o.sigla AS sigla_orgao, s.uf, s.valor
+    FROM pagina p
+    JOIN servidor s ON s.id = p.id
+    JOIN orgao o ON o.id = s.orgao_id
+    LEFT JOIN cargo c ON c.id = s.cargo_id
+    ORDER BY s.nome, s.id
+    """
+)
+
+
+def like_contains(text: str) -> str:
+    """Padrão LIKE de "contém", com % _ e \\ da entrada tratados como texto."""
+    escaped = (
+        text.replace(LIKE_ESCAPE, LIKE_ESCAPE * 2)
+        .replace("%", LIKE_ESCAPE + "%")
+        .replace("_", LIKE_ESCAPE + "_")
+    )
+    return f"%{escaped}%"
+
+
+def resolve_ids(cur: Cursor, query: sql.Composable, args: tuple, code: str, label: str) -> list:
+    cur.execute(query, args)
+    ids = [row["id"] for row in cur.fetchall()]
+    if not ids:
+        raise ApiError(code, f"Nenhum {label} corresponde à busca.", HTTPStatus.NOT_FOUND)
+    return ids
+
+
+def id_filter(column: str, ids: list) -> tuple[sql.Composable, object]:
+    """Um id usa '=' (o planejador estima bem); vários usam '= ANY'."""
+    target = sql.Identifier("s", column)
+    if len(ids) == 1:
+        return sql.SQL("{} = %s").format(target), ids[0]
+    return sql.SQL("{} = ANY(%s)").format(target), ids
+
+
+def build_filters(cur: Cursor, params: SearchParams) -> tuple[sql.Composable, list]:
+    conditions: list[sql.Composable] = []
+    values: list = []
+
+    if params.cargo is not None:
+        ids = resolve_ids(
+            cur, CARGO_LOOKUP, (like_contains(params.cargo),), "CARGO_NAO_ENCONTRADO", "cargo"
+        )
+        condition, value = id_filter("cargo_id", ids)
+        conditions.append(condition)
+        values.append(value)
+
+    if params.orgao is not None:
+        ids = resolve_ids(
+            cur,
+            ORGAO_LOOKUP,
+            (like_contains(params.orgao), params.orgao),
+            "ORGAO_NAO_ENCONTRADO",
+            "órgão",
+        )
+        condition, value = id_filter("orgao_id", ids)
+        conditions.append(condition)
+        values.append(value)
+
+    for column, value in (("nome", params.nome), ("uf", params.uf)):
+        if value is not None:
+            conditions.append(sql.SQL("{} = %s").format(sql.Identifier("s", column)))
+            values.append(value)
+
+    if params.situacao is not Situacao.TODOS:
+        conditions.append(sql.SQL("s.situacao = %s"))
+        values.append(params.situacao.value)
+
+    return sql.SQL(" AND ").join(conditions), values
+
+
+def serialize(row: dict) -> dict:
+    valor = row["valor"]
+    return {**row, "valor": float(valor) if valor is not None else None}
 
 
 @servidores_bp.get("/servidores")
-def listar_servidores():
-    """Busca servidores por nome exato, cargo, órgão e UF."""
-    nome = request.args.get("nome")
-    cargo = request.args.get("cargo")
-    orgao = request.args.get("orgao")
-    uf = request.args.get("uf")
-    situacao = request.args.get("situacao", "todos").strip().lower()
+def listar_servidores() -> Response:
+    """Busca servidores por nome exato, cargo, órgão, UF e situação, com paginação."""
+    params = parse_search_params(request.args)
 
-    # Validação de filtros obrigatórios
-    if not any([nome, cargo, orgao, uf]):
-        return error_response(
-            "FILTRO_OBRIGATORIO",
-            "Pelo menos um filtro entre 'nome', 'cargo', 'orgao' e 'uf' deve ser informado.",
-            HTTPStatus.BAD_REQUEST,
+    if params.uf is not None and params.situacao is Situacao.APOSENTADO:
+        raise ApiError(
+            "NAO_ENCONTRADO",
+            "Aposentados não têm UF na fonte; o filtro de UF só encontra ativos.",
+            HTTPStatus.NOT_FOUND,
         )
 
-    # Validação de UF
-    if uf is not None:
-        uf = uf.strip().upper()
-        if uf not in UFS:
-            return error_response(
-                "UF_INVALIDA",
-                f"UF '{uf}' não existe. Use uma das 27 siglas.",
-                HTTPStatus.BAD_REQUEST,
+    with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        where, values = build_filters(cur, params)
+
+        cur.execute(COUNT_QUERY.format(where=where), (*values, COUNT_LIMIT))
+        total_raw = cur.fetchone()["count"]
+        if total_raw == 0:
+            raise ApiError(
+                "NAO_ENCONTRADO",
+                "Nenhum servidor encontrado com esses filtros.",
+                HTTPStatus.NOT_FOUND,
             )
 
-    try:
-        page = max(1, int(request.args.get("page", 1)))
-        per_page = min(100, max(1, int(request.args.get("per_page", 20))))
-    except ValueError:
-        return error_response(
-            "PARAMETRO_INVALIDO",
-            "Os parâmetros 'page' e 'per_page' devem ser números inteiros.",
-            HTTPStatus.BAD_REQUEST,
-        )
-
-    conditions: list[str] = []
-    params: list[object] = []
-
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            # Resolução prévia de IDs de cargo para otimização de plano de consulta
-            if cargo is not None:
-                cur.execute(
-                    "SELECT id FROM cargo WHERE nome ILIKE %s",
-                    (f"%{cargo.strip()}%",),
-                )
-                cargo_ids = [row[0] for row in cur.fetchall()]
-                if not cargo_ids:
-                    return error_response(
-                        "CARGO_NAO_ENCONTRADO",
-                        f"Nenhum cargo corresponde a '{cargo}'.",
-                        HTTPStatus.NOT_FOUND,
-                    )
-                conditions.append("s.cargo_id = ANY(%s)")
-                params.append(cargo_ids)
-
-            # Resolução prévia de IDs de órgão
-            if orgao is not None:
-                cur.execute(
-                    "SELECT id FROM orgao WHERE nome ILIKE %s OR upper(sigla) = %s",
-                    (f"%{orgao.strip()}%", orgao.strip().upper()),
-                )
-                orgao_ids = [row[0] for row in cur.fetchall()]
-                if not orgao_ids:
-                    return error_response(
-                        "ORGAO_NAO_ENCONTRADO",
-                        f"Nenhum órgão corresponde a '{orgao}'.",
-                        HTTPStatus.NOT_FOUND,
-                    )
-                conditions.append("s.orgao_id = ANY(%s)")
-                params.append(orgao_ids)
-
-            if nome is not None:
-                conditions.append("s.nome = %s")
-                params.append(nome.strip().upper())
-
-            if uf is not None:
-                conditions.append("s.uf = %s")
-                params.append(uf)
-
-            if situacao in ("ativo", "aposentado"):
-                conditions.append("s.situacao = %s")
-                params.append(situacao)
-
-            where_clause = " AND ".join(conditions)
-
-            # Contagem com teto de 10.001 registros para alta performance
-            count_sql = (
-                f"SELECT count(*) FROM ("  # nosec B608
-                f"SELECT 1 FROM servidor s WHERE {where_clause} LIMIT {COUNT_LIMIT}) c"
+        total = min(total_raw, MAX_TOTAL)
+        total_pages = math.ceil(total / params.per_page)
+        if params.page > total_pages:
+            raise ApiError(
+                "PAGINA_INEXISTENTE",
+                f"A página {params.page} não existe; esta busca tem {total_pages} página(s).",
+                HTTPStatus.NOT_FOUND,
             )
-            cur.execute(count_sql, tuple(params))
-            total_raw = cur.fetchone()[0]
 
-            if total_raw == 0:
-                return error_response(
-                    "NAO_ENCONTRADO",
-                    "Nenhum servidor encontrado com os critérios informados.",
-                    HTTPStatus.NOT_FOUND,
-                )
+        offset = (params.page - 1) * params.per_page
+        # A última página nunca passa do resultado de número MAX_TOTAL.
+        limit = min(params.per_page, total - offset)
+        cur.execute(PAGE_QUERY.format(where=where), (*values, limit, offset))
+        rows = cur.fetchall()
 
-            offset = (page - 1) * per_page
-            select_sql = f"""
-                SELECT
-                    s.id,
-                    s.nome,
-                    s.situacao,
-                    c.nome AS cargo,
-                    o.nome AS orgao,
-                    o.sigla AS sigla_orgao,
-                    s.uf,
-                    s.valor
-                FROM servidor s
-                JOIN orgao o ON o.id = s.orgao_id
-                LEFT JOIN cargo c ON c.id = s.cargo_id
-                WHERE {where_clause}
-                ORDER BY s.nome, s.id
-                LIMIT %s OFFSET %s
-            """  # nosec B608
-
-            query_params = tuple(params) + (per_page, offset)
-            cur.execute(select_sql, query_params)
-            rows = cur.fetchall()
-
-    servidores = [
+    return jsonify(
         {
-            "id": row[0],
-            "nome": row[1],
-            "situacao": row[2],
-            "cargo": row[3],
-            "orgao": row[4],
-            "sigla_orgao": row[5],
-            "uf": row[6],
-            "valor": float(row[7]) if row[7] is not None else None,
+            "data": [serialize(row) for row in rows],
+            "meta": {
+                "total": total,
+                "total_exato": total_raw <= MAX_TOTAL,
+                "page": params.page,
+                "per_page": params.per_page,
+                "total_pages": total_pages,
+            },
         }
-        for row in rows
-    ]
-
-    total = min(total_raw, MAX_TOTAL)
-    total_exato = total_raw <= MAX_TOTAL
-    total_pages = math.ceil(total / per_page) if total > 0 else 1
-
-    return (
-        jsonify(
-            {
-                "data": servidores,
-                "meta": {
-                    "total": total,
-                    "total_exato": total_exato,
-                    "page": page,
-                    "per_page": per_page,
-                    "total_pages": total_pages,
-                },
-            }
-        ),
-        HTTPStatus.OK,
     )

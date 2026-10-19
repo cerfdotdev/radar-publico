@@ -1,4 +1,3 @@
-# Esqueleto: cada serviço será completado nas issues da Sprint 1.
 services:
   db-server:
     image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
@@ -6,19 +5,27 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-radar}
       POSTGRES_USER: ${POSTGRES_USER:-radar}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-radar}
+      POSTGRES_API_USER: ${POSTGRES_API_USER:-radar_api}
+      POSTGRES_API_PASSWORD: ${POSTGRES_API_PASSWORD:-radar_api}
     security_opt: ["no-new-privileges:true"]
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
-      - ./db/data:/data:ro
+      - ./db/data:/data          # arquivos de origem; downloads ficam salvos aqui
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 5s
-      retries: 10
+      # Via TCP: durante a carga inicial o Postgres só escuta no socket local,
+      # então o serviço só fica saudável depois que os dados estão carregados.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20m
 
   backend:
     build: ./backend
     security_opt: ["no-new-privileges:true"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_API_USER:-radar_api}:${POSTGRES_API_PASSWORD:-radar_api}@db-server:5432/${POSTGRES_DB:-radar}
     depends_on:
       db-server:
         condition: service_healthy

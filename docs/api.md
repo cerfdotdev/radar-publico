@@ -135,8 +135,9 @@ Todo erro tem o formato:
 | 405 | `METODO_NAO_PERMITIDO` | Método diferente de GET |
 | 429 | `MUITAS_REQUISICOES` | Limite de requisições por IP excedido; vem com o header `Retry-After` |
 | 503 | `SERVIDOR_OCUPADO` | Limite de buscas simultâneas atingido; vem com `Retry-After` |
-| 504 | `TEMPO_ESGOTADO` | A busca passou do tempo limite no banco |
+| 504 | `TEMPO_ESGOTADO` | A busca passou do tempo limite no banco, ou o backend não respondeu ao nginx em 15 s |
 | 500 | `ERRO_INTERNO` | Erro inesperado (sem detalhes internos na mensagem) |
+| 502 | `SERVIDOR_INDISPONIVEL` | Gerado pelo nginx do frontend quando o backend está fora do ar |
 
 Tentativas de SQL injection não têm código próprio: os valores nunca entram no SQL (consultas parametrizadas), e entradas com `;`, `--`, `/*` ou qualquer caractere fora da lista permitida já são recusadas com `PARAMETRO_INVALIDO`.
 

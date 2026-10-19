@@ -58,6 +58,7 @@ Regras:
   ],
   "meta": {
     "total": 2,
+    "total_exato": true,
     "page": 1,
     "per_page": 20,
     "total_pages": 1
@@ -67,6 +68,7 @@ Regras:
 
 - `valor`: remuneração (ativos) ou valor da aposentadoria (aposentados), em reais, como número.
 - `sigla_orgao` só existe para aposentados; `uf` só para ativos. O campo ausente na fonte vem `null`.
+- **Total limitado a 10.000.** Contar centenas de milhares de linhas custa até 0,8 s por requisição (ver `docs/banco.md`). Se houver mais de 10.000 resultados, `total` vem `10000`, `total_exato` vem `false` e só as páginas até o 10.000º resultado existem. O frontend deve mostrar "mais de 10.000 resultados, refine a busca".
 - Com `similar`, cada item também traz `"similaridade": 0.82` (de 0 a 1), e `total` é no máximo `limit`.
 
 Se `total` for 1, o frontend mostra o detalhe direto; se for maior, mostra a lista paginada.
@@ -128,7 +130,7 @@ Todo erro tem o formato:
 | 404 | `CARGO_NAO_ENCONTRADO` | Nenhum cargo corresponde a `cargo` |
 | 404 | `ORGAO_NAO_ENCONTRADO` | Nenhum órgão corresponde a `orgao` |
 | 404 | `NAO_ENCONTRADO` | Filtros válidos, mas nenhum servidor encontrado (ex.: nome inexistente) |
-| 404 | `PAGINA_INEXISTENTE` | `page` maior que `total_pages` |
+| 404 | `PAGINA_INEXISTENTE` | `page` maior que `total_pages` (inclusive além do 10.000º resultado) |
 | 404 | `ROTA_INEXISTENTE` | URL que não existe |
 | 405 | `METODO_NAO_PERMITIDO` | Método diferente de GET |
 | 429 | `MUITAS_REQUISICOES` | Limite de requisições por IP excedido; vem com o header `Retry-After` |

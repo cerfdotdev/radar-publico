@@ -1,0 +1,111 @@
+.app-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.app-header {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 24px;
+}
+
+.brand-title {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.brand-subtitle {
+  font-size: 16px;
+  color: var(--ink-2);
+  margin-top: 8px;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.status-card {
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 24px;
+}
+
+.status-card h2 {
+  font-size: 23px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.status-card p {
+  font-size: 16px;
+  color: var(--ink-2);
+  margin-bottom: 16px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--primary);
+  color: #ffffff;
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  height: 48px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 150ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-hover);
+}
+
+/* Carregando: continua focável (aria-disabled), com a cor principal a 85%. */
+.btn-primary[aria-disabled='true'] {
+  background-color: var(--primary);
+  opacity: 0.85;
+  cursor: progress;
+}
+
+.api-status {
+  display: block;
+  width: fit-content;
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+/* Vazia, a região não ocupa espaço, mas continua na árvore de acessibilidade. */
+.api-status:empty {
+  margin: 0;
+}
+
+.api-status--ok,
+.api-status--error {
+  padding: 4px 12px;
+  border-radius: 16px;
+}
+
+.api-status--ok {
+  background-color: var(--info-bg);
+  color: var(--info-fg);
+  border: 1px solid var(--info-line);
+}
+
+.api-status--error {
+  background-color: var(--err-bg);
+  color: var(--err-fg);
+  border: 1px solid var(--err-line);
+}

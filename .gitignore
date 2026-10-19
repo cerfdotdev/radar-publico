@@ -1,0 +1,25 @@
+# Enunciado (não versionado)
+*.pdf
+
+# Dados brutos (grandes, baixados pelo script de carga)
+projeto/db/data/*
+!projeto/db/data/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+build/
+dist/
+*.spec
+
+# Node
+node_modules/
+.vite/
+
+# Editor / SO
+.vscode/
+.idea/
+.DS_Store

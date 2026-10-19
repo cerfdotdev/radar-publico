@@ -17,7 +17,7 @@ A stack do frontend foi selecionada visando alto desempenho, segurança de ponta
   - **Contrato de API tipado:** Garante aderência estrita às entidades definidas no contrato da API (`GET /api/servidores`), prevenindo falhas de acesso a propriedades em tempo de execução.
   - **Manutenibilidade:** Melhora o autocompletar e a refatoração segura em equipe.
 
-### 1.2. Vite 6
+### 1.2. Vite 8
 - **Build ultrarrápido:** Inicialização instantânea e Hot Module Replacement (HMR) eficiente baseado em módulos ES nativos no navegador.
 - **Produção otimizada:** Gera assets estáticos minificados, com hash de conteúdo e divisão de código (`dist/`), ideais para serem servidos por um webserver estático.
 - **Proxy reverso no desenvolvimento:** Permite redirecionar chamadas locais `/api` para `http://localhost:5000` sem necessidade de configurar CORS no backend durante o desenvolvimento local.
@@ -28,14 +28,17 @@ A stack do frontend foi selecionada visando alto desempenho, segurança de ponta
 - **Tipografia e Inclusão:** Fontes `IBM Plex Sans` e `IBM Plex Mono`, alvos de toque mínimos de 44px e respeito automático a `prefers-reduced-motion`.
 
 ### 1.4. Nginx Unprivileged (`nginxinc/nginx-unprivileged:alpine`)
-- **Container não-root:** Executa como usuário sem privilégios (`USER nginx`), atendendo à política de segurança de containers do projeto (`no-new-privileges:true`).
+- **Container não-root:** Executa como usuário sem privilégios (`USER nginx`), atendendo à política de segurança de containers do projeto (`no-new-privileges:true`). Os arquivos servidos pertencem ao root, e o nginx só os lê.
 - **Porta 8080 nativa:** O container serve o tráfego HTTP diretamente na porta `8080`, porta padrão segura para processos não-root.
-- **Proxy reverso transparente:** As rotas iniciadas em `/api/` são encaminhadas internamente para o serviço de backend (`http://backend:5000/api/`), mantendo a mesma origem para o cliente e simplificando o tráfego de rede.
-- **SPA Fallback e Performance:** Suporte a compressão Gzip e roteamento client-side via `try_files $uri $uri/ /index.html`.
+- **Proxy reverso transparente:** As rotas iniciadas em `/api/` são encaminhadas internamente para o serviço de backend (`http://backend:5000/api/`), mantendo a mesma origem para o cliente (sem CORS). O `X-Forwarded-For` é substituído pelo IP real do cliente, para que o limite de requisições por IP no backend não possa ser burlado com um cabeçalho forjado.
+- **Erros do proxy em JSON:** Se o backend estiver fora do ar ou demorar mais de 15 s, o nginx responde no formato de `docs/api.md` (`SERVIDOR_INDISPONIVEL` 502, `TEMPO_ESGOTADO` 504). Os erros do próprio backend passam intactos.
+- **Cabeçalhos de segurança e cache:** `security-headers.conf` (CSP, `nosniff`, `Referrer-Policy`, proibição de iframe); assets com hash ficam em cache por 1 ano e o `index.html` é sempre revalidado.
+- **SPA Fallback e Performance:** Compressão Gzip e roteamento client-side via `try_files $uri $uri/ /index.html`; arquivos com extensão que não existem retornam 404, e não o `index.html`.
 
 ### 1.5. Testes e Qualidade
 - **Vitest + Testing Library:** Suíte de testes unitários e de integração de componentes rápida, com ambiente `jsdom` e matchers `@testing-library/jest-dom`.
-- **Oxlint / TypeScript:** Verificação de tipos e linting rápido.
+- **Oxlint / TypeScript:** TypeScript em modo `strict` e Oxlint com regras de hooks do React e de acessibilidade (`jsx-a11y`). Avisos também reprovam o lint (`--deny-warnings`).
+- **Versões exatas:** `package.json` sem `^`/`~` e `.npmrc` com `save-exact=true`; o `package-lock.json` é versionado e o CI instala com `npm ci --ignore-scripts`.
 - **Hadolint:** Validação estrita de boas práticas e segurança do `Dockerfile`.
 
 ---
@@ -44,7 +47,7 @@ A stack do frontend foi selecionada visando alto desempenho, segurança de ponta
 
 ```text
 projeto/frontend/
-├── public/              # Assets estáticos públicos (favicons, manifest)
+├── public/              # Assets estáticos públicos (favicon)
 ├── src/
 │   ├── App.css          # Estilos do componente principal
 │   ├── App.test.tsx     # Testes automatizados do componente
@@ -55,7 +58,8 @@ projeto/frontend/
 ├── .dockerignore        # Arquivos ignorados no contexto de build do Docker
 ├── Dockerfile           # Multi-stage build com Node 24 e Nginx Unprivileged
 ├── index.html           # HTML base com importação de fontes e metadados
-├── nginx.conf           # Configuração do Nginx (porta 8080, gzip e proxy /api/)
+├── nginx.conf           # Configuração do Nginx (porta 8080, gzip, cache e proxy /api/)
+├── security-headers.conf # Cabeçalhos de segurança incluídos em todas as respostas
 ├── package.json         # Dependências e scripts de execução
 ├── package-lock.json    # Versões fixadas e auditadas
 ├── tsconfig.json        # Configuração do compilador TypeScript
@@ -77,7 +81,7 @@ projeto/frontend/
    ```bash
    npm run dev
    ```
-   A aplicação estará disponível em `http://localhost:8080`.
+   A aplicação estará disponível em `http://localhost:5173`, só na sua máquina. As chamadas a `/api` vão para `http://localhost:5000`; para usar outro backend, defina `API_PROXY_TARGET` (ex.: `API_PROXY_TARGET=http://localhost:5001 npm run dev`).
 
 3. Executar verificações de qualidade:
    ```bash
@@ -97,7 +101,7 @@ projeto/frontend/
    ```bash
    docker run -p 8080:8080 projeto-frontend
    ```
-   Acesse `http://localhost:8080`.
+   Acesse `http://localhost:8080`. Fora do Docker Compose não existe o serviço `backend`, então `/api` responde `502 SERVIDOR_INDISPONIVEL`; a interface funciona normalmente.
 
 ### 3.3. Execução via Docker Compose (no diretório `projeto/`)
 
@@ -105,3 +109,5 @@ projeto/frontend/
 docker compose up --build frontend
 ```
 O serviço estará acessível na porta 8080, pronto para se comunicar com o backend via rede interna do Docker.
+
+> As fontes IBM Plex ainda vêm do Google Fonts. Servi-las localmente fica para a issue #11, junto com a remoção dessas origens da CSP.

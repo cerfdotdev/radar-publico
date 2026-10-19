@@ -72,22 +72,39 @@
   background-color: var(--primary-hover);
 }
 
-.api-status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 16px;
-  font-family: var(--mono);
-  font-size: 14px;
-  margin-top: 12px;
+/* Carregando: continua focável (aria-disabled), com a cor principal a 85%. */
+.btn-primary[aria-disabled='true'] {
+  background-color: var(--primary);
+  opacity: 0.85;
+  cursor: progress;
 }
 
-.api-status-badge.info {
+.api-status {
+  display: block;
+  width: fit-content;
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+/* Vazia, a região não ocupa espaço, mas continua na árvore de acessibilidade. */
+.api-status:empty {
+  margin: 0;
+}
+
+.api-status--ok,
+.api-status--error {
+  padding: 4px 12px;
+  border-radius: 16px;
+}
+
+.api-status--ok {
   background-color: var(--info-bg);
   color: var(--info-fg);
   border: 1px solid var(--info-line);
 }
 
-.api-status-badge.err {
+.api-status--error {
   background-color: var(--err-bg);
   color: var(--err-fg);
   border: 1px solid var(--err-line);

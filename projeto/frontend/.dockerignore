@@ -1,7 +1,11 @@
 node_modules
 dist
+coverage
 .git
+.env
+.env.*
 .oxlintrc.json
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+Dockerfile
+.dockerignore
+README.md
+*.log

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Componentes · Radar Público</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="componentes.css">
+<style>
+  .grade { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--s-5); }
+  .item { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); }
+  .item > .mono { font-size: 12px; color: var(--ink-2); }
+  .amostras { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--s-3); }
+  .amostra { border: 1px solid var(--line); border-radius: var(--r-painel); overflow: hidden; font-size: var(--fs-mini); }
+  .amostra div { height: 56px; border-bottom: 1px solid var(--line); }
+  .amostra p { padding: var(--s-2) 10px; font-family: var(--mono); }
+</style>
+</head>
+<body>
+<!-- Folha de componentes: cada estado lado a lado (hover e foco simulados com estilos fixos). -->
+<main class="container pagina" style="padding-top: 48px; gap: 48px">
+  <div>
+    <h1 class="titulo-pagina">Componentes</h1>
+    <p class="lead">Estados de cada componente. Tokens em tokens.css; regras em docs/DESIGN.md.</p>
+  </div>
+
+  <section style="display: flex; flex-direction: column; gap: var(--s-4)">
+    <h2 class="titulo-secao">Cores</h2>
+    <div class="amostras">
+      <div class="amostra"><div style="background: var(--bg)"></div><p>--bg</p></div>
+      <div class="amostra"><div style="background: var(--surface)"></div><p>--surface</p></div>
+      <div class="amostra"><div style="background: var(--line)"></div><p>--line</p></div>
+      <div class="amostra"><div style="background: var(--line-strong)"></div><p>--line-strong</p></div>
+      <div class="amostra"><div style="background: var(--ink)"></div><p>--ink</p></div>
+      <div class="amostra"><div style="background: var(--ink-2)"></div><p>--ink-2</p></div>
+      <div class="amostra"><div style="background: var(--muted)"></div><p>--muted</p></div>
+      <div class="amostra"><div style="background: var(--primary)"></div><p>--primary</p></div>
+      <div class="amostra"><div style="background: var(--primary-hover)"></div><p>--primary-hover</p></div>
+      <div class="amostra"><div style="background: var(--primary-soft)"></div><p>--primary-soft</p></div>
+      <div class="amostra"><div style="background: var(--primary-text)"></div><p>--primary-text</p></div>
+      <div class="amostra"><div style="background: var(--ativo-bg)"></div><p>--ativo-bg</p></div>
+      <div class="amostra"><div style="background: var(--apos-bg)"></div><p>--apos-bg</p></div>
+      <div class="amostra"><div style="background: var(--info-bg)"></div><p>--info-bg</p></div>
+      <div class="amostra"><div style="background: var(--warn-bg)"></div><p>--warn-bg</p></div>
+      <div class="amostra"><div style="background: var(--err-bg)"></div><p>--err-bg</p></div>
+      <div class="amostra"><div style="background: var(--err-fg)"></div><p>--err-fg</p></div>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: var(--s-4)">
+    <h2 class="titulo-secao">Botões</h2>
+    <div class="grade">
+      <div class="item"><button class="btn btn--primario" type="button">Buscar</button><span class="mono">primário · padrão</span></div>
+      <div class="item"><button class="btn btn--primario" type="button" style="background: var(--primary-hover)">Buscar</button><span class="mono">hover</span></div>
+      <div class="item"><button class="btn btn--primario" type="button" style="outline: 2px solid var(--primary); outline-offset: 2px">Buscar</button><span class="mono">foco</span></div>
+      <div class="item"><button class="btn btn--primario" type="button" disabled aria-busy="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>Buscando…</button><span class="mono">carregando</span></div>
+      <div class="item"><button class="btn btn--primario" type="button" disabled>Buscar</button><span class="mono">desabilitado</span></div>
+    </div>
+    <div class="grade">
+      <div class="item"><button class="btn btn--secundario" type="button">Tentar de novo</button><span class="mono">secundário · padrão</span></div>
+      <div class="item"><button class="btn btn--secundario" type="button" style="border-color: var(--ink-2); background: var(--surface)">Tentar de novo</button><span class="mono">hover</span></div>
+      <div class="item"><button class="btn btn--secundario" type="button" style="outline: 2px solid var(--primary); outline-offset: 2px">Tentar de novo</button><span class="mono">foco</span></div>
+      <div class="item"><button class="btn btn--texto" type="button">Limpar tudo</button><span class="mono">texto</span></div>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: var(--s-4)">
+    <h2 class="titulo-secao">Campos</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px">
+      <label class="campo"><span class="campo__rotulo">Cargo</span><input class="controle" type="text" placeholder="Ex.: professor"><span class="mono aux">padrão</span></label>
+      <label class="campo"><span class="campo__rotulo">Cargo</span><input class="controle" type="text" placeholder="Ex.: professor" style="border-color: var(--ink-2)"><span class="mono aux">hover</span></label>
+      <label class="campo"><span class="campo__rotulo">Cargo</span><input class="controle" type="text" value="profe" style="border-color: var(--primary); outline: 2px solid var(--primary); outline-offset: 2px"><span class="mono aux">foco</span></label>
+      <div class="campo campo--erro"><label class="campo__rotulo" for="x">Cargo</label><input class="controle" id="x" type="text" value="pofessor" aria-invalid="true" aria-describedby="x-msg"><span class="campo__erro" id="x-msg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Nenhum cargo contém “pofessor”.</span></div>
+      <label class="campo"><span class="campo__rotulo" style="color: var(--muted)">Cargo</span><input class="controle" type="text" disabled><span class="mono aux">desabilitado</span></label>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-wrap: wrap; gap: 48px">
+    <div class="item">
+      <h2 class="subtitulo">Alternador</h2>
+      <div class="alternador" role="group" aria-label="Como buscar o nome">
+        <button type="button" aria-pressed="false">Nome exato</button>
+        <button type="button" aria-pressed="true">Nome parecido</button>
+      </div>
+    </div>
+    <div class="item">
+      <h2 class="subtitulo">Situação e filtros</h2>
+      <div class="grade" style="gap: 10px; align-items: center">
+        <span class="pilula pilula--ativo"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Ativo</span>
+        <span class="pilula pilula--aposentado"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>Aposentado</span>
+        <span class="chip">Órgão: Ministério da Saúde<button type="button" aria-label="Remover filtro órgão"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></span>
+        <span class="contador">1</span>
+      </div>
+    </div>
+  </section>
+
+  <section style="display: flex; flex-direction: column; gap: var(--s-4)">
+    <h2 class="titulo-secao">Avisos</h2>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--s-4)">
+      <div class="aviso aviso--info" role="status"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div><strong>Informação</strong><span>Limites de uso, espera.</span></div></div>
+      <div class="aviso aviso--atencao" role="status"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg><div><strong>Atenção</strong><span>Resultado parcial.</span></div></div>
+      <div class="aviso aviso--erro" role="alert"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg><div><strong>Erro</strong><span>Tempo esgotado, falha do servidor.</span></div></div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

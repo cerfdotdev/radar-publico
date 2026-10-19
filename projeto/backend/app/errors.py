@@ -21,6 +21,16 @@ HTTP_ERRORS: dict[int, tuple[str, str]] = {
 INTERNAL_ERROR_MESSAGE = "Algo deu errado do nosso lado. Tente de novo em instantes."
 
 
+class ApiError(Exception):
+    """Erro previsto da API, com o código e o status do contrato (docs/api.md)."""
+
+    def __init__(self, code: str, message: str, status: int) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.status = status
+
+
 def error_response(code: str, message: str, status: int) -> tuple[Response, int]:
     """Monta {"error": {"code", "message"}} com o status HTTP."""
     return jsonify({"error": {"code": code, "message": message}}), status
@@ -28,6 +38,10 @@ def error_response(code: str, message: str, status: int) -> tuple[Response, int]
 
 def register_error_handlers(app: Flask) -> None:
     """Faz todo erro da aplicação responder em JSON."""
+
+    @app.errorhandler(ApiError)
+    def handle_api_error(error: ApiError) -> tuple[Response, int]:
+        return error_response(error.code, error.message, error.status)
 
     @app.errorhandler(HTTPException)
     def handle_http_exception(error: HTTPException) -> Response:

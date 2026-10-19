@@ -1,0 +1,56 @@
+/* Tokens do Radar Público. Fonte da verdade: docs/DESIGN.md. Não crie cores fora desta lista. */
+:root {
+  /* Neutros */
+  --bg: oklch(1 0 0);
+  --surface: oklch(0.975 0.004 42);
+  --line: oklch(0.9 0.008 42);
+  --line-strong: oklch(0.62 0.012 42);
+  --ink: oklch(0.22 0.012 42);
+  --ink-2: oklch(0.4 0.012 42);
+  --muted: oklch(0.5 0.012 42);
+
+  /* Marca */
+  --primary: oklch(0.5 0.13 42);
+  --primary-hover: oklch(0.44 0.12 42);
+  --primary-soft: oklch(0.955 0.022 42);
+  --primary-text: oklch(0.42 0.12 42);
+
+  /* Situação do vínculo */
+  --ativo-bg: oklch(0.95 0.03 240);
+  --ativo-fg: oklch(0.38 0.09 240);
+  --apos-bg: oklch(0.95 0.045 85);
+  --apos-fg: oklch(0.42 0.08 75);
+
+  /* Retorno */
+  --info-bg: oklch(0.96 0.02 240);
+  --info-fg: oklch(0.38 0.09 240);
+  --info-line: oklch(0.86 0.04 240);
+  --warn-bg: oklch(0.965 0.04 85);
+  --warn-fg: oklch(0.42 0.08 70);
+  --warn-line: oklch(0.86 0.07 80);
+  --err-bg: oklch(0.96 0.022 12);
+  --err-fg: oklch(0.48 0.17 12);
+  --err-line: oklch(0.85 0.06 12);
+
+  /* Tipografia */
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --fs-pagina: 2.125rem;  /* 34 */
+  --fs-secao: 1.4375rem;  /* 23 */
+  --fs-sub: 1.1875rem;    /* 19 */
+  --fs-corpo: 1rem;       /* 16 */
+  --fs-aux: 0.875rem;     /* 14 */
+  --fs-mini: 0.8125rem;   /* 13 */
+
+  /* Espaço */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 40px; --s-8: 64px;
+
+  /* Raio */
+  --r-chip: 6px; --r-controle: 8px; --r-painel: 10px; --r-pilula: 16px;
+
+  /* Movimento */
+  --ease: cubic-bezier(.25, 1, .5, 1);
+  --t-rapido: 150ms;
+  --t-troca: 200ms;
+}

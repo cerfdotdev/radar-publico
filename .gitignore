@@ -12,6 +12,10 @@ __pycache__/
 venv/
 .env
 build/
+.coverage
+.coverage.*
+.pytest_cache/
+.ruff_cache/
 dist/
 *.spec
 

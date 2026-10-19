@@ -1,22 +1,24 @@
 # Esqueleto: cada serviço será completado nas issues da Sprint 1.
 services:
   db-server:
-    image: postgres:16
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     environment:
-      POSTGRES_DB: radar
-      POSTGRES_USER: radar
-      POSTGRES_PASSWORD: radar
+      POSTGRES_DB: ${POSTGRES_DB:-radar}
+      POSTGRES_USER: ${POSTGRES_USER:-radar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-radar}
+    security_opt: ["no-new-privileges:true"]
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
       - ./db/data:/data:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U radar -d radar"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       retries: 10
 
   backend:
     build: ./backend
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       db-server:
         condition: service_healthy
@@ -25,6 +27,7 @@ services:
 
   frontend:
     build: ./frontend
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       - backend
     ports:

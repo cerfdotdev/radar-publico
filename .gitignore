@@ -1,6 +1,6 @@
 # Enunciado (não versionado)
-*.pdf
-
+/Trabalho Terceiro Trimestre.pdf
+/.impecable
 # Dados brutos (grandes, baixados pelo script de carga)
 projeto/db/data/*
 !projeto/db/data/.gitkeep

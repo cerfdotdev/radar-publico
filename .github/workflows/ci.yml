@@ -161,12 +161,18 @@ jobs:
           severity-cutoff: high
           only-fixed: true
           output-format: table
+      # Amostra sintética no formato da fonte (scripts/gerar_amostra.py): o teste não depende
+      # do repositorio.dados.gov.br, que nem sempre responde para os runners do GitHub.
+      - name: Usar amostra dos dados
+        if: needs.detect.outputs.stack == 'true'
+        run: cp projeto/db/amostra/* projeto/db/data/
       - name: Smoke test (docker compose up)
         if: needs.detect.outputs.stack == 'true'
         run: |
           docker compose -f projeto/docker-compose.yml up -d --wait --wait-timeout 300
           curl -fsS --retry 10 --retry-delay 3 --retry-all-errors http://localhost:5000/api/health
           curl -fsS --retry 10 --retry-delay 3 --retry-all-errors -o /dev/null http://localhost:8080/
+          curl -fsS --retry 10 --retry-delay 3 --retry-all-errors http://localhost:8080/api/health
       - name: Logs em caso de falha
         if: failure() && needs.detect.outputs.stack == 'true'
         run: docker compose -f projeto/docker-compose.yml logs --tail 200

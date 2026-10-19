@@ -30,6 +30,8 @@ Os scripts de `projeto/db/init/` rodam na primeira vez que o container sobe com 
 
 Para recarregar do zero: `docker compose down -v && docker compose up --build`.
 
+**Amostra para testes rápidos.** `projeto/db/amostra/` tem 300 ativos e 150 aposentados fictícios, no mesmo formato dos arquivos reais (gerados por `scripts/gerar_amostra.py`). O smoke test do CI usa essa amostra, porque o repositorio.dados.gov.br nem sempre responde para os servidores do GitHub. Para usar localmente, com o volume vazio: `cp projeto/db/amostra/* projeto/db/data/` (apague depois para voltar aos dados reais). A carga leva cerca de 3 s.
+
 **Tempo medido** (notebook de desenvolvimento, arquivos já baixados): 98 s do `up` até o banco ficar saudável. O healthcheck usa TCP, que o Postgres só abre ao fim dos scripts, então o backend não sobe com o banco vazio.
 
 ### Tratamento na carga

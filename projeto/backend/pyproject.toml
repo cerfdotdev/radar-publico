@@ -14,7 +14,6 @@ branch = true
 source = ["."]
 omit = [
     "tests/*",
-    "gunicorn.conf.py",
 ]
 
 [tool.coverage.report]

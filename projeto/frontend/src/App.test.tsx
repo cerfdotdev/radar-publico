@@ -1,107 +1,147 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
-import App, { HEALTH_TIMEOUT_MS, HEALTH_URL } from './App'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import App from './App'
+import type { ServidoresResponse } from './types'
 
-type FakeResponse = { ok: boolean; status: number; json: () => Promise<unknown> }
-
-function respondWith(response: FakeResponse) {
-  const fetchMock = vi.fn().mockResolvedValue(response)
-  vi.stubGlobal('fetch', fetchMock)
-  return fetchMock
-}
-
-function jsonBody(body: unknown, status = 200): FakeResponse {
-  return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }
-}
-
-function clickCheck() {
-  fireEvent.click(screen.getByRole('button', { name: /testar conexão com \/api\/health/i }))
+const mockServidoresResponse: ServidoresResponse = {
+  data: [
+    {
+      id: 1048213,
+      nome: 'MARIA DA SILVA',
+      situacao: 'ativo',
+      cargo: 'ANALISTA DE FINANCAS E CONTROLE',
+      orgao: 'CONTROLADORIA-GERAL DA UNIAO',
+      sigla_orgao: null,
+      uf: 'DF',
+      valor: 19090.67,
+    },
+    {
+      id: 1503377,
+      nome: 'MARIA DA SILVA SANTOS',
+      situacao: 'aposentado',
+      cargo: 'AGENTE ADMINISTRATIVO',
+      orgao: 'MINISTERIO DA AGRICULTURA E PECUARIA',
+      sigla_orgao: 'MAPA',
+      uf: null,
+      valor: 7006.78,
+    },
+  ],
+  meta: {
+    total: 2,
+    total_exato: true,
+    page: 1,
+    per_page: 20,
+    total_pages: 1,
+  },
 }
 
 afterEach(() => {
   vi.unstubAllGlobals()
-  vi.useRealTimers()
+  window.history.pushState({}, '', '/')
 })
 
-describe('App', () => {
-  it('renders the brand title, the check button and an empty live region', () => {
+describe('Tela de Busca do Radar Público (Issue #11)', () => {
+  it('renderiza o cabeçalho com logo, título e links de navegação', () => {
     render(<App />)
-    expect(screen.getByRole('heading', { level: 1, name: /radar público/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /testar conexão/i })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    expect(screen.getByRole('heading', { level: 1, name: /buscar servidores federais/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /radar público/i })).toBeInTheDocument()
+    expect(screen.getByRole('navigation', { name: /principal/i })).toBeInTheDocument()
+    expect(document.querySelector('search')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /buscar/i })).toBeInTheDocument()
   })
 
-  it('reports success only when the API answers {"status": "ok"}', async () => {
-    const fetchMock = respondWith(jsonBody({ status: 'ok' }))
+  it('exibe erro de validação quando o nome está vazio ou tem menos de 2 caracteres', async () => {
     render(<App />)
-    clickCheck()
-    expect(await screen.findByText('API conectada.')).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledWith(HEALTH_URL, expect.objectContaining({ signal: expect.any(AbortSignal) }))
+    const botaoBuscar = screen.getByRole('button', { name: /buscar/i })
+
+    // Busca vazia
+    fireEvent.click(botaoBuscar)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/informe um nome para pesquisar/i)
+
+    // Busca com 1 caractere
+    const inputNome = screen.getByRole('textbox', { name: /nome do servidor/i })
+    fireEvent.change(inputNome, { target: { value: 'A' } })
+    fireEvent.click(botaoBuscar)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/pelo menos 2 caracteres/i)
   })
 
-  it('reports the HTTP status on an error response', async () => {
-    respondWith(jsonBody({ error: { code: 'SERVIDOR_INDISPONIVEL' } }, 502))
+  it('consome a API e renderiza os resultados na tabela e na lista responsiva', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(mockServidoresResponse),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
     render(<App />)
-    clickCheck()
-    expect(await screen.findByText(/HTTP 502/)).toBeInTheDocument()
+    const inputNome = screen.getByRole('textbox', { name: /nome do servidor/i })
+    const botaoBuscar = screen.getByRole('button', { name: /buscar/i })
+
+    fireEvent.change(inputNome, { target: { value: 'Maria da Silva' } })
+    fireEvent.click(botaoBuscar)
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith('/api/servidores?nome=Maria%20da%20Silva')
+    })
+
+    // Cabeçalho de resultados
+    expect(await screen.findByText(/2 resultados encontrados para “Maria da Silva”/i)).toBeInTheDocument()
+
+    // Servidores na tabela
+    expect(screen.getAllByText('MARIA DA SILVA').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('MARIA DA SILVA SANTOS').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('ANALISTA DE FINANCAS E CONTROLE').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('CONTROLADORIA-GERAL DA UNIAO').length).toBeGreaterThan(0)
+
+    // Pílulas de situação
+    expect(screen.getAllByText(/ativo/i).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/aposentado/i).length).toBeGreaterThan(0)
+
+    // Valores formatados
+    expect(screen.getAllByText(/19\.090,67/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/7\.006,78/).length).toBeGreaterThan(0)
+
+    // UF ausente formatado como travessão
+    expect(screen.getByLabelText('não informado')).toBeInTheDocument()
   })
 
-  it('treats a 200 that is not JSON as an error', async () => {
-    respondWith({ ok: true, status: 200, json: () => Promise.reject(new SyntaxError('html')) })
-    render(<App />)
-    clickCheck()
-    expect(await screen.findByText(/não em JSON/)).toBeInTheDocument()
-    expect(screen.queryByText('API conectada.')).not.toBeInTheDocument()
-  })
-
-  it('treats an unexpected JSON body as an error', async () => {
-    respondWith(jsonBody({ status: 'down' }))
-    render(<App />)
-    clickCheck()
-    expect(await screen.findByText('Resposta inesperada da API.')).toBeInTheDocument()
-  })
-
-  it('reports a network failure', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
-    render(<App />)
-    clickCheck()
-    expect(await screen.findByText('Não foi possível conectar à API.')).toBeInTheDocument()
-  })
-
-  it('gives up after the timeout', async () => {
-    vi.useFakeTimers()
+  it('exibe estado vazio quando nenhum servidor é encontrado', async () => {
     vi.stubGlobal(
       'fetch',
-      vi.fn(
-        (_url: string, init: RequestInit) =>
-          new Promise((_resolve, reject) => {
-            init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
-          }),
-      ),
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: [], meta: { total: 0, total_exato: true, page: 1, per_page: 20, total_pages: 0 } }),
+      }),
     )
+
     render(<App />)
-    clickCheck()
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(HEALTH_TIMEOUT_MS)
-    })
-    expect(screen.getByText(/não respondeu em 5 s/)).toBeInTheDocument()
+    const inputNome = screen.getByRole('textbox', { name: /nome do servidor/i })
+    const botaoBuscar = screen.getByRole('button', { name: /buscar/i })
+
+    fireEvent.change(inputNome, { target: { value: 'Inexistente' } })
+    fireEvent.click(botaoBuscar)
+
+    expect(await screen.findByRole('heading', { name: /nenhum resultado encontrado/i })).toBeInTheDocument()
   })
 
-  it('keeps the button focusable and ignores clicks while checking', () => {
-    const fetchMock = vi.fn(() => new Promise(() => {}))
-    vi.stubGlobal('fetch', fetchMock)
+  it('exibe aviso de erro quando a API falha', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ error: { message: 'Erro interno no servidor' } }),
+      }),
+    )
+
     render(<App />)
-    const button = screen.getByRole('button', { name: /testar conexão/i })
-    button.focus()
-    fireEvent.click(button)
+    const inputNome = screen.getByRole('textbox', { name: /nome do servidor/i })
+    const botaoBuscar = screen.getByRole('button', { name: /buscar/i })
 
-    const busy = screen.getByRole('button', { name: /verificando/i })
-    expect(busy).not.toBeDisabled()
-    expect(busy).toHaveAttribute('aria-disabled', 'true')
-    expect(busy).toHaveAttribute('aria-busy', 'true')
-    expect(busy).toHaveFocus()
+    fireEvent.change(inputNome, { target: { value: 'Maria' } })
+    fireEvent.click(botaoBuscar)
 
-    fireEvent.click(busy)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/erro interno no servidor/i)
   })
 })

@@ -1,5 +1,6 @@
 # O líder técnico revisa tudo; cada área também tem seu dono.
-*                         @cerfdotdev
+# O João é co-dono do restante para que os PRs do líder possam ser aprovados.
+*                         @cerfdotdev @joaoarenda
 /projeto/backend/         @cerfdotdev @joaoarenda
 /projeto/frontend/        @cerfdotdev @Alisson-dutra
 /desktop/                 @cerfdotdev @Alisson-dutra

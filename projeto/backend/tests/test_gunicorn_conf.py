@@ -3,6 +3,32 @@
 import importlib.util
 from pathlib import Path
 
+import pytest
+
+import server_settings as s
+
+GUNICORN_ENV = [
+    "GUNICORN_PORT",
+    "GUNICORN_WORKERS",
+    "GUNICORN_THREADS",
+    "GUNICORN_TIMEOUT",
+    "GUNICORN_GRACEFUL_TIMEOUT",
+    "GUNICORN_KEEPALIVE",
+    "GUNICORN_MAX_REQUESTS",
+    "GUNICORN_MAX_REQUESTS_JITTER",
+    "GUNICORN_ACCESSLOG",
+    "GUNICORN_ERRORLOG",
+    "GUNICORN_LOGLEVEL",
+]
+
+
+@pytest.fixture
+def clean_env(monkeypatch):
+    """Remove as variáveis GUNICORN_* do ambiente do teste."""
+    for var in GUNICORN_ENV:
+        monkeypatch.delenv(var, raising=False)
+    return monkeypatch
+
 
 def load_gunicorn_conf():
     """Carrega dinamicamente o arquivo gunicorn.conf.py."""
@@ -13,36 +39,65 @@ def load_gunicorn_conf():
     return module
 
 
-def test_gunicorn_conf_defaults(monkeypatch):
-    """Testa os valores padrão de configuração do Gunicorn."""
-    for var in [
-        "GUNICORN_BIND",
-        "BIND",
-        "GUNICORN_WORKERS",
-        "WORKERS",
-        "GUNICORN_THREADS",
-        "THREADS",
-        "GUNICORN_TIMEOUT",
-        "TIMEOUT",
-    ]:
-        monkeypatch.delenv(var, raising=False)
+def test_defaults(clean_env):
+    conf = load_gunicorn_conf()
+    assert conf.bind == f"{s.DEFAULT_HOST}:{s.DEFAULT_PORT}"
+    assert conf.workers == s.DEFAULT_WORKERS
+    assert conf.threads == s.DEFAULT_THREADS
+    assert conf.worker_class == "gthread"
+    assert conf.timeout == s.DEFAULT_TIMEOUT_S
+    assert conf.graceful_timeout == s.DEFAULT_GRACEFUL_TIMEOUT_S
+    assert conf.keepalive == s.DEFAULT_KEEPALIVE_S
+    assert conf.max_requests == s.DEFAULT_MAX_REQUESTS
+    assert conf.max_requests_jitter == s.DEFAULT_MAX_REQUESTS_JITTER
+    assert conf.worker_tmp_dir == s.WORKER_TMP_DIR
+    assert conf.control_socket_disable is True
+    assert conf.accesslog == s.LOG_TO_STDOUT
+    assert conf.errorlog == s.LOG_TO_STDOUT
+    assert conf.loglevel == s.DEFAULT_LOGLEVEL
+
+
+def test_custom_env(clean_env):
+    clean_env.setenv("GUNICORN_PORT", "8000")
+    clean_env.setenv("GUNICORN_WORKERS", "8")
+    clean_env.setenv("GUNICORN_THREADS", "16")
+    clean_env.setenv("GUNICORN_TIMEOUT", "45")
+    clean_env.setenv("GUNICORN_MAX_REQUESTS", "0")
+    clean_env.setenv("GUNICORN_LOGLEVEL", "warning")
 
     conf = load_gunicorn_conf()
-    assert conf.bind == "0.0.0.0:5000"
-    assert conf.workers == 2
-    assert conf.threads == 4
-    assert conf.timeout == 30
-
-
-def test_gunicorn_conf_custom_env(monkeypatch):
-    """Testa se workers e threads respeitam variáveis de ambiente."""
-    monkeypatch.setenv("GUNICORN_WORKERS", "8")
-    monkeypatch.setenv("GUNICORN_THREADS", "16")
-    monkeypatch.setenv("GUNICORN_BIND", "127.0.0.1:8000")
-    monkeypatch.setenv("GUNICORN_TIMEOUT", "45")
-
-    conf = load_gunicorn_conf()
+    assert conf.bind == f"{s.DEFAULT_HOST}:8000"
     assert conf.workers == 8
     assert conf.threads == 16
-    assert conf.bind == "127.0.0.1:8000"
     assert conf.timeout == 45
+    assert conf.max_requests == 0
+    assert conf.loglevel == "warning"
+
+
+def test_single_thread_uses_sync_worker(clean_env):
+    clean_env.setenv("GUNICORN_THREADS", "1")
+    conf = load_gunicorn_conf()
+    assert conf.threads == 1
+    assert conf.worker_class == "sync"
+
+
+@pytest.mark.parametrize("raw", ["abc", "", "  ", "0", "-3", "2.5"])
+def test_invalid_workers_fall_back_to_default(clean_env, raw):
+    clean_env.setenv("GUNICORN_WORKERS", raw)
+    conf = load_gunicorn_conf()
+    assert conf.workers == s.DEFAULT_WORKERS
+
+
+@pytest.mark.parametrize("raw", ["abc", "0"])
+def test_invalid_port_falls_back_to_default(clean_env, raw):
+    clean_env.setenv("GUNICORN_PORT", raw)
+    conf = load_gunicorn_conf()
+    assert conf.bind == f"{s.DEFAULT_HOST}:{s.DEFAULT_PORT}"
+
+
+def test_invalid_value_is_logged(clean_env, caplog):
+    clean_env.setenv("GUNICORN_THREADS", "muitas")
+    with caplog.at_level("WARNING", logger="gunicorn.error"):
+        conf = load_gunicorn_conf()
+    assert conf.threads == s.DEFAULT_THREADS
+    assert "GUNICORN_THREADS" in caplog.text

@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estados da busca · Radar Público</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="componentes.css">
+</head>
+<body>
+<!-- Referência estática: o que a área de resultados mostra para cada resposta da API (docs/api.md).
+     À esquerda, quando acontece; à direita, o componente como aparece na tela. -->
+<main class="container pagina" style="padding-top: 48px">
+  <div>
+    <h1 class="titulo-pagina">Estados da busca</h1>
+    <p class="lead">Todo estado diz o que aconteceu e o que fazer em seguida.</p>
+  </div>
+
+  <div style="border-top: 1px solid var(--line)">
+
+    <section class="ficha" aria-labelledby="e1">
+      <div class="ficha__texto">
+        <h2 class="subtitulo" id="e1">Carregando</h2>
+        <span class="mono aux">aguardando resposta</span>
+        <p class="aux">Esqueleto no formato da tabela. O botão vira “Buscando…” e fica desabilitado.</p>
+      </div>
+      <div class="ficha__exemplo">
+        <div class="esqueleto" aria-busy="true" aria-label="Carregando resultados">
+          <div class="esqueleto__topo"></div>
+          <div class="esqueleto__linha"><i style="width: 200px"></i><i style="width: 110px; background: var(--surface)"></i><i style="width: 72px; margin-left: auto"></i></div>
+          <div class="esqueleto__linha"><i style="width: 160px"></i><i style="width: 140px; background: var(--surface)"></i><i style="width: 72px; margin-left: auto"></i></div>
+          <div class="esqueleto__linha"><i style="width: 220px"></i><i style="width: 96px; background: var(--surface)"></i><i style="width: 72px; margin-left: auto"></i></div>
+        </div>
+        <button class="btn btn--primario" type="button" disabled aria-busy="true">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg>
+          Buscando…
+        </button>
+      </div>
+    </section>
+
+    <section class="ficha" aria-labelledby="e2">
+      <div class="ficha__texto">
+        <h2 class="subtitulo" id="e2">Mais de 10.000 resultados</h2>
+        <span class="mono aux">200 · meta.total_exato = false</span>
+        <p class="aux">Aviso acima da tabela; a paginação para no 10.000º resultado.</p>
+      </div>
+      <div class="ficha__exemplo">
+        <div class="aviso aviso--atencao" role="status">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>
+          <div><strong>Mais de 10.000 resultados para cargo “professor” em RJ</strong><span>Mostramos os 10.000 primeiros, em ordem alfabética. Adicione um órgão ou parte do nome para chegar a quem você procura.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ficha" aria-labelledby="e3">
+      <div class="ficha__texto">
+        <h2 class="subtitulo" id="e3">Nenhum resultado</h2>
+        <span class="mono aux">404 · NAO_ENCONTRADO</span>
+        <p class="aux">Explica a falha e oferece a busca parecida já montada.</p>
+      </div>
+      <div class="ficha__exemplo">
+        <div class="estado-vazio">
+          <strong class="subtitulo">Nenhum vínculo com o nome JOAO DA SILVA XAVIER</strong>
+          <span style="color: var(--ink-2); max-width: 60ch">A busca por nome exato só encontra o nome completo, escrito como no registro. Nomes do meio abreviados ou trocados não aparecem.</span>
+          <a class="btn btn--secundario" href="busca.html" style="min-height: 44px; padding: 0 16px">Buscar nomes parecidos: <span class="mono" style="font-weight: 500">%JOAO%SILVA%XAVIER%</span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="ficha" aria-labelledby="e4">
+      <div class="ficha__texto">
+        <h2 class="subtitulo" id="e4">Entrada inválida</h2>
+        <span class="mono aux">400 · PARAMETRO_INVALIDO · UF_INVALIDA · CARGO_NAO_ENCONTRADO · ORGAO_NAO_ENCONTRADO</span>
+        <p class="aux">No próprio campo, antes de chamar a API. O foco vai para o primeiro campo com erro.</p>
+      </div>
+      <div class="ficha__exemplo">
+        <div class="busca" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr))">
+          <div class="campo campo--erro">
+            <label class="campo__rotulo" for="n-erro">Nome</label>
+            <input class="controle controle--mono" id="n-erro" type="text" value="%AB%" aria-invalid="true" aria-describedby="n-erro-msg">
+            <span class="campo__erro" id="n-erro-msg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Digite pelo menos 3 letras além dos %.</span>
+          </div>
+          <div class="campo campo--erro">
+            <label class="campo__rotulo" for="c-erro">Cargo</label>
+            <input class="controle" id="c-erro" type="text" value="pofessor" aria-invalid="true" aria-describedby="c-erro-msg">
+            <span class="campo__erro" id="c-erro-msg"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Nenhum cargo contém “pofessor”. Confira a grafia ou escolha uma sugestão da lista.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="ficha" aria-labelledby="e5">
+      <div class="ficha__texto">
+        <h2 class="subtitulo" id="e5">Página inexistente</h2>
+        <span class="mono aux">404 · PAGINA_INEXISTENTE</span>
+        <p class="aux">Link antigo ou página digitada na URL. Leva à última página válida.</p>
+      </div>
+      <div class="ficha__exemplo">
+        <div class="estado-vazio">
+          <strong class="subtitulo">A página 140 não existe nesta busca</strong>
+          <span style="color: var(--ink-2)">Esta busca tem 5 páginas. O link pode ser de uma busca anterior, com outros resultados.</span>
+          <a class="btn btn--primario" href="?page=5" style="min-height: 44px; padding: 0 18px">Ir para a página 5</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="ficha" aria-labelledby="e6">
+      <div class="ficha__texto">
+        <h2 class="subtitulo" id="e6">Muitas buscas seguidas</h2>
+        <span class="mono aux">429 · MUITAS_REQUISICOES · 503 · SERVIDOR_OCUPADO</span>
+        <p class="aux">Tom informativo. Contagem a partir do header Retry-After; o botão se reabilita sozinho.</p>
+      </div>
+      <div class="ficha__exemplo">
+        <div class="aviso aviso--info" role="status">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <div><strong>Muitas buscas em pouco tempo</strong><span>Para manter o serviço no ar para todos, limitamos buscas seguidas. Você pode buscar de novo em 12 segundos.</span></div>
+        </div>
+        <button class="btn" type="button" disabled style="align-self: flex-start">Buscar de novo em 12 s</button>
+      </div>
+    </section>
+
+    <section class="ficha" aria-labelledby="e7">
+      <div class="ficha__texto">
+        <h2 class="subtitulo" id="e7">Tempo esgotado ou erro interno</h2>
+        <span class="mono aux">504 · TEMPO_ESGOTADO · 500 · ERRO_INTERNO</span>
+        <p class="aux">O 504 explica a causa provável; o 500 só pede para tentar de novo, sem detalhes técnicos.</p>
+      </div>
+      <div class="ficha__exemplo">
+        <div class="aviso aviso--erro" role="alert">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4M9 2h6"/></svg>
+          <div><strong>A busca demorou mais de 5 segundos e foi interrompida</strong><span>Padrões curtos como %SILVA% comparam centenas de milhares de nomes. Acrescente outra parte do nome ou um filtro de órgão.</span></div>
+        </div>
+        <button class="btn btn--secundario" type="button" style="align-self: flex-start">Tentar de novo</button>
+        <span class="aux">500: “Algo deu errado do nosso lado. Tente de novo em instantes.”</span>
+      </div>
+    </section>
+  </div>
+</main>
+</body>
+</html>

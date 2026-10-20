@@ -1,0 +1,47 @@
+Radar Público (desktop): avisos de licença do executável
+=========================================================
+
+Este executável foi gerado com o PyInstaller (build.py) a partir do código-fonte em
+https://github.com/cerfdotdev/radar-publico, pasta projeto/desktop.
+
+Qt for Python (PySide6 e Shiboken6 6.12.0) e Qt 6.12.0
+------------------------------------------------------
+Copyright (C) The Qt Company Ltd. e outros colaboradores.
+
+Usados sem modificações, sob a GNU Lesser General Public License versão 3
+(LGPL-3.0), cujo texto está em LGPL-3.0.txt. A LGPL-3.0 complementa a GNU General
+Public License versão 3, cujo texto está em GPL-3.0.txt. O Qt inclui componentes de
+terceiros com licenças próprias, listados em
+https://doc.qt.io/qt-6/licenses-used-in-qt.html.
+
+Código-fonte dessas bibliotecas:
+- PySide6 e Shiboken6 6.12.0:
+  https://download.qt.io/official_releases/QtForPython/pyside6/PySide6-6.12.0-src/
+- Qt 6.12.0:
+  https://download.qt.io/official_releases/qt/6.12/6.12.0/single/
+
+Trocar as bibliotecas do Qt
+---------------------------
+O executável é gerado no modo "onedir": o Qt e o PySide6 não ficam embutidos no
+executável, e sim como bibliotecas compartilhadas separadas na pasta _internal, ao lado
+dele. Para usar outra versão compatível (Qt 6.12, mesma arquitetura), basta substituir
+os arquivos correspondentes:
+
+- Linux:   _internal/PySide6/Qt/lib/libQt6*.so.6 (os _internal/libQt6*.so.6 são links
+           para eles) e os plugins em _internal/PySide6/Qt/plugins/
+- Windows: _internal\PySide6\Qt6*.dll e os plugins em _internal\PySide6\plugins\
+- macOS:   RadarPublico.app/Contents/Frameworks/PySide6/Qt/lib/*.framework
+
+As ligações Python (PySide6 e Shiboken6) também ficam separadas, em
+_internal/PySide6/ e _internal/shiboken6/. Outra opção é rodar o app direto do
+código-fonte (README da pasta projeto/desktop) com o Qt for Python que preferir.
+
+Outros componentes
+------------------
+- Python 3.13: Python Software Foundation License, texto em python/LICENSE.txt.
+- Carregador do PyInstaller: GPL-2.0 ou posterior, com a exceção que permite
+  distribuir o executável gerado sob qualquer licença.
+- No Linux, o PyInstaller copia também bibliotecas do sistema em que o build foi feito
+  (por exemplo GLib e GTK, usadas pelo plugin de tema do Qt). Elas ficam como arquivos
+  separados em _internal/, sob as licenças da distribuição, que publica o código-fonte
+  de cada pacote.

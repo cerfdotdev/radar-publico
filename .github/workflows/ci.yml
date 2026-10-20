@@ -120,6 +120,9 @@ jobs:
         run: bandit -r . -x ./tests,./.venv -ll
       - name: Vulnerabilidades nas dependências (pip-audit)
         run: pip-audit --strict
+      # PyInstaller e dependências, só do build do executável (workflow desktop-build.yml).
+      - name: Vulnerabilidades nas dependências de build (pip-audit)
+        run: pip-audit --strict --disable-pip -r requirements-build.txt
       # Os testes da janela usam QT_QPA_PLATFORM=offscreen (tests/conftest.py) e são
       # pulados se o Qt não carregar; -rs lista no log o que foi pulado e por quê.
       - name: Testes (pytest)

@@ -211,11 +211,37 @@ function interpretarResposta(response: Response, corpo: string): SearchOutcome {
   return { kind: 'error', falha: falhaHttp(response.status, erro, lerRetryAfter(response.headers)) }
 }
 
+/** Parâmetros de GET /api/servidores; filtros vazios não entram na query. */
+export interface ParametrosBusca {
+  nome?: string
+  similar?: string
+  limit?: number
+  cargo?: string
+  orgao?: string
+  uf?: string
+}
+
+function montarQuery(busca: string | ParametrosBusca): string {
+  const parametros: ParametrosBusca = typeof busca === 'string' ? { nome: busca } : busca
+  const query = new URLSearchParams()
+  if (parametros.nome) query.set('nome', parametros.nome)
+  if (parametros.similar) query.set('similar', parametros.similar)
+  if (parametros.limit !== undefined) query.set('limit', String(parametros.limit))
+  if (parametros.cargo) query.set('cargo', parametros.cargo)
+  if (parametros.orgao) query.set('orgao', parametros.orgao)
+  if (parametros.uf) query.set('uf', parametros.uf)
+  return query.toString()
+}
+
 /**
- * Busca servidores pelo nome exato. Nunca rejeita por erro de rede, HTTP ou formato:
- * tudo vira um SearchOutcome. Só rejeita (AbortError) quando `signal` cancela a busca.
+ * Busca servidores pelo nome exato ou por filtros combinados. Nunca rejeita por erro
+ * de rede, HTTP ou formato: tudo vira um SearchOutcome. Só rejeita (AbortError)
+ * quando `signal` cancela a busca.
  */
-export async function buscarServidores(nome: string, signal: AbortSignal): Promise<SearchOutcome> {
+export async function buscarServidores(
+  busca: string | ParametrosBusca,
+  signal: AbortSignal,
+): Promise<SearchOutcome> {
   if (signal.aborted) throw new DOMException('Busca cancelada.', 'AbortError')
 
   // Controller próprio para os dois motivos de parar: o tempo limite (vira erro na tela)
@@ -232,7 +258,7 @@ export async function buscarServidores(nome: string, signal: AbortSignal): Promi
   let response: Response
   let corpo: string
   try {
-    const query = new URLSearchParams({ nome }).toString()
+    const query = montarQuery(busca)
     response = await fetch(`${SERVIDORES_URL}?${query}`, {
       signal: controller.signal,
       headers: { Accept: 'application/json' },

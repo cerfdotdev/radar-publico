@@ -2,6 +2,21 @@
 
 export type Situacao = 'ativo' | 'aposentado'
 
+/** Como o nome é enviado: exato (`nome`) ou parecido (`similar`). */
+export type ModoBusca = 'exato' | 'similar'
+
+/** Filtros combináveis do formulário e da URL. */
+export interface Busca {
+  modo: ModoBusca
+  /** Nome exato ou padrão de similaridade, conforme `modo`. */
+  termo: string
+  /** Máximo de resultados; só vale para `similar`. */
+  limite: number
+  cargo: string
+  orgao: string
+  uf: string
+}
+
 export interface Servidor {
   id: number
   nome: string

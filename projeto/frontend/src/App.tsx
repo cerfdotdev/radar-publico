@@ -6,7 +6,7 @@ import { SiteHeader } from './SiteHeader'
 import { useBuscaServidores } from './useBuscaServidores'
 
 export function App() {
-  const { termo, state, buscar } = useBuscaServidores()
+  const { busca, state, buscar } = useBuscaServidores()
 
   return (
     <>
@@ -21,9 +21,11 @@ export function App() {
         </div>
 
         <SearchForm
-          termo={termo}
+          busca={busca}
           ocupado={state.kind === 'loading'}
-          erroExterno={state.kind === 'invalid' ? state.message : null}
+          erroExterno={
+            state.kind === 'invalid' ? { campo: state.campo, mensagem: state.message } : null
+          }
           onBuscar={buscar}
         />
 

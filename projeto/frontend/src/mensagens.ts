@@ -10,11 +10,12 @@ export function totalLimitado(meta: Meta): boolean {
 }
 
 export function tituloResultados(termo: string, meta: Meta): string {
+  const para = termo === '' ? '' : ` para “${termo}”`
   if (totalLimitado(meta)) {
-    return `Mais de ${formatInteger(TOTAL_CAP)} resultados para “${termo}”`
+    return `Mais de ${formatInteger(TOTAL_CAP)} resultados${para}`
   }
   const rotulo = meta.total === 1 ? 'resultado encontrado' : 'resultados encontrados'
-  return `${formatInteger(meta.total)} ${rotulo} para “${termo}”`
+  return `${formatInteger(meta.total)} ${rotulo}${para}`
 }
 
 /** Quando a página não traz todos os resultados (a paginação é da issue #21). */
@@ -26,7 +27,7 @@ export function textoParcial(quantidade: number, meta: Meta): string | null {
 }
 
 export function tituloVazio(termo: string): string {
-  return `Nenhum vínculo com o nome “${termo}”`
+  return termo === '' ? 'Nenhum vínculo encontrado com os filtros informados' : `Nenhum vínculo com o nome “${termo}”`
 }
 
 /**

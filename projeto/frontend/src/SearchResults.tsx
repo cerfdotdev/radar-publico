@@ -3,7 +3,7 @@ import { formatInteger } from './format'
 import { textoParcial, tituloResultados, tituloVazio, totalLimitado } from './mensagens'
 import { ResultsList } from './ResultsList'
 import { ResultsTable } from './ResultsTable'
-import type { Meta, Servidor } from './types'
+import type { Meta, ModoBusca, Servidor } from './types'
 import type { SearchState } from './useBuscaServidores'
 
 /** Área abaixo do formulário: um componente por estado da busca (docs/design/estados.html). */
@@ -12,7 +12,7 @@ export function SearchResults({ state }: { state: SearchState }) {
     case 'loading':
       return <Esqueleto />
     case 'empty':
-      return <EstadoVazio termo={state.termo} />
+      return <EstadoVazio termo={state.termo} modo={state.modo} />
     case 'error':
       return <AvisoFalha falha={state.falha} />
     case 'ok':
@@ -47,16 +47,20 @@ function Esqueleto() {
   )
 }
 
-function EstadoVazio({ termo }: { termo: string }) {
+function EstadoVazio({ termo, modo }: { termo: string; modo: ModoBusca }) {
   return (
     <section className="estado-vazio" aria-labelledby="vazio-titulo">
       <h2 className="subtitulo" id="vazio-titulo">
         {tituloVazio(termo)}
       </h2>
-      <p>
-        A busca por nome exato só encontra o nome completo, escrito como no registro. Nomes do meio abreviados ou
-        trocados não aparecem.
-      </p>
+      {modo === 'similar' ? (
+        <p>Nenhum nome parecido o bastante com o padrão informado. Tente menos partes ou outros filtros.</p>
+      ) : (
+        <p>
+          A busca por nome exato só encontra o nome completo, escrito como no registro. Nomes do meio abreviados ou
+          trocados não aparecem.
+        </p>
+      )}
     </section>
   )
 }

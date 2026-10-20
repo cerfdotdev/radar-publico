@@ -63,6 +63,20 @@ a:hover { color: var(--primary-hover); }
 .busca__linha .controle { flex: 999 1 360px; min-width: 0; }
 .busca__linha .aux, .busca__linha .campo__erro { flex-basis: 100%; } /* dica e erro abaixo do campo */
 
+/* Alternador Nome exato × Nome parecido */
+.alternador { display: inline-flex; margin: 0; padding: 0; border: 1.5px solid var(--line-strong); border-radius: var(--r-controle); overflow: hidden; }
+.alternador button { min-height: 36px; padding: 0 12px; border: 0; background: var(--bg); color: var(--ink-2); font: inherit; font-size: var(--fs-aux); font-weight: 500; cursor: pointer; }
+.alternador button + button { border-left: 1.5px solid var(--line-strong); }
+.alternador button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.alternador button[aria-disabled="true"] { cursor: not-allowed; opacity: 0.7; }
+
+/* Limite de resultados da busca parecida */
+.limite { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 var(--s-1) 0 14px; border: 1.5px solid var(--line-strong); border-radius: var(--r-controle); font-size: var(--fs-aux); color: var(--ink-2); }
+.limite input { width: 64px; min-height: 44px; border: 0; background: transparent; font-family: var(--mono); font-size: 1rem; color: var(--ink); }
+
+/* Filtros combináveis */
+.busca__filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s-4); padding-top: 20px; border-top: 1px solid var(--line); }
+
 /* Pílulas de situação */
 .pilula { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 12px; font-size: var(--fs-mini); font-weight: 600; white-space: nowrap; }
 .pilula--ativo { background: var(--ativo-bg); color: var(--ativo-fg); }

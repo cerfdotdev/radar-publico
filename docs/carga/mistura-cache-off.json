@@ -1,0 +1,125 @@
+{
+  "cenario": "mistura-cache-off",
+  "alvo": "http://localhost:8080/api",
+  "duracao_s": 75,
+  "vus_max": 50,
+  "total": {
+    "requisicoes": 9581,
+    "rps": 127.7,
+    "media_ms": 352.4,
+    "p50_ms": 296.5,
+    "p95_ms": 879.5,
+    "p99_ms": 1109.6,
+    "max_ms": 2043.1
+  },
+  "por_tipo": [
+    {
+      "tipo": "cargo",
+      "requisicoes": 1916,
+      "rps": 25.5,
+      "media_ms": 310.9,
+      "p50_ms": 266.8,
+      "p95_ms": 782.6,
+      "p99_ms": 980.7,
+      "max_ms": 1136.1,
+      "status": {
+        "200": 1916
+      }
+    },
+    {
+      "tipo": "uf",
+      "requisicoes": 1464,
+      "rps": 19.5,
+      "media_ms": 296.5,
+      "p50_ms": 244.2,
+      "p95_ms": 790,
+      "p99_ms": 943.9,
+      "max_ms": 1127,
+      "status": {
+        "200": 1464
+      }
+    },
+    {
+      "tipo": "orgao",
+      "requisicoes": 1331,
+      "rps": 17.7,
+      "media_ms": 301.7,
+      "p50_ms": 249.9,
+      "p95_ms": 777.8,
+      "p99_ms": 967.9,
+      "max_ms": 1129.1,
+      "status": {
+        "200": 1331
+      }
+    },
+    {
+      "tipo": "nome_cargo_uf",
+      "requisicoes": 995,
+      "rps": 13.3,
+      "media_ms": 297.7,
+      "p50_ms": 244.3,
+      "p95_ms": 775.3,
+      "p99_ms": 947.4,
+      "max_ms": 1094.9,
+      "status": {
+        "200": 93,
+        "404": 902
+      }
+    },
+    {
+      "tipo": "similar",
+      "requisicoes": 1476,
+      "rps": 19.7,
+      "media_ms": 586,
+      "p50_ms": 534.2,
+      "p95_ms": 1127,
+      "p99_ms": 1442.4,
+      "max_ms": 2043.1,
+      "status": {
+        "200": 1476
+      }
+    },
+    {
+      "tipo": "similar_filtro",
+      "requisicoes": 942,
+      "rps": 12.6,
+      "media_ms": 363.8,
+      "p50_ms": 313.4,
+      "p95_ms": 825.2,
+      "p99_ms": 1026.8,
+      "max_ms": 1141,
+      "status": {
+        "200": 942
+      }
+    },
+    {
+      "tipo": "pagina_funda",
+      "requisicoes": 989,
+      "rps": 13.2,
+      "media_ms": 299.3,
+      "p50_ms": 243.7,
+      "p95_ms": 781.7,
+      "p99_ms": 944.7,
+      "max_ms": 1111.6,
+      "status": {
+        "200": 989
+      }
+    },
+    {
+      "tipo": "detalhe",
+      "requisicoes": 468,
+      "rps": 6.2,
+      "media_ms": 310.5,
+      "p50_ms": 269.8,
+      "p95_ms": 748.8,
+      "p99_ms": 898.5,
+      "max_ms": 1092.5,
+      "status": {
+        "200": 468
+      }
+    }
+  ],
+  "cache": {
+    "NENHUM": 9581
+  }
+}

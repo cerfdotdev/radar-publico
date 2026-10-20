@@ -1,0 +1,76 @@
+{
+  "cenario": "sobrecarga-300",
+  "alvo": "http://localhost:8080/api",
+  "duracao_s": 154,
+  "vus_max": 320,
+  "total": {
+    "requisicoes": 1505,
+    "rps": 9.8,
+    "media_ms": 13117,
+    "p50_ms": 15001.2,
+    "p95_ms": 15008.5,
+    "p99_ms": 15018.1,
+    "max_ms": 15042.8
+  },
+  "por_tipo": [
+    {
+      "tipo": "pesada_similar",
+      "requisicoes": 636,
+      "rps": 4.1,
+      "media_ms": 14320.8,
+      "p50_ms": 15001.2,
+      "p95_ms": 15008.7,
+      "p99_ms": 15018.9,
+      "max_ms": 15042.8,
+      "status": {
+        "200": 61,
+        "504": 575
+      }
+    },
+    {
+      "tipo": "pesada_pagina",
+      "requisicoes": 601,
+      "rps": 3.9,
+      "media_ms": 14065.2,
+      "p50_ms": 15001.2,
+      "p95_ms": 15008.5,
+      "p99_ms": 15018.6,
+      "max_ms": 15032.3,
+      "status": {
+        "200": 74,
+        "504": 527
+      }
+    },
+    {
+      "tipo": "sonda_health",
+      "requisicoes": 134,
+      "rps": 0.9,
+      "media_ms": 8427.8,
+      "p50_ms": 15000.9,
+      "p95_ms": 15005,
+      "p99_ms": 15010.9,
+      "max_ms": 15014.4,
+      "status": {
+        "200": 61,
+        "504": 73
+      }
+    },
+    {
+      "tipo": "sonda_busca",
+      "requisicoes": 134,
+      "rps": 0.9,
+      "media_ms": 7839.9,
+      "p50_ms": 14999.8,
+      "p95_ms": 15006.6,
+      "p99_ms": 15012.7,
+      "max_ms": 15017.5,
+      "status": {
+        "200": 64,
+        "504": 70
+      }
+    }
+  ],
+  "cache": {
+    "NENHUM": 1505
+  }
+}

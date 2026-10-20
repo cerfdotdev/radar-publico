@@ -1,0 +1,5 @@
+time="2026-10-20T15:31:57Z" level=info msg="MESMA_URL 150 pedidos: {\"200 MISS\":1,\"200 HIT\":149}"
+time="2026-10-20T15:31:58Z" level=info msg="PRIMEIRO_429 na URL distinta 71; Retry-After=57; corpo={\"error\":{\"code\":\"MUITAS_REQUISICOES\",\"message\":\"Muitas requisições em pouco tempo. Aguarde e tente de novo.\"}}\n"
+time="2026-10-20T15:31:58Z" level=info msg="URLS_DISTINTAS 250 pedidos: {\"200 MISS\":119,\"429 MISS\":131}"
+time="2026-10-20T15:31:58Z" level=info msg="HEALTH intercalado: {\"200 -\":250}"
+time="2026-10-20T15:31:58Z" level=info msg="JA_LIMITADO url_repetida/pagina_1_ja_pedida/url_nova: {\"200 HIT\":2,\"429 MISS\":1}"

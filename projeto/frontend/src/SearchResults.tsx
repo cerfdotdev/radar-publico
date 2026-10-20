@@ -2,10 +2,10 @@ import { TOTAL_CAP, type Falha } from './api'
 import type { MouseEvent } from 'react'
 import { DetalheServidor } from './DetalheServidor'
 import { formatInteger } from './format'
-import { textoParcial, tituloResultados, tituloVazio, totalLimitado } from './mensagens'
+import { temFiltros, textoParcial, tituloResultados, tituloVazio, totalLimitado } from './mensagens'
 import { ResultsList } from './ResultsList'
 import { ResultsTable } from './ResultsTable'
-import type { Meta, ModoBusca, Servidor } from './types'
+import type { Busca, Meta, Servidor } from './types'
 import { PAGE_PARAM, type SearchState } from './useBuscaServidores'
 
 interface SearchResultsProps {
@@ -24,13 +24,13 @@ export function SearchResults({
     case 'loading':
       return <Esqueleto />
     case 'empty':
-      return <EstadoVazio termo={state.termo} modo={state.modo} />
+      return <EstadoVazio busca={state.busca} />
     case 'error':
       return <AvisoFalha falha={state.falha} />
     case 'ok':
       return (
         <Resultados
-          termo={state.termo}
+          busca={state.busca}
           servidores={state.servidores}
           meta={state.meta}
           onPagina={onPagina}
@@ -67,22 +67,25 @@ function Esqueleto() {
   )
 }
 
-function EstadoVazio({ termo, modo }: { termo: string; modo: ModoBusca }) {
+function EstadoVazio({ busca }: { busca: Busca }) {
   return (
     <section className="estado-vazio" aria-labelledby="vazio-titulo">
       <h2 className="subtitulo" id="vazio-titulo">
-        {tituloVazio(termo)}
+        {tituloVazio(busca)}
       </h2>
-      {modo === 'similar' ? (
-        <p>Nenhum nome parecido o bastante com o padrão informado. Tente menos partes ou outros filtros.</p>
-      ) : (
-        <p>
-          A busca por nome exato só encontra o nome completo, escrito como no registro. Nomes do meio abreviados ou
-          trocados não aparecem.
-        </p>
-      )}
+      <p>{explicacaoVazio(busca)}</p>
     </section>
   )
+}
+
+function explicacaoVazio(busca: Busca): string {
+  if (busca.modo === 'similar') {
+    return 'O padrão vale para o nome inteiro: use % no lugar das partes que você não sabe, como em %MARIA%SILVA%, ou confira a grafia.'
+  }
+  if (temFiltros(busca)) {
+    return 'Nenhum vínculo atende a todos os filtros ao mesmo tempo. Tire um filtro ou confira a grafia.'
+  }
+  return 'A busca por nome exato só encontra o nome completo, escrito como no registro. Nomes do meio abreviados ou trocados não aparecem.'
 }
 
 function AvisoFalha({ falha }: { falha: Falha }) {
@@ -117,15 +120,16 @@ function AvisoFalha({ falha }: { falha: Falha }) {
 }
 
 interface ResultadosProps {
-  termo: string
+  busca: Busca
   servidores: Servidor[]
   meta: Meta
   onPagina: (pagina: number) => void
   onPorPagina: (porPagina: number) => void
 }
 
-function Resultados({ termo, servidores, meta, onPagina, onPorPagina }: ResultadosProps) {
+function Resultados({ busca, servidores, meta, onPagina, onPorPagina }: ResultadosProps) {
   const parcial = textoParcial(servidores.length, meta)
+  const similar = busca.modo === 'similar'
   const unico = meta.total === 1 && servidores.length === 1
 
   return (
@@ -133,7 +137,7 @@ function Resultados({ termo, servidores, meta, onPagina, onPorPagina }: Resultad
       <div className="resultados__topo">
         <div>
           <h2 className="titulo-secao" id="res-titulo">
-            {tituloResultados(termo, meta)}
+            {tituloResultados(busca, meta)}
           </h2>
           {parcial !== null && <p className="aux">{parcial}</p>}
         </div>
@@ -167,8 +171,8 @@ function Resultados({ termo, servidores, meta, onPagina, onPorPagina }: Resultad
           <div>
             <strong>Refine a busca</strong>
             <span>
-              A contagem para em {formatInteger(TOTAL_CAP)} resultados. Confira se digitou o nome completo, como no
-              registro.
+              A contagem para em {formatInteger(TOTAL_CAP)} resultados. Acrescente o nome completo ou outro filtro
+              para chegar a quem você procura.
             </span>
           </div>
         </div>
@@ -178,8 +182,8 @@ function Resultados({ termo, servidores, meta, onPagina, onPorPagina }: Resultad
         <DetalheServidor resumo={servidores[0]} />
       ) : (
         <>
-          <ResultsTable servidores={servidores} />
-          <ResultsList servidores={servidores} />
+          <ResultsTable servidores={servidores} similar={similar} />
+          <ResultsList servidores={servidores} similar={similar} />
           <Paginacao
             meta={meta}
             quantidade={servidores.length}

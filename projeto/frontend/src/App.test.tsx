@@ -11,6 +11,7 @@ import {
   fetchRespondendo,
   respostaJson,
   respostaTexto,
+  SERVIDOR_APOSENTADO,
   SERVIDOR_ATIVO,
 } from './testUtils'
 
@@ -23,6 +24,11 @@ afterEach(() => {
 const campoNome = () => screen.getByRole('textbox', { name: 'Nome do servidor' })
 const botaoBuscar = () => screen.getByRole('button', { name: /^(Buscar|Buscando…)$/ })
 const regiaoViva = () => screen.getByRole('status')
+const campoLimite = () => screen.getByRole('spinbutton', { name: /^Até/ })
+const campoCargo = () => screen.getByRole('textbox', { name: 'Cargo' })
+const campoOrgao = () => screen.getByRole('textbox', { name: 'Órgão' })
+const campoUf = () => screen.getByRole('combobox', { name: /^UF/ })
+const botaoModo = (nome: 'Nome exato' | 'Nome parecido') => screen.getByRole('button', { name: nome })
 const tituloResultados = () => screen.getByRole('heading', { level: 2 })
 
 function abrirCom(url: string, arvore = <App />) {
@@ -62,8 +68,8 @@ describe('Tela de busca (issue #11)', () => {
 
     fireEvent.click(botaoBuscar())
     expect(campoNome()).toHaveAttribute('aria-invalid', 'true')
-    expect(campoNome()).toHaveAccessibleDescription('Informe um nome para pesquisar.')
-    expect(screen.getByRole('alert')).toHaveTextContent('Informe um nome para pesquisar.')
+    expect(campoNome()).toHaveAccessibleDescription('Informe um nome ou pelo menos um filtro: cargo, órgão ou UF.')
+    expect(screen.getByRole('alert')).toHaveTextContent('Informe um nome ou pelo menos um filtro: cargo, órgão ou UF.')
     expect(campoNome()).toHaveFocus()
 
     // Editar o campo tira o erro.
@@ -288,6 +294,163 @@ describe('Tela de busca (issue #11)', () => {
     expect(await screen.findByText('Muitas buscas em pouco tempo')).toBeInTheDocument()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(regiaoViva()).toHaveTextContent('Você pode buscar de novo em 12 segundos.')
+  })
+})
+
+describe('Nome parecido e filtros combinados (issue #20)', () => {
+  it('combina nome exato, cargo, órgão e UF numa requisição só e guarda tudo na URL', async () => {
+    const { pedidos } = fetchPendente()
+    render(<App />)
+    fireEvent.change(campoNome(), { target: { value: 'Maria' } })
+    fireEvent.change(campoCargo(), { target: { value: ' professor ' } })
+    fireEvent.change(campoOrgao(), { target: { value: 'INSS' } })
+    fireEvent.change(campoUf(), { target: { value: 'RJ' } })
+    fireEvent.click(botaoBuscar())
+
+    expect(pedidos).toHaveLength(1)
+    expect(pedidos[0].url).toBe('/api/servidores?nome=Maria&cargo=professor&orgao=INSS&uf=RJ')
+    expect(window.location.search).toBe('?nome=Maria&cargo=professor&orgao=INSS&uf=RJ')
+
+    await act(async () => pedidos[0].responder(respostaJson(200, corpoServidores([SERVIDOR_ATIVO]))))
+    expect(tituloResultados()).toHaveTextContent('1 resultado encontrado para “Maria”, cargo “professor”, órgão “INSS” em RJ')
+  })
+
+  it('busca só por filtros, sem nome, e descreve os filtros no título e no vazio', async () => {
+    const fetchMock = fetchRespondendo(() => respostaJson(200, corpoServidores()))
+    abrirCom('/?cargo=professor&uf=RJ')
+    expect(campoCargo()).toHaveValue('professor')
+    expect(campoUf()).toHaveValue('RJ')
+    expect(await screen.findByRole('heading', { level: 2 })).toHaveTextContent(
+      '2 resultados encontrados para cargo “professor” em RJ',
+    )
+    expect(fetchMock).toHaveBeenCalledWith('/api/servidores?cargo=professor&uf=RJ', expect.anything())
+
+    fetchRespondendo(() => erroApi(404, 'NAO_ENCONTRADO', 'Nenhum servidor encontrado com esses filtros.'))
+    navegarPara('/?orgao=INSS&uf=AC')
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Nenhum vínculo encontrado para órgão “INSS” em AC' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Nenhum vínculo atende a todos os filtros/)).toBeInTheDocument()
+  })
+
+  it('nome parecido envia similar e limit, sem cargo, órgão e UF, e mostra a semelhança', async () => {
+    const { pedidos } = fetchPendente()
+    render(<App />)
+    fireEvent.change(campoCargo(), { target: { value: 'professor' } })
+    fireEvent.change(campoNome(), { target: { value: '%maria%silva%' } })
+    fireEvent.click(botaoModo('Nome parecido'))
+
+    expect(botaoModo('Nome parecido')).toHaveAttribute('aria-pressed', 'true')
+    expect(campoNome()).toHaveValue('%maria%silva%')
+    expect(campoNome()).toHaveAccessibleDescription(/Use % no lugar das partes que você não sabe/)
+    expect(campoLimite()).toHaveValue(100)
+    // A API ainda ignora os filtros com similar: desativados e com o motivo, sem perder o valor.
+    expect(campoCargo()).toBeDisabled()
+    expect(campoCargo()).toHaveValue('professor')
+    expect(screen.getByRole('group', { name: 'Filtros' })).toHaveAccessibleDescription(
+      'A busca por nome parecido usa só o nome: cargo, órgão e UF não se aplicam a ela.',
+    )
+
+    fireEvent.change(campoLimite(), { target: { value: '50' } })
+    fireEvent.click(botaoBuscar())
+    expect(pedidos[0].url).toBe('/api/servidores?similar=%25maria%25silva%25&limit=50')
+    expect(window.location.search).toBe('?similar=%25maria%25silva%25&limit=50')
+
+    const corpo = corpoServidores(
+      [
+        { ...SERVIDOR_ATIVO, similaridade: 0.857 },
+        { ...SERVIDOR_APOSENTADO, id: 2, similaridade: 0.5 },
+      ],
+      { per_page: 50 },
+    )
+    await act(async () => pedidos[0].responder(respostaJson(200, corpo)))
+
+    expect(tituloResultados()).toHaveTextContent('Os 2 nomes mais parecidos com “%maria%silva%”')
+    expect(regiaoViva()).toHaveTextContent('Os 2 nomes mais parecidos com “%maria%silva%”.')
+    const tabela = screen.getByRole('table')
+    expect(within(tabela).getByRole('columnheader', { name: 'Semelhança' })).toHaveAttribute('aria-sort', 'descending')
+    expect(within(tabela).getAllByRole('row')[1]).toHaveTextContent('0,86')
+    expect(within(screen.getByRole('list', { name: 'Servidores encontrados' })).getAllByRole('listitem')[1]).toHaveTextContent(
+      'semelhança 0,50',
+    )
+
+    // Voltar ao nome exato reativa os filtros com o que já estava digitado.
+    fireEvent.click(botaoModo('Nome exato'))
+    expect(campoCargo()).toBeEnabled()
+    expect(campoCargo()).toHaveValue('professor')
+    expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
+  })
+
+  it('valida o padrão parecido e o limite no próprio campo, sem chamar a API', () => {
+    const fetchMock = fetchRespondendo(() => respostaJson(200, corpoServidores()))
+    render(<App />)
+    fireEvent.click(botaoModo('Nome parecido'))
+
+    digitarEBuscar('%AB%')
+    expect(campoNome()).toHaveAccessibleDescription('Digite pelo menos 3 letras além dos %.')
+    expect(campoNome()).toHaveFocus()
+
+    fireEvent.change(campoNome(), { target: { value: '%MARIA%' } })
+    fireEvent.change(campoLimite(), { target: { value: '101' } })
+    fireEvent.click(botaoBuscar())
+    expect(campoLimite()).toHaveAttribute('aria-invalid', 'true')
+    expect(campoLimite()).toHaveAccessibleDescription('O limite deve ser um número inteiro de 1 a 100.')
+    expect(campoLimite()).toHaveFocus()
+    expect(campoNome()).toHaveAttribute('aria-invalid', 'false')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(window.location.search).toBe('')
+  })
+
+  it('cargo sem correspondente (404 CARGO_NAO_ENCONTRADO) aparece no campo cargo, com o foco nele', async () => {
+    fetchRespondendo(() => erroApi(404, 'CARGO_NAO_ENCONTRADO', 'Nenhum cargo corresponde à busca.'))
+    abrirCom('/?nome=Maria&cargo=pofessor')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Nenhum cargo contém “pofessor”.')
+    expect(campoCargo()).toHaveAttribute('aria-invalid', 'true')
+    expect(campoCargo()).toHaveAccessibleDescription(/^Nenhum cargo contém “pofessor”/)
+    expect(campoCargo()).toHaveFocus()
+    expect(campoNome()).toHaveAttribute('aria-invalid', 'false')
+    expect(screen.queryByText('Não foi possível concluir a busca')).not.toBeInTheDocument()
+    // No celular, a seção recolhida abre sozinha para mostrar o erro.
+    expect(screen.getByRole('button', { name: /^Filtros/ })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('botão Filtros do celular conta os filtros preenchidos e abre a seção', () => {
+    fetchPendente()
+    abrirCom('/?cargo=professor&uf=RJ')
+    const botao = screen.getByRole('button', { name: 'Filtros, 2 preenchidos' })
+    expect(botao).toHaveAttribute('aria-expanded', 'false')
+    expect(botao).toHaveAttribute('aria-controls', 'filtros')
+    expect(document.getElementById('filtros')).toBe(screen.getByRole('group', { name: 'Filtros' }))
+    fireEvent.click(botao)
+    expect(botao).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('UF fica habilitada durante a busca, para o foco não se perder', () => {
+    fetchPendente()
+    abrirCom('/?uf=RJ')
+    expect(regiaoViva()).toHaveTextContent('Buscando…')
+    expect(campoUf()).toBeEnabled()
+    expect(campoCargo()).toHaveAttribute('readonly')
+  })
+
+  it('a URL define o modo; navegar no histórico restaura modo, limite e filtros', async () => {
+    fetchRespondendo(() => respostaJson(200, corpoServidores()))
+    abrirCom('/?nome=Maria&uf=RJ')
+    expect(botaoModo('Nome exato')).toHaveAttribute('aria-pressed', 'true')
+    expect(campoUf()).toHaveValue('RJ')
+
+    navegarPara('/?similar=%25MARIA%25&limit=20')
+    expect(botaoModo('Nome parecido')).toHaveAttribute('aria-pressed', 'true')
+    expect(campoNome()).toHaveValue('%MARIA%')
+    expect(campoLimite()).toHaveValue(20)
+    expect(await screen.findByRole('heading', { level: 2 })).toHaveTextContent('Os 2 nomes mais parecidos com “%MARIA%”')
+
+    navegarPara('/?nome=Maria&uf=RJ')
+    expect(botaoModo('Nome exato')).toHaveAttribute('aria-pressed', 'true')
+    expect(campoNome()).toHaveValue('Maria')
+    expect(campoUf()).toHaveValue('RJ')
   })
 })
 

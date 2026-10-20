@@ -23,9 +23,7 @@ export function App() {
         <SearchForm
           busca={busca}
           ocupado={state.kind === 'loading'}
-          erroExterno={
-            state.kind === 'invalid' ? { campo: state.campo, mensagem: state.message } : null
-          }
+          erroExterno={state.kind === 'invalid' ? { campo: state.campo, mensagem: state.message } : null}
           onBuscar={buscar}
         />
 

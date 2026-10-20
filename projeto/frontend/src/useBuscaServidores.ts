@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  buscarServidores,
-  FALHA_INESPERADA,
-  type Falha,
-  type ParametrosBusca,
-  type SearchOutcome,
-} from './api'
-import { LIMITE_PADRAO, limparTermo, validarBusca, type CampoBusca } from './filtros'
-import type { Busca, Meta, ModoBusca, Servidor } from './types'
+import { buscarServidores, FALHA_INESPERADA, type ParametrosBusca, type SearchOutcome } from './api'
+import { aceitaFiltros, LIMITE_PADRAO, validarBusca } from './filtros'
+import { limparNome } from './nome'
+import type { Busca, ModoBusca } from './types'
 
 /** Parâmetros da URL com a busca: recarregar, copiar o link e voltar mantêm os filtros. */
 export const NOME_PARAM = 'nome'
@@ -46,12 +41,11 @@ export const BUSCA_VAZIA: Busca = {
 
 export type SearchState =
   | { kind: 'idle' }
-  | { kind: 'loading'; termo: string; modo: ModoBusca }
-  | { kind: 'invalid'; termo: string; modo: ModoBusca; message: string; campo: CampoBusca }
-  | { kind: 'empty'; termo: string; modo: ModoBusca }
-  | { kind: 'ok'; termo: string; modo: ModoBusca; servidores: Servidor[]; meta: Meta }
-  | { kind: 'error'; termo: string; modo: ModoBusca; falha: Falha }
+  | { kind: 'loading'; busca: Busca }
+  | (SearchOutcome & { busca: Busca })
 
+// Cada busca é um objeto novo: repetir a mesma busca também refaz a requisição,
+// e a resposta só vale para o objeto que a pediu.
 interface Resposta {
   busca: Busca
   resultado: SearchOutcome
@@ -59,7 +53,7 @@ interface Resposta {
 
 function lerLimite(valor: string | null): number {
   if (valor === null) return LIMITE_PADRAO
-  return /^\d+$/.test(valor) ? Number(valor) : Number.NaN
+  return /^\d+$/.test(valor.trim()) ? Number(valor) : Number.NaN
 }
 
 function lerInteiro(valor: string | null, padrao: number, minimo: number, maximo: number): number {
@@ -71,14 +65,15 @@ function lerInteiro(valor: string | null, padrao: number, minimo: number, maximo
 
 function lerBuscaDaUrl(): Busca | null {
   const params = new URLSearchParams(window.location.search)
+  const ler = (parametro: string) => limparNome(params.get(parametro) ?? '')
   const modo: ModoBusca = params.has(SIMILAR_PARAM) ? 'similar' : 'exato'
   const busca: Busca = {
     modo,
-    termo: limparTermo(params.get(modo === 'similar' ? SIMILAR_PARAM : NOME_PARAM) ?? ''),
+    termo: ler(modo === 'similar' ? SIMILAR_PARAM : NOME_PARAM),
     limite: lerLimite(params.get(LIMITE_PARAM)),
-    cargo: limparTermo(params.get(CARGO_PARAM) ?? ''),
-    orgao: limparTermo(params.get(ORGAO_PARAM) ?? ''),
-    uf: (params.get(UF_PARAM) ?? '').trim().toUpperCase(),
+    cargo: ler(CARGO_PARAM),
+    orgao: ler(ORGAO_PARAM),
+    uf: ler(UF_PARAM).toUpperCase(),
     pagina: lerInteiro(params.get(PAGE_PARAM), PAGINA_PADRAO, 1, 10_000),
     porPagina: lerInteiro(params.get(PER_PAGE_PARAM), POR_PAGINA_PADRAO, 1, 100),
   }
@@ -87,59 +82,25 @@ function lerBuscaDaUrl(): Busca | null {
   return vazia ? null : busca
 }
 
-function estadoAtual(busca: Busca | null, resposta: Resposta | null): SearchState {
-  if (busca === null) return { kind: 'idle' }
-  const erro = validarBusca(busca)
-  if (erro !== null) {
-    return { kind: 'invalid', termo: busca.termo, modo: busca.modo, message: erro.mensagem, campo: erro.campo }
-  }
-  if (resposta?.busca !== busca) return { kind: 'loading', termo: busca.termo, modo: busca.modo }
-
-  const resultado = resposta.resultado
-  switch (resultado.kind) {
-    case 'invalid':
-      return { kind: 'invalid', termo: busca.termo, modo: busca.modo, message: resultado.message, campo: 'termo' }
-    case 'ok':
-      return { kind: 'ok', termo: busca.termo, modo: busca.modo, servidores: resultado.servidores, meta: resultado.meta }
-    case 'empty':
-      return { kind: 'empty', termo: busca.termo, modo: busca.modo }
-    case 'error':
-      return { kind: 'error', termo: busca.termo, modo: busca.modo, falha: resultado.falha }
-  }
-}
-
+/** O que vai para a API e para a URL: só os filtros preenchidos que o modo aceita. */
 function parametrosDaBusca(busca: Busca): ParametrosBusca {
+  if (!aceitaFiltros(busca.modo)) return { similar: busca.termo, limit: busca.limite }
   const parametros: ParametrosBusca = {}
-  if (busca.termo !== '') {
-    if (busca.modo === 'similar') {
-      parametros.similar = busca.termo
-      parametros.limit = busca.limite
-    } else {
-      parametros.nome = busca.termo
-    }
-  }
+  if (busca.termo !== '') parametros.nome = busca.termo
   if (busca.cargo !== '') parametros.cargo = busca.cargo
   if (busca.orgao !== '') parametros.orgao = busca.orgao
   if (busca.uf !== '') parametros.uf = busca.uf
-  if (busca.modo !== 'similar') {
-    if (busca.pagina !== PAGINA_PADRAO) parametros.page = busca.pagina
-    if (busca.porPagina !== POR_PAGINA_PADRAO) parametros.per_page = busca.porPagina
-  }
+  if (busca.pagina !== PAGINA_PADRAO) parametros.page = busca.pagina
+  if (busca.porPagina !== POR_PAGINA_PADRAO) parametros.per_page = busca.porPagina
   return parametros
 }
 
-function queryDaUrl(busca: Busca): URLSearchParams {
-  const parametros = parametrosDaBusca(busca)
-  const query = new URLSearchParams()
-  if (parametros.nome !== undefined) query.set(NOME_PARAM, parametros.nome)
-  if (parametros.similar !== undefined) query.set(SIMILAR_PARAM, parametros.similar)
-  if (parametros.limit !== undefined) query.set(LIMITE_PARAM, String(parametros.limit))
-  if (parametros.cargo !== undefined) query.set(CARGO_PARAM, parametros.cargo)
-  if (parametros.orgao !== undefined) query.set(ORGAO_PARAM, parametros.orgao)
-  if (parametros.uf !== undefined) query.set(UF_PARAM, parametros.uf)
-  if (parametros.page !== undefined) query.set(PAGE_PARAM, String(parametros.page))
-  if (parametros.per_page !== undefined) query.set(PER_PAGE_PARAM, String(parametros.per_page))
-  return query
+function estadoAtual(busca: Busca | null, resposta: Resposta | null): SearchState {
+  if (busca === null) return { kind: 'idle' }
+  const erro = validarBusca(busca)
+  if (erro !== null) return { kind: 'invalid', busca, campo: erro.campo, message: erro.mensagem }
+  if (resposta?.busca !== busca) return { kind: 'loading', busca }
+  return { ...resposta.resultado, busca }
 }
 
 /** Busca por nome exato ou parecido com filtros combinados, guardada na URL. */
@@ -177,8 +138,8 @@ export function useBuscaServidores() {
   const buscar = useCallback((novaBusca: Busca) => {
     const url = new URL(window.location.href)
     for (const parametro of PARAMETROS) url.searchParams.delete(parametro)
-    for (const [parametro, valor] of queryDaUrl(novaBusca)) {
-      url.searchParams.set(parametro, valor)
+    for (const [parametro, valor] of Object.entries(parametrosDaBusca(novaBusca))) {
+      url.searchParams.set(parametro, String(valor))
     }
     if (url.searchParams.toString() === '') url.search = ''
 
@@ -191,5 +152,5 @@ export function useBuscaServidores() {
     setBusca(novaBusca)
   }, [])
 
-  return { busca: busca ?? BUSCA_VAZIA, termo: busca?.termo ?? '', state: estadoAtual(busca, resposta), buscar }
+  return { busca: busca ?? BUSCA_VAZIA, state: estadoAtual(busca, resposta), buscar }
 }

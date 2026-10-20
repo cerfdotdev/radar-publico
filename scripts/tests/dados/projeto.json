@@ -1,0 +1,89 @@
+{
+ "sprints": {
+  "iterations": [],
+  "completedIterations": [
+   {"id": "s2", "title": "Sprint 2", "startDate": "2026-10-19", "duration": 1},
+   {"id": "s1", "title": "Sprint 1", "startDate": "2026-10-18", "duration": 1}
+  ]
+ },
+ "itens": [
+  {
+   "content": {
+    "__typename": "Issue", "number": 1, "title": "Fechada dentro da sprint",
+    "state": "CLOSED", "stateReason": "COMPLETED",
+    "createdAt": "2026-10-18T13:00:00Z", "closedAt": "2026-10-19T01:00:00Z",
+    "assignees": {"nodes": [{"login": "ana"}]},
+    "closedByPullRequestsReferences": {"nodes": [{"number": 10, "mergedAt": "2026-10-19T00:59:00Z"}]}
+   },
+   "pontos": {"number": 3.0}, "sprint": {"iterationId": "s1"}, "status": {"name": "Done"}
+  },
+  {
+   "content": {
+    "__typename": "Issue", "number": 2, "title": "Fechada duas horas depois do fim | com barra",
+    "state": "CLOSED", "stateReason": "COMPLETED",
+    "createdAt": "2026-10-18T13:00:00Z", "closedAt": "2026-10-19T05:00:00Z",
+    "assignees": {"nodes": [{"login": "bia"}]},
+    "closedByPullRequestsReferences": {"nodes": []}
+   },
+   "pontos": {"number": 5.0}, "sprint": {"iterationId": "s1"}, "status": {"name": "Done"}
+  },
+  {
+   "content": {
+    "__typename": "Issue", "number": 3, "title": "Aberta com dois responsáveis",
+    "state": "OPEN", "stateReason": null,
+    "createdAt": "2026-10-18T13:00:00Z", "closedAt": null,
+    "assignees": {"nodes": [{"login": "ana"}, {"login": "bia"}]},
+    "closedByPullRequestsReferences": {"nodes": [{"number": 12, "mergedAt": null}]}
+   },
+   "pontos": {"number": 2.0}, "sprint": {"iterationId": "s2"}, "status": {"name": "Todo"}
+  },
+  {
+   "content": {
+    "__typename": "Issue", "number": 4, "title": "PR mergeado na sprint, fechada depois",
+    "state": "CLOSED", "stateReason": "COMPLETED",
+    "createdAt": "2026-10-18T13:01:00Z", "closedAt": "2026-10-20T12:00:00Z",
+    "assignees": {"nodes": [{"login": "bia"}]},
+    "closedByPullRequestsReferences": {"nodes": [{"number": 11, "mergedAt": "2026-10-19T20:00:00Z"}]}
+   },
+   "pontos": {"number": 8.0}, "sprint": {"iterationId": "s2"}, "status": {"name": "Done"}
+  },
+  {
+   "content": {
+    "__typename": "Issue", "number": 5, "title": "Criada depois do planejamento",
+    "state": "OPEN", "stateReason": null,
+    "createdAt": "2026-10-20T13:00:00Z", "closedAt": null,
+    "assignees": {"nodes": []},
+    "closedByPullRequestsReferences": {"nodes": []}
+   },
+   "pontos": {"number": 3.0}, "sprint": {"iterationId": "s2"}, "status": {"name": "Done"}
+  },
+  {
+   "content": {
+    "__typename": "Issue", "number": 6, "title": "Fechada como não planejada",
+    "state": "CLOSED", "stateReason": "NOT_PLANNED",
+    "createdAt": "2026-10-18T13:02:00Z", "closedAt": "2026-10-19T15:00:00Z",
+    "assignees": {"nodes": []},
+    "closedByPullRequestsReferences": {"nodes": []}
+   },
+   "pontos": {"number": 1.0}, "sprint": {"iterationId": "s2"}, "status": {"name": "Done"}
+  },
+  {
+   "content": {
+    "__typename": "Issue", "number": 7, "title": "Sem pontos e sem sprint",
+    "state": "OPEN", "stateReason": null,
+    "createdAt": "2026-10-18T13:03:00Z", "closedAt": null,
+    "assignees": {"nodes": []},
+    "closedByPullRequestsReferences": {"nodes": []}
+   },
+   "pontos": null, "sprint": null, "status": {"name": "Backlog"}
+  },
+  {
+   "content": {"__typename": "PullRequest", "number": 9, "title": "PR solto no board"},
+   "pontos": null, "sprint": null, "status": null
+  },
+  {
+   "content": {"__typename": "DraftIssue", "title": "Rascunho"},
+   "pontos": null, "sprint": null, "status": null
+  }
+ ]
+}

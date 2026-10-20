@@ -32,6 +32,13 @@ cp .env.example .env
 
 O app desktop (PySide6) usa a mesma API: veja [`projeto/desktop/README.md`](projeto/desktop/README.md).
 
+## Documentação
+
+- [`docs/arquitetura.md`](docs/arquitetura.md): contêineres, fluxo de uma busca, carga dos dados, CI e decisões
+- [`docs/api.md`](docs/api.md): contrato da API
+- [`docs/banco.md`](docs/banco.md): modelo, carga, índices e pool de conexões
+- [`docs/dados.md`](docs/dados.md): arquivos de origem e formato
+
 ## Limites e ajuste por máquina
 
 O backend lê os limites de variáveis de ambiente (padrões em `projeto/backend/server_settings.py` e `projeto/backend/app/config.py`). O `docker-compose.yml` repassa ao backend as variáveis da tabela abaixo; para mudar uma, preencha no `projeto/.env` e suba de novo com `docker compose up -d`. Variável vazia ou ausente usa o padrão. Por exemplo:

@@ -3,7 +3,7 @@
 *                         @cerfdotdev @joaoarenda
 /projeto/backend/         @cerfdotdev @joaoarenda
 /projeto/frontend/        @cerfdotdev @Alisson-dutra
-/desktop/                 @cerfdotdev @Alisson-dutra
+/projeto/desktop/         @cerfdotdev @Alisson-dutra
 
 # Arquivos sensíveis de CI/CD e segurança: só o líder técnico aprova.
 /.github/                 @cerfdotdev

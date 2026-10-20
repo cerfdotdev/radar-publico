@@ -73,8 +73,10 @@ def test_unknown_parameter():
     assert error_code(uf="DF", bogus="1") == "PARAMETRO_DESCONHECIDO"
 
 
-def test_similarity_not_available_yet():
-    assert error_code(similar="%MARIA%") == "PARAMETRO_INVALIDO"
+def test_similarity_now_available():
+    params = parse(similar="%MARIA%")
+    assert params.similar == "%MARIA%"
+
 
 
 @pytest.mark.parametrize(

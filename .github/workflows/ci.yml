@@ -242,6 +242,20 @@ jobs:
           curl -fsS --retry 10 --retry-delay 3 --retry-all-errors http://localhost:5000/api/health
           curl -fsS --retry 10 --retry-delay 3 --retry-all-errors -o /dev/null http://localhost:8080/
           curl -fsS --retry 10 --retry-delay 3 --retry-all-errors http://localhost:8080/api/health
+      # O 404 de um cargo que não existe também entra no cache e não depende da amostra.
+      - name: Cache do nginx (busca repetida vem do cache)
+        if: needs.detect.outputs.stack == 'true'
+        run: |
+          busca='http://localhost:8080/api/servidores?cargo=CARGO%20QUE%20NAO%20EXISTE'
+          test "$(curl -sS -o /dev/null -w '%{http_code}' "$busca")" = 404
+          for _ in 1 2 3; do
+            if curl -sS -o /dev/null -D - "$busca" | tr -d '\r' | grep -iqx 'x-cache-status: hit'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::A busca repetida não veio do cache do nginx"
+          exit 1
       - name: Logs em caso de falha
         if: failure() && needs.detect.outputs.stack == 'true'
         run: docker compose -f projeto/docker-compose.yml logs --tail 200

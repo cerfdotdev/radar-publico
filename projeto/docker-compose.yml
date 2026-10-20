@@ -38,6 +38,7 @@ services:
       RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-}
       RATE_LIMIT_WINDOW_S: ${RATE_LIMIT_WINDOW_S:-}
       PROXY_HOPS: ${PROXY_HOPS:-}
+      API_CACHE_TTL_S: ${API_CACHE_TTL_S:-}
     depends_on:
       db-server:
         condition: service_healthy
@@ -49,6 +50,9 @@ services:
   frontend:
     build: ./frontend
     security_opt: ["no-new-privileges:true"]
+    environment:
+      # O mesmo valor do backend: 0 desliga também o cache do nginx (README, "Cache").
+      API_CACHE_TTL_S: ${API_CACHE_TTL_S:-}
     depends_on:
       - backend
     ports:

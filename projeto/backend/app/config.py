@@ -1,4 +1,4 @@
-"""Configuração da aplicação lida do ambiente: banco, pool de conexões e limite por IP.
+"""Configuração da aplicação lida do ambiente: banco, pool de conexões, limite por IP e cache.
 
 Os valores são lidos quando create_app() roda (e não na importação do módulo), para que
 o ambiente de cada processo, e o dos testes, seja respeitado.
@@ -31,6 +31,12 @@ DEFAULT_RATE_LIMIT_REQUESTS = 60
 DEFAULT_RATE_LIMIT_WINDOW_S = 60
 # Proxies na frente do backend que trocam o X-Forwarded-For: o nginx do frontend.
 DEFAULT_PROXY_HOPS = 1
+
+# Por quanto tempo o navegador e o nginx do frontend reusam uma resposta 200 ou 404 da busca
+# e do detalhe (app/http_cache.py). Os dados só mudam ao recarregar a base; vencido o prazo,
+# o nginx revalida pelo ETag e o backend responde 304 sem refazer a busca. Curto para que,
+# depois de uma recarga, nada antigo dure mais que isso no navegador.
+DEFAULT_API_CACHE_TTL_S = 60
 
 
 def pool_max_for(workers: int, requested: int) -> int:
@@ -79,4 +85,8 @@ def load_config() -> dict:
             "RATE_LIMIT_WINDOW_S", DEFAULT_RATE_LIMIT_WINDOW_S, MIN_SECONDS
         ),
         "PROXY_HOPS": s.int_from_env("PROXY_HOPS", DEFAULT_PROXY_HOPS, s.MIN_COUNT_OFF),
+        # 0 desliga o cache (ex.: o teste de carga sem cache); o nginx lê a mesma variável.
+        "API_CACHE_TTL_S": s.int_from_env(
+            "API_CACHE_TTL_S", DEFAULT_API_CACHE_TTL_S, s.MIN_COUNT_OFF
+        ),
     }

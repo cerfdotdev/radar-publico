@@ -31,6 +31,7 @@ A stack do frontend foi selecionada visando alto desempenho, segurança de ponta
 - **Container não-root:** Executa como usuário sem privilégios (`USER nginx`), atendendo à política de segurança de containers do projeto (`no-new-privileges:true`). Os arquivos servidos pertencem ao root, e o nginx só os lê.
 - **Porta 8080 nativa:** O container serve o tráfego HTTP diretamente na porta `8080`, porta padrão segura para processos não-root.
 - **Proxy reverso transparente:** As rotas iniciadas em `/api/` são encaminhadas internamente para o serviço de backend (`http://backend:5000/api/`), mantendo a mesma origem para o cliente (sem CORS). O `X-Forwarded-For` é substituído pelo IP real do cliente, para que o limite de requisições por IP no backend não possa ser burlado com um cabeçalho forjado.
+- **Cache da API:** as respostas 200 e 404 de `GET /api/servidores` e `GET /api/servidores/<id>` ficam no `proxy_cache` pelo `max-age` que o backend manda (`API_CACHE_TTL_S`, 60 s); buscas iguais ao mesmo tempo viram uma ida só ao backend, e `X-Cache-Status` diz se a resposta veio do cache. `API_CACHE_TTL_S=0` desliga: na subida, o entrypoint da imagem gera `/etc/nginx/conf.d/api-cache.conf` a partir de `api-cache.conf.template`. Detalhes na seção "Cache" do README da raiz.
 - **Erros do proxy em JSON:** Se o backend estiver fora do ar ou demorar mais de 15 s, o nginx responde no formato de `docs/api.md` (`SERVIDOR_INDISPONIVEL` 502, `TEMPO_ESGOTADO` 504). Os erros do próprio backend passam intactos.
 - **Cabeçalhos de segurança e cache:** `security-headers.conf` (CSP só com a própria origem, `nosniff`, `Referrer-Policy`, proibição de iframe); assets com hash (inclusive as fontes) ficam em cache por 1 ano e o `index.html` é sempre revalidado.
 - **SPA Fallback e Performance:** Compressão Gzip e roteamento client-side via `try_files $uri $uri/ /index.html`; arquivos com extensão que não existem retornam 404, e não o `index.html`.
@@ -75,6 +76,7 @@ projeto/frontend/
 │   └── setupTests.ts        # Configuração de matchers do Vitest
 ├── .dockerignore        # Arquivos ignorados no contexto de build do Docker
 ├── Dockerfile           # Multi-stage build com Node 24 e Nginx Unprivileged
+├── api-cache.conf.template # Liga ou desliga o cache da API no Nginx (API_CACHE_TTL_S), gerado na subida
 ├── index.html           # HTML base com metadados
 ├── nginx.conf           # Configuração do Nginx (porta 8080, gzip, cache e proxy /api/)
 ├── security-headers.conf # Cabeçalhos de segurança incluídos em todas as respostas

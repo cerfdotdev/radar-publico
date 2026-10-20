@@ -1,0 +1,8 @@
+# Gerado na subida do container pelo entrypoint da imagem do nginx (envsubst), em
+# /etc/nginx/conf.d/api-cache.conf. API_CACHE_TTL_S=0 desliga o cache da API no nginx;
+# vazio ou outro valor liga, como no backend (app/config.py). O tempo de vida em si vem do
+# Cache-Control do backend.
+map "${API_CACHE_TTL_S}" $api_cache_ligado {
+    "~^0+$" 0;
+    default 1;
+}

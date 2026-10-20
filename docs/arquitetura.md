@@ -31,10 +31,11 @@ flowchart LR
             subgraph fe["frontend: nginx-unprivileged :8080"]
                 spa["Build do React<br/>/ e /assets/"]
                 prx["Proxy /api/<br/>troca o X-Forwarded-For<br/>pelo IP do cliente"]
+                cache[("proxy_cache da busca<br/>e do detalhe: 200 e 404<br/>até 64 MB")]
             end
             subgraph be["backend: Gunicorn :5000"]
                 gun["2 workers gthread<br/>× 4 threads"]
-                app["Flask: limite por IP<br/>na memória do worker"]
+                app["Flask: limite por IP, cargos,<br/>órgãos e versão dos dados<br/>na memória do worker"]
                 pool["psycopg_pool por worker<br/>até 4 conexões"]
             end
             subgraph dbs["db-server: PostgreSQL 16 + pg_trgm :5432"]
@@ -54,6 +55,7 @@ flowchart LR
     desk --> p5000
     p8080 --> spa
     p8080 --> prx
+    prx -.- cache
     prx -- "http://backend:5000" --> gun
     p5000 --> gun
     gun --> app --> pool
@@ -65,6 +67,7 @@ flowchart LR
 - **Porta 5000.** Publicada só em `127.0.0.1`: quem chama a 5000 direto pode mandar um `X-Forwarded-For` falso e escapar do limite por IP. De outra máquina, a API é acessada pelo nginx, em `http://<máquina>:8080/api`. `API_BIND_ADDRESS=0.0.0.0` no `.env` abre a porta para a rede.
 - **Desktop.** Usa `http://localhost:5000/api` por padrão (`--api-url` ou `RADAR_API_URL` mudam), ou seja, fala direto com o backend, sem o nginx. Para usar de outra máquina, aponte para `http://<máquina>:8080/api`. Tempo limite de 20 s por chamada (`TEMPO_LIMITE_S` em `radar_desktop/api.py`).
 - **DNS.** O nginx resolve `backend` pelo DNS do Docker (`127.0.0.11`) a cada requisição, com cache de 10 s e `resolver_timeout 2s`. Assim ele sobe antes do backend e acompanha um container recriado. O custo é não ter keepalive com o Gunicorn: cada requisição abre uma conexão nova.
+- **Cache.** O nginx guarda as respostas 200 e 404 de `GET /api/servidores` e `GET /api/servidores/<id>` pelo tempo do `Cache-Control` do backend (`API_CACHE_TTL_S`, 60 s), e buscas iguais ao mesmo tempo viram uma ida só ao backend. Em cada worker, cargos, órgãos e a versão dos dados (o `ETag`) são lidos do banco uma vez, no primeiro uso. `API_CACHE_TTL_S=0` desliga o cache no nginx e os cabeçalhos no backend. Detalhes em [`api.md`](api.md#cache) e no [README](../README.md#cache).
 - **Ordem de subida.** O backend só sobe com o `db-server` saudável (`depends_on: service_healthy`); o frontend espera o backend apenas iniciar.
 - **Privilégios.** Os três serviços rodam com `no-new-privileges`. O backend roda como `appuser` (uid 1000) e o nginx como `nginx`; o código e o site pertencem ao root, e o processo só lê.
 
@@ -78,7 +81,7 @@ Em desenvolvimento, `npm run dev` sobe o Vite na porta 5173 com proxy de `/api` 
 
 ## Fluxo de uma busca
 
-Exemplo: `GET /api/servidores?cargo=professor` pelo site. Toda resposta do Flask, inclusive os erros, volta pelo nginx sem alteração (`proxy_intercept_errors` desligado). O nginx só gera as próprias respostas quando o backend não atende.
+Exemplo: `GET /api/servidores?cargo=professor` pelo site. Toda resposta do Flask, inclusive os erros, volta pelo nginx sem alteração (`proxy_intercept_errors` desligado). O nginx só gera as próprias respostas quando o backend não atende, e responde do cache as buscas que já guardou.
 
 ```mermaid
 sequenceDiagram
@@ -91,10 +94,14 @@ sequenceDiagram
 
     B->>N: GET /api/servidores?cargo=professor
     Note over B: o React aborta em 20 s (SEARCH_TIMEOUT_MS)
+    opt já no cache do nginx e dentro do max-age
+        N-->>B: HIT, ou 304 se o If-None-Match bate, sem ir ao backend
+    end
+    Note over N: a mesma URL já a caminho do backend:<br/>espera a resposta dela, até 5 s (proxy_cache_lock)
     alt backend fora do ar
-        N-->>B: 502 SERVIDOR_INDISPONIVEL (gerado pelo nginx)
+        N-->>B: 502 SERVIDOR_INDISPONIVEL (gerado pelo nginx),<br/>ou a resposta vencida que estava guardada (STALE)
     else backend no ar
-        N->>G: proxy, X-Forwarded-For = IP do cliente
+        N->>G: proxy, X-Forwarded-For = IP do cliente<br/>(com If-None-Match ao revalidar uma vencida)
         Note over G: espera uma das 2 × 4 threads livres<br/>(GUNICORN_WORKERS × GUNICORN_THREADS)
         G->>F: requisição numa thread
         Note over F: ProxyFix (PROXY_HOPS=1) pega o IP do cliente
@@ -105,8 +112,16 @@ sequenceDiagram
         opt parâmetro inválido
             F-->>N: 400 PARAMETRO_INVALIDO, FILTRO_OBRIGATORIO, UF_INVALIDA...
         end
+        Note over F: versão dos dados (ETag), lida do banco<br/>na primeira busca do worker
+        opt If-None-Match igual à versão
+            F-->>N: 304, sem rodar a busca
+        end
         opt uf com situacao=aposentado
             F-->>N: 404 NAO_ENCONTRADO, sem ir ao banco
+        end
+        Note over F: ids de cargo e de órgão na memória do worker<br/>(contém, ou sigla), lidos do banco no primeiro uso
+        opt nenhum id
+            F-->>N: 404 CARGO_NAO_ENCONTRADO ou ORGAO_NAO_ENCONTRADO
         end
         F->>P: pede uma conexão (o pool abre no primeiro uso)
         opt nenhuma conexão em 3 s (DB_POOL_TIMEOUT_S)
@@ -114,10 +129,6 @@ sequenceDiagram
             F-->>N: 503 SERVIDOR_OCUPADO + Retry-After: 2
         end
         P-->>F: conexão com statement_timeout de 5 s
-        F->>D: ids de cargo e de órgão, se pedidos (contém, ou sigla)
-        opt nenhum id
-            F-->>N: 404 CARGO_NAO_ENCONTRADO ou ORGAO_NAO_ENCONTRADO
-        end
         alt similar
             F->>D: similarity() com LIKE no índice trigram e os filtros, LIMIT limit
         else nome exato, cargo, órgão, UF
@@ -133,11 +144,11 @@ sequenceDiagram
         end
         D-->>F: linhas
         F->>P: devolve a conexão
-        F-->>N: 200 com data e meta
+        F-->>N: 200 com data e meta, Cache-Control e ETag
         alt resposta em até 15 s
-            N-->>B: resposta do backend, sem alteração
+            N-->>B: resposta do backend, sem alteração<br/>(200 e 404 ficam guardados no cache)
         else passou de 15 s (proxy_read_timeout)
-            N-->>B: 504 TEMPO_ESGOTADO (gerado pelo nginx)
+            N-->>B: 504 TEMPO_ESGOTADO (gerado pelo nginx),<br/>ou a resposta vencida que estava guardada (STALE)
         end
     end
 ```
@@ -148,6 +159,8 @@ O limite de cada etapa, com a variável que o controla:
 |---|---|---|---|
 | Navegador | 20 s por busca | `SEARCH_TIMEOUT_MS` em `projeto/frontend/src/api.ts` (desktop: `TEMPO_LIMITE_S`) | A tela avisa que a API não respondeu |
 | nginx | conexão 5 s, leitura e envio 15 s | `proxy_connect_timeout`, `proxy_read_timeout`, `proxy_send_timeout` em `nginx.conf` | 504 `TEMPO_ESGOTADO`; backend inacessível dá 502 `SERVIDOR_INDISPONIVEL` |
+| Cache do nginx | 60 s por resposta; 64 MB e ~16 mil chaves; 10 min sem uso | `API_CACHE_TTL_S` (`0` desliga); `proxy_cache_path` em `nginx.conf` | Vencida, o nginx revalida pelo `ETag`; cheio, apaga as menos usadas |
+| Busca igual em andamento | espera até 5 s | `proxy_cache_lock_timeout` em `nginx.conf` | A requisição vai ao backend, e a resposta dela não é guardada |
 | Gunicorn | 2 workers × 4 threads = 8 buscas ao mesmo tempo | `GUNICORN_WORKERS`, `GUNICORN_THREADS` | As outras esperam na fila do worker (até 1.000 conexões por worker, padrão do Gunicorn) |
 | Gunicorn | worker sem sinal de vida por 30 s é reiniciado | `GUNICORN_TIMEOUT` | Ver [Limites conhecidos](#limites-conhecidos) |
 | Limite por IP | 60 requisições a cada 60 s, por worker | `RATE_LIMIT_REQUESTS` (`0` desliga), `RATE_LIMIT_WINDOW_S`, `PROXY_HOPS` | 429 `MUITAS_REQUISICOES` com `Retry-After` até a janela virar |
@@ -160,7 +173,7 @@ O limite de cada etapa, com a variável que o controla:
 
 `DB_POOL_MIN`, `DB_CONNECT_TIMEOUT_S` e as outras `GUNICORN_*` (`GUNICORN_MAX_REQUESTS`, `GUNICORN_KEEPALIVE`...) são lidas pelo código, mas o compose não as repassa ao container; as da tabela do README, sim.
 
-Os tempos ficam em ordem: 5 s no banco < 15 s do nginx < 20 s do frontend. O `GUNICORN_TIMEOUT` não corta requisição (ver [Limites conhecidos](#limites-conhecidos)). Uma busca com filtros faz até 4 consultas (cargo, órgão, contagem e página) e pode esperar 3 s pelo pool, então o pior caso passa dos 15 s e quem responde é o nginx.
+Os tempos ficam em ordem: 5 s no banco < 15 s do nginx < 20 s do frontend. O `GUNICORN_TIMEOUT` não corta requisição (ver [Limites conhecidos](#limites-conhecidos)). Uma busca com filtros faz até 2 consultas (contagem e página; cargo e órgão vêm da memória do worker) e pode esperar 3 s pelo pool: 13 s no pior caso, abaixo dos 15 s do nginx. Só a primeira busca de cada worker soma as leituras da versão dos dados e de cargo e órgão, e aí o pior caso passa dos 15 s e quem responde é o nginx.
 
 Com `similar`, a busca é uma consulta só, sem contagem nem paginação, ordenada pela semelhança e combinada com `cargo`, `orgao`, `uf` e `situacao`; `page` e `per_page` respondem 400. Sem resultado, 404 `NAO_ENCONTRADO`.
 
@@ -200,7 +213,7 @@ flowchart TD
    | `servidor (nome, id)` | B-tree | nome exato e ordenação da listagem |
    | `servidor (cargo_id, nome, id)`, `(orgao_id, nome, id)`, `(uf, nome, id) WHERE uf IS NOT NULL` | B-tree | filtro já na ordem da listagem, sem ordenar milhares de linhas |
    | `servidor.nome` | GIN `gin_trgm_ops` | `similar` e padrões com `%` |
-   | `cargo.nome`, `orgao.nome` | GIN `gin_trgm_ops` | resolver `cargo` e `orgao` por "contém" |
+   | `cargo.nome`, `orgao.nome` | GIN `gin_trgm_ops` | "contém" em `cargo` e `orgao` em consultas manuais; a API resolve na memória do worker |
    | `orgao (upper(sigla))` | B-tree | sigla do órgão |
 
    `SET STATISTICS 1000` em `orgao_id` e `3000` em `cargo_id` corrigem a estimativa de órgãos e cargos raros (de 1,5 a 2 s para 4 a 20 ms), e o `VACUUM ANALYZE` no fim deixa as estatísticas prontas. Os planos e tempos medidos estão em [`banco.md`](banco.md#índices-e-desempenho).
@@ -255,7 +268,7 @@ flowchart LR
     be["backend<br/>ruff, bandit, pip-audit<br/>pytest com Postgres 16<br/>cobertura ≥ 70%"]
     dk["desktop<br/>ruff, bandit<br/>pip-audit, pytest"]
     fe["frontend<br/>npm ci, audit signatures<br/>npm audit, oxlint<br/>vitest, build"]
-    dock["docker<br/>compose config, hadolint<br/>build, Grype<br/>smoke test com a amostra"]
+    dock["docker<br/>compose config, hadolint<br/>build, Grype<br/>smoke test com a amostra<br/>e o cache do nginx"]
     cq["codeql<br/>actions, python, JS/TS"]
     dr["dependency-review<br/>só em PR<br/>recusa GPL e AGPL"]
     wa["workflows-audit<br/>zizmor"]
@@ -272,7 +285,7 @@ flowchart LR
 ```
 
 - **`ci-ok`** é o único check obrigatório. Depende de todos os jobs (inclusive `detect`) e só falha com `failure` ou `cancelled`: job pulado, como o `dependency-review` num push, não reprova.
-- **Smoke test** (job `docker`): copia `projeto/db/amostra` para `projeto/db/data`, sobe o compose com `--wait` (até 300 s) e chama `localhost:5000/api/health`, `localhost:8080/` e `localhost:8080/api/health`.
+- **Smoke test** (job `docker`): copia `projeto/db/amostra` para `projeto/db/data`, sobe o compose com `--wait` (até 300 s) e chama `localhost:5000/api/health`, `localhost:8080/` e `localhost:8080/api/health`. Depois repete uma busca pelo nginx (o 404 de um cargo que não existe, que não depende da amostra) e exige `X-Cache-Status: HIT` na segunda.
 - **Licenças:** o `dependency-review` recusa dependências GPL-3.0 e AGPL-3.0; a exceção é só `pyside6-essentials` e `shiboken6`, usados sob a opção LGPL-3.0 do Qt for Python.
 - **Fixação:** actions por SHA de commit, imagens base por digest, versões exatas em `requirements.txt` e `package.json`, ferramentas de CI com hash (`.github/ci/requirements.txt`). Todos os workflows começam com `permissions: {}`.
 - **Dependabot:** actions, pip (`projeto/backend` e `.github/ci`), npm (`projeto/frontend`), Dockerfiles e compose, toda semana, esperando 7 dias depois de cada versão publicada. O `requirements.txt` de `projeto/desktop` ainda não está na lista.
@@ -289,6 +302,11 @@ flowchart LR
 | `statement_timeout` definido pelo backend em cada conexão nova, além do role | O 504 funciona com qualquer usuário na `DATABASE_URL` (os testes do CI conectam como `radar`, sem timeout) e mantém as `options` da URL | Só o timeout do role, ou `options` nos kwargs do pool (substituíam as da URL) |
 | Paginação em duas etapas (ids pelo índice, depois colunas e joins), contagem até 10.001 e páginas só até o 10.000º resultado | Contar tudo custa até 0,8 s por requisição (`cargo=professor`: 778 ms; limitada, 57 ms) e `OFFSET` grande lê todas as linhas anteriores | `count(*)` exato e navegação até a última página |
 | Ids de cargo e órgão resolvidos antes, com `=` (um id) ou `= ANY` (vários) | O planejador sabe quantos ids vêm: `orgao=INSS` cai de 536 ms para 0,2 ms | Subconsulta no `IN` |
+| Cargo e órgão na memória de cada worker, lidos no primeiro uso, com a mesma regra do `LIKE '%texto%'` e da sigla | São 2.999 e 230 linhas que só mudam na recarga: a busca deixa de fazer uma consulta por filtro. Os testes comparam com o SQL de antes, inclusive com `%`, `_` e `\` | Uma consulta por filtro a cada busca (como antes), ou ler as tabelas na subida do worker, antes de precisar |
+| Cache no nginx (`proxy_cache`), com o tempo de vida do `Cache-Control` do backend e só para 200 e 404 | A borda já existe e é compartilhada por todos os clientes; buscas iguais simultâneas viram uma ida ao backend (`proxy_cache_lock`). O `max-age` vem do backend, então o tempo de vida fica num lugar só. Como o nginx guardaria até 429 e 500 com `max-age`, um `proxy_no_cache` por status barra o resto | Redis ou cache dentro do Flask (mais um serviço, ou um cache por worker); `proxy_cache_valid`, que repetiria o TTL no nginx |
+| `ETag` = meses de referência, linhas de cada um e identificador do cluster, lido uma vez por worker | Muda a cada recarga, mesmo com os mesmos meses e contagens, e o 304 sai sem rodar a busca. A consulta (um `GROUP BY` em `servidor`) levou 0,1 s em 1,5 milhão de linhas, uma vez por worker | Hash do corpo da resposta, que obrigaria a rodar a busca para responder 304; só meses e contagens, que não mudariam numa recarga com outro conteúdo |
+| `API_CACHE_TTL_S=0` também desliga o `proxy_cache` (template lido na subida do nginx) | Com o cache ligado e o backend em `no-store`, o `proxy_cache_lock` enfileira buscas iguais: 6 de 1 s levaram 6 s. O teste de carga sem cache (#19) mediria essa fila | Desligar só no backend |
+| Cache na camada do container, em `/var/cache/nginx/api` | Medido: um `tmpfs` cheio faz o nginx fechar a conexão sem resposta, e o Docker o remonta como root no restart. Na camada do container o limite é o `max_size` e recriar o container limpa | `tmpfs` no compose, que limparia num simples restart |
 | Amostra sintética no CI (`projeto/db/amostra`) | O repositorio.dados.gov.br nem sempre responde para os runners do GitHub. A amostra tem o formato da fonte e carrega em cerca de 3 s | Baixar os 355 MB reais a cada execução do CI |
 | nginx como única entrada pública | Site e API na mesma origem (sem CORS, CSP só com `'self'`), erros do proxy em JSON e um só ponto que reescreve o `X-Forwarded-For` | Expor o backend para a rede e liberar CORS |
 | Porta 5000 publicada só em `127.0.0.1` | Na 5000 o cliente escolhe o próprio `X-Forwarded-For` e escapa do limite. O desktop local e testes continuam usando a porta | Porta aberta em todas as interfaces (`API_BIND_ADDRESS=0.0.0.0` volta a isso) |
@@ -302,16 +320,16 @@ flowchart LR
 - **Limite por IP por worker.** Cada worker conta sozinho: com 2 workers, um IP consegue de 60 a 120 requisições por minuto, conforme o Gunicorn distribui as conexões. A janela é fixa, então na virada dela passam até 2× o limite em sequência. Um worker reciclado (a cada 5.000 requisições mais uma variação de até 500) começa a contagem do zero.
 - **IP pela porta 5000.** O backend confia em 1 proxy (`PROXY_HOPS=1`). Quem chama a 5000 direto pode mandar qualquer `X-Forwarded-For`; por isso a porta só existe em `127.0.0.1`.
 - **`/api/health` na mesma fila.** O health não toca no banco, mas espera thread livre como qualquer busca. Com as 8 threads presas, ele esperou 10 s no teste do README. O healthcheck do container desiste em 3 s, então uma saturação longa pode marcar o backend como `unhealthy`. O Docker não reinicia container `unhealthy`, e o compose não tem política de `restart`: se o backend cair, o nginx responde 502 até um novo `docker compose up`.
-- **`statement_timeout` é por consulta.** Uma busca com filtros faz até 4 consultas e pode esperar 3 s pelo pool: até 23 s no pior caso. O nginx responde 504 aos 15 s, mas a thread do backend segue até a consulta terminar ou ser cancelada.
+- **`statement_timeout` é por consulta.** Uma busca com filtros faz até 2 consultas e pode esperar 3 s pelo pool: até 13 s. A primeira de cada worker também lê a versão dos dados e as tabelas de cargo e órgão, e pode passar dos 15 s. O nginx responde 504 aos 15 s, mas a thread do backend segue até a consulta terminar ou ser cancelada.
 - **`GUNICORN_TIMEOUT` não corta requisição lenta.** Com `gthread`, o laço principal do worker avisa o Gunicorn a cada segundo mesmo com as threads ocupadas (`gunicorn/workers/gthread.py`, versão 26.2). O timeout de 30 s só reinicia um worker travado; quem limita cada busca é o `statement_timeout` e, para o cliente, o nginx. Com `GUNICORN_THREADS=1` o worker vira `sync` e aí o timeout vale por requisição.
 - **503 é raro com os padrões.** Como o pool tem uma conexão por thread, a espera por conexão só estoura com o banco fora do ar ou lento para conectar, ou quando o teto de 45 deixa o pool menor que as threads (ex.: 12 workers × 4 threads dão pool de 3). O excesso de buscas espera na fila do Gunicorn, não no pool.
 - **Navegação até o 10.000º resultado.** Páginas além disso não existem, e as últimas ainda custam: `uf=DF` na página 5.000 levou 289 ms.
 - **`similar` sem paginação**, até 100 resultados.
 - **Dados fixos.** O banco reflete os arquivos da carga (ativos de 08/2026, aposentados de 05/2026). Atualizar exige recarregar do zero.
-- **Sem cache.** Toda busca vai ao PostgreSQL, mesmo repetida.
+- **Cache depois de uma recarga.** O navegador pode guardar uma resposta que já estava no nginx: depois de recarregar a base, ele mostra dados antigos por até 2 × `API_CACHE_TTL_S` (2 min com o padrão). Recarregar sem recriar os containers deixa cargos, órgãos e a versão antigos na memória dos workers até o backend reiniciar (ver o [README](../README.md#cache)).
+- **Espera de 500 ms no lock.** Quem espera uma busca igual que já está no backend acorda em passos de 500 ms, fixos no nginx: a primeira rajada numa URL nova leva até ~0,5 s, e depois as respostas saem do cache em ~1 ms.
 - **Sem HTTPS.** O nginx serve HTTP na 8080; TLS ficaria num proxy na frente dele.
 
 ## Evolução prevista
 
-- **#54:** cache das buscas: `proxy_cache` no nginx, `Cache-Control` e `ETag` nas respostas e ids de cargo e órgão em memória em cada worker.
 - **#23:** executável do desktop com PyInstaller.

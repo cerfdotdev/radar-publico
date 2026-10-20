@@ -5,6 +5,8 @@ from flask import Flask
 from app.config import load_config
 from app.db import init_db
 from app.errors import register_error_handlers
+from app.http_cache import init_http_cache
+from app.lookup import init_lookup
 from app.query_string import ApiRequest
 from app.rate_limit import init_rate_limit
 
@@ -24,6 +26,8 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     init_db(app)
     init_rate_limit(app)
+    init_lookup(app)
+    init_http_cache(app)
 
     from app.routes.health import health_bp
     from app.routes.servidores import servidores_bp

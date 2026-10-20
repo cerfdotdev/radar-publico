@@ -7,19 +7,12 @@ import type { Servidor, ServidorDetalhe } from './types'
 
 type EstadoDetalhe = { kind: 'carregando' } | DetailOutcome
 
-/** Campos que só existem no detalhe; usados enquanto a requisição não chega. */
-const DETALHE_AUSENTE: Omit<ServidorDetalhe, keyof Servidor> = {
-  codigo_carreira: null,
-  tipo_aposentadoria: null,
-  fundamento_legal: null,
-  portaria: null,
-  data_aposentadoria: null,
-  forma_ingresso: null,
-  data_ingresso: null,
-  referencia: null,
-}
-
-/** Resultado único da busca: ficha completa do vínculo (docs/design/detalhe.html). */
+/**
+ * Resultado único da busca: ficha do vínculo (docs/design/detalhe.html). Cabeçalho e
+ * vínculo saem da própria busca, na hora; carreira, aposentadoria e ingresso vêm de
+ * GET /api/servidores/<id> e só aparecem quando chegam, para um campo que não carregou
+ * nunca parecer "não informado" na fonte.
+ */
 export function DetalheServidor({ resumo }: { resumo: Servidor }) {
   const [estado, setEstado] = useState<EstadoDetalhe>({ kind: 'carregando' })
 
@@ -30,121 +23,136 @@ export function DetalheServidor({ resumo }: { resumo: Servidor }) {
         if (!controller.signal.aborted) setEstado(resultado)
       },
       () => {
-        // Cancelamento não muda a tela; a ficha segue com os dados da lista.
+        // Só rejeita quando cancelada (tela trocada): não há o que mostrar.
       },
     )
     return () => controller.abort()
   }, [resumo.id])
 
+  const aposentado = resumo.situacao === 'aposentado'
   const detalhe = estado.kind === 'ok' ? estado.servidor : null
-  const servidor: ServidorDetalhe = detalhe ?? { ...resumo, ...DETALHE_AUSENTE }
-  const aposentado = servidor.situacao === 'aposentado'
 
   return (
-    <section className="detalhe" aria-labelledby="detalhe-titulo" aria-busy={estado.kind === 'carregando'}>
+    <article className="detalhe" aria-labelledby="detalhe-titulo">
       <div className="cabecalho-vinculo">
         <div className="cabecalho-vinculo__id">
-          <SituacaoPill situacao={servidor.situacao} />
-          <h1 className="titulo-pagina" id="detalhe-titulo">
-            {servidor.nome}
-          </h1>
+          <SituacaoPill situacao={resumo.situacao} />
+          <h3 className="titulo-pagina fonte-dado" id="detalhe-titulo">
+            {resumo.nome}
+          </h3>
           <p className="fonte-dado detalhe__resumo">
-            {servidor.cargo ?? 'Cargo não informado'} · {servidor.orgao}
-            {servidor.sigla_orgao === null ? '' : ` (${servidor.sigla_orgao})`}
+            {resumo.cargo ?? 'Cargo não informado'} · {resumo.orgao}
+            {resumo.sigla_orgao === null ? '' : ` (${resumo.sigla_orgao})`}
           </p>
         </div>
         <div className="cabecalho-vinculo__valor">
           <span className="aux">{aposentado ? 'Valor da aposentadoria' : 'Remuneração'}</span>
           <span className="valor-grande">
-            {servidor.valor === null ? <NaoInformado /> : `R$ ${formatCurrency(servidor.valor)}`}
+            {resumo.valor === null ? <NaoInformado /> : `R$ ${formatCurrency(resumo.valor)}`}
           </span>
-          {servidor.referencia !== null && (
-            <span className="aux">Referência {formatReference(servidor.referencia)}</span>
+          {detalhe !== null && detalhe.referencia !== null && (
+            <span className="aux">Referência {formatReference(detalhe.referencia)}</span>
           )}
         </div>
       </div>
 
       <div className="colunas">
         <section aria-labelledby="sec-vinculo">
-          <h3 className="subtitulo" id="sec-vinculo">
+          <h4 className="subtitulo" id="sec-vinculo">
             Vínculo
-          </h3>
+          </h4>
           <dl className="dados">
             <div>
               <dt>Cargo</dt>
-              <dd>{servidor.cargo ?? <NaoInformado />}</dd>
+              <dd>{resumo.cargo ?? <NaoInformado />}</dd>
             </div>
             <div>
               <dt>Órgão</dt>
-              <dd>{servidor.orgao}</dd>
+              <dd>{resumo.orgao}</dd>
             </div>
             <div>
               <dt>Sigla do órgão</dt>
-              <dd>{servidor.sigla_orgao ?? <NaoInformado />}</dd>
+              <dd>{resumo.sigla_orgao ?? <NaoInformado />}</dd>
             </div>
             <div>
               <dt>UF</dt>
-              {servidor.uf === null ? (
+              {resumo.uf === null ? (
                 <dd className="ausente">
-                  {aposentado
-                    ? 'Não informada — o conjunto de aposentados não traz UF'
-                    : 'Não informada'}
+                  {aposentado ? 'Não informada — o conjunto de aposentados não traz UF' : 'Não informada'}
                 </dd>
               ) : (
-                <dd>{servidor.uf}</dd>
+                <dd>{resumo.uf}</dd>
               )}
             </div>
           </dl>
         </section>
 
-        <section aria-labelledby="sec-carreira">
-          <h3 className="subtitulo" id="sec-carreira">
+        <section aria-labelledby="sec-carreira" aria-busy={estado.kind === 'carregando'}>
+          <h4 className="subtitulo" id="sec-carreira">
             {aposentado ? 'Aposentadoria' : 'Carreira'}
-          </h3>
-          <dl className="dados">
-            {aposentado ? (
-              <>
-                <div>
-                  <dt>Tipo</dt>
-                  <dd>{servidor.tipo_aposentadoria ?? <NaoInformado />}</dd>
-                </div>
-                <div>
-                  <dt>Fundamento legal</dt>
-                  <dd>{servidor.fundamento_legal ?? <NaoInformado />}</dd>
-                </div>
-                <div>
-                  <dt>Portaria</dt>
-                  <dd>{servidor.portaria ?? <NaoInformado />}</dd>
-                </div>
-                <div>
-                  <dt>Data da aposentadoria</dt>
-                  <dd className="num">
-                    {servidor.data_aposentadoria === null ? (
-                      <NaoInformado />
-                    ) : (
-                      formatDate(servidor.data_aposentadoria)
-                    )}
-                  </dd>
-                </div>
-              </>
-            ) : (
+          </h4>
+          {estado.kind === 'carregando' && <p className="aux">Carregando a ficha completa…</p>}
+          {estado.kind === 'error' && (
+            <div className="aviso aviso--atencao">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 3l9 16H3z" />
+                <path d="M12 10v4M12 17h.01" />
+              </svg>
               <div>
-                <dt>Código da carreira</dt>
-                <dd>{servidor.codigo_carreira ?? <NaoInformado />}</dd>
-              </div>
-            )}
-            <div>
-              <dt>Ingresso no serviço público</dt>
-              <dd>
-                <span className="num">
-                  {servidor.data_ingresso === null ? <NaoInformado /> : formatDate(servidor.data_ingresso)}
+                <strong>Não foi possível carregar a ficha completa</strong>
+                <span>
+                  {aposentado ? 'Os dados da aposentadoria' : 'Os dados da carreira'} e do ingresso não vieram da API.
+                  Cargo, órgão, UF e valor acima são os da busca.
                 </span>
-                {servidor.forma_ingresso !== null && ` · ${servidor.forma_ingresso}`}
-              </dd>
+              </div>
             </div>
-          </dl>
+          )}
+          {detalhe !== null && <DadosDoVinculo detalhe={detalhe} aposentado={aposentado} />}
         </section>
       </div>
-    </section>
+    </article>
+  )
+}
+
+function DadosDoVinculo({ detalhe, aposentado }: { detalhe: ServidorDetalhe; aposentado: boolean }) {
+  return (
+    <dl className="dados">
+      {aposentado ? (
+        <>
+          <div>
+            <dt>Tipo</dt>
+            <dd>{detalhe.tipo_aposentadoria ?? <NaoInformado />}</dd>
+          </div>
+          <div>
+            <dt>Fundamento legal</dt>
+            <dd>{detalhe.fundamento_legal ?? <NaoInformado />}</dd>
+          </div>
+          <div>
+            <dt>Portaria</dt>
+            <dd>{detalhe.portaria ?? <NaoInformado />}</dd>
+          </div>
+          <div>
+            <dt>Data da aposentadoria</dt>
+            <dd className="num">
+              {detalhe.data_aposentadoria === null ? <NaoInformado /> : formatDate(detalhe.data_aposentadoria)}
+            </dd>
+          </div>
+        </>
+      ) : (
+        <div>
+          <dt>Código da carreira</dt>
+          <dd>{detalhe.codigo_carreira ?? <NaoInformado />}</dd>
+        </div>
+      )}
+      <div>
+        <dt>Ingresso no serviço público</dt>
+        <dd>
+          <span className="num">
+            {detalhe.data_ingresso === null ? <NaoInformado /> : formatDate(detalhe.data_ingresso)}
+          </span>
+          {detalhe.forma_ingresso !== null && ` · ${detalhe.forma_ingresso}`}
+        </dd>
+      </div>
+    </dl>
   )
 }

@@ -49,7 +49,7 @@ Conferência após a carga: 1.092.162 ativos, 412.354 aposentados, 230 órgãos,
 O backend conecta como `radar_api` (`POSTGRES_API_USER`), nunca como o dono do banco:
 
 - só `SELECT`, e transações somente leitura por padrão;
-- `statement_timeout` de 5 s: a consulta é cancelada no banco e a API responde 504;
+- `statement_timeout` de 5 s para qualquer cliente que conecte com esse usuário (a API define o seu, ver `DB_STATEMENT_TIMEOUT_S` abaixo);
 - no máximo 50 conexões, para uma sobrecarga não esgotar o Postgres.
 
 Testado: `DELETE` falha com *read-only transaction* e `pg_sleep(6)` é cancelado por *statement timeout*.
@@ -64,9 +64,14 @@ Cada worker do Gunicorn tem seu próprio pool (`psycopg_pool`), aberto no primei
 | `DB_POOL_MAX` | = `GUNICORN_THREADS` (4) | Conexões por worker; uma por thread |
 | `DB_POOL_MIN` | 1 | Conexões mantidas abertas por worker |
 | `DB_POOL_TIMEOUT_S` | 3 | Espera por uma conexão livre; depois disso a API responde 503 `SERVIDOR_OCUPADO` |
+| `DB_STATEMENT_TIMEOUT_S` | 5 | Tempo máximo de cada consulta (`statement_timeout` da sessão); a consulta é cancelada no banco e a API responde 504 `TEMPO_ESGOTADO` |
 | `DB_CONNECT_TIMEOUT_S` | 5 | Tempo máximo para abrir uma conexão nova |
 
 Workers × `DB_POOL_MAX` nunca passa de 45 (o limite de 50 do usuário menos uma folga): se a configuração pedir mais, o pool de cada worker é reduzido e um aviso vai para o log. Conexões quebradas (ex.: banco reiniciado) são descartadas e trocadas antes de serem entregues.
+
+O backend define o próprio `statement_timeout` em cada conexão nova do pool, em vez de depender só do usuário do banco: o 504 funciona com qualquer usuário na `DATABASE_URL` (os testes do CI conectam como `radar`, que não tem timeout), e as `options` que vierem na URL são mantidas. O valor da sessão vale sobre o do usuário `radar_api`.
+
+O limite é por consulta, e os tempos ficam em ordem: 5 s no banco < 15 s do nginx (`proxy_read_timeout`) < 20 s do frontend < 30 s do Gunicorn. Uma busca faz até 4 consultas (cargo, órgão, contagem e página) e pode esperar até 3 s por uma conexão; se ela somar mais de 15 s, quem responde 504 `TEMPO_ESGOTADO` é o nginx.
 
 ## Índices e desempenho
 

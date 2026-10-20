@@ -1,4 +1,4 @@
-"""Configuração da aplicação lida do ambiente: banco de dados e pool de conexões.
+"""Configuração da aplicação lida do ambiente: banco, pool de conexões e limite por IP.
 
 Os valores são lidos quando create_app() roda (e não na importação do módulo), para que
 o ambiente de cada processo, e o dos testes, seja respeitado.
@@ -20,7 +20,17 @@ MIN_POOL_MAX = 1
 # Com o pool cheio, é melhor responder 503 rápido do que segurar a requisição.
 DEFAULT_POOL_TIMEOUT_S = 3
 DEFAULT_CONNECT_TIMEOUT_S = 5
+# Tempo máximo de cada consulta (statement_timeout). Fica abaixo dos 15 s do nginx
+# (proxy_read_timeout em projeto/frontend/nginx.conf), para a API responder 504 antes dele.
+DEFAULT_STATEMENT_TIMEOUT_S = 5
 MIN_SECONDS = 1
+
+# Limite por IP (app/rate_limit.py). A tela só busca ao enviar o formulário ou trocar de
+# página: uma pessoa fica longe de 1 por segundo, e um script em laço leva 429 logo.
+DEFAULT_RATE_LIMIT_REQUESTS = 60
+DEFAULT_RATE_LIMIT_WINDOW_S = 60
+# Proxies na frente do backend que trocam o X-Forwarded-For: o nginx do frontend.
+DEFAULT_PROXY_HOPS = 1
 
 
 def pool_max_for(workers: int, requested: int) -> int:
@@ -55,7 +65,18 @@ def load_config() -> dict:
         "DB_POOL_TIMEOUT_S": s.int_from_env(
             "DB_POOL_TIMEOUT_S", DEFAULT_POOL_TIMEOUT_S, MIN_SECONDS
         ),
+        "DB_STATEMENT_TIMEOUT_S": s.int_from_env(
+            "DB_STATEMENT_TIMEOUT_S", DEFAULT_STATEMENT_TIMEOUT_S, MIN_SECONDS
+        ),
         "DB_CONNECT_TIMEOUT_S": s.int_from_env(
             "DB_CONNECT_TIMEOUT_S", DEFAULT_CONNECT_TIMEOUT_S, MIN_SECONDS
         ),
+        # 0 desliga o limite (ex.: teste de carga) ou deixa de confiar no X-Forwarded-For.
+        "RATE_LIMIT_REQUESTS": s.int_from_env(
+            "RATE_LIMIT_REQUESTS", DEFAULT_RATE_LIMIT_REQUESTS, s.MIN_COUNT_OFF
+        ),
+        "RATE_LIMIT_WINDOW_S": s.int_from_env(
+            "RATE_LIMIT_WINDOW_S", DEFAULT_RATE_LIMIT_WINDOW_S, MIN_SECONDS
+        ),
+        "PROXY_HOPS": s.int_from_env("PROXY_HOPS", DEFAULT_PROXY_HOPS, s.MIN_COUNT_OFF),
     }

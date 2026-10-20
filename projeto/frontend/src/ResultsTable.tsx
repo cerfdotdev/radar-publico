@@ -1,10 +1,17 @@
 import { formatCurrency } from './format'
 import { NaoInformado } from './NaoInformado'
+import { Semelhanca } from './Semelhanca'
 import { SituacaoPill } from './SituacaoPill'
 import type { Servidor } from './types'
 
+interface ResultsTableProps {
+  servidores: Servidor[]
+  /** Busca parecida: coluna Semelhança, na ordem da API (mais parecido primeiro). */
+  similar: boolean
+}
+
 /** Resultados em tabela (acima de 640 px). */
-export function ResultsTable({ servidores }: { servidores: Servidor[] }) {
+export function ResultsTable({ servidores, similar }: ResultsTableProps) {
   return (
     <div className="tabela-caixa">
       <table className="tabela">
@@ -12,6 +19,11 @@ export function ResultsTable({ servidores }: { servidores: Servidor[] }) {
         <thead>
           <tr>
             <th scope="col">Nome</th>
+            {similar && (
+              <th scope="col" aria-sort="descending">
+                Semelhança
+              </th>
+            )}
             <th scope="col">Situação</th>
             <th scope="col">Cargo</th>
             <th scope="col">Órgão</th>
@@ -27,6 +39,11 @@ export function ResultsTable({ servidores }: { servidores: Servidor[] }) {
               <th scope="row" className="fonte-dado">
                 {servidor.nome}
               </th>
+              {similar && (
+                <td>
+                  <Semelhanca valor={servidor.similaridade} />
+                </td>
+              )}
               <td>
                 <SituacaoPill situacao={servidor.situacao} />
               </td>

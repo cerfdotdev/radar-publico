@@ -14,6 +14,7 @@ GUNICORN_ENV = [
     "GUNICORN_TIMEOUT",
     "GUNICORN_GRACEFUL_TIMEOUT",
     "GUNICORN_KEEPALIVE",
+    "GUNICORN_WORKER_CONNECTIONS",
     "GUNICORN_MAX_REQUESTS",
     "GUNICORN_MAX_REQUESTS_JITTER",
     "GUNICORN_ACCESSLOG",
@@ -48,6 +49,8 @@ def test_defaults(clean_env):
     assert conf.timeout == s.DEFAULT_TIMEOUT_S
     assert conf.graceful_timeout == s.DEFAULT_GRACEFUL_TIMEOUT_S
     assert conf.keepalive == s.DEFAULT_KEEPALIVE_S
+    # Uma conexão por thread: sem fila dentro do worker.
+    assert conf.worker_connections == s.DEFAULT_THREADS
     assert conf.max_requests == s.DEFAULT_MAX_REQUESTS
     assert conf.max_requests_jitter == s.DEFAULT_MAX_REQUESTS_JITTER
     assert conf.worker_tmp_dir == s.WORKER_TMP_DIR
@@ -72,6 +75,24 @@ def test_custom_env(clean_env):
     assert conf.timeout == 45
     assert conf.max_requests == 0
     assert conf.loglevel == "warning"
+    # worker_connections acompanha as threads quando não é definido.
+    assert conf.worker_connections == 16
+
+
+def test_worker_connections_and_keepalive_from_env(clean_env):
+    clean_env.setenv("GUNICORN_WORKER_CONNECTIONS", "32")
+    clean_env.setenv("GUNICORN_KEEPALIVE", "5")
+    conf = load_gunicorn_conf()
+    assert conf.worker_connections == 32
+    assert conf.keepalive == 5
+
+
+@pytest.mark.parametrize("raw", ["abc", "0", "-1"])
+def test_invalid_worker_connections_fall_back_to_threads(clean_env, raw):
+    clean_env.setenv("GUNICORN_THREADS", "6")
+    clean_env.setenv("GUNICORN_WORKER_CONNECTIONS", raw)
+    conf = load_gunicorn_conf()
+    assert conf.worker_connections == 6
 
 
 def test_single_thread_uses_sync_worker(clean_env):

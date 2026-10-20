@@ -20,7 +20,10 @@ DEFAULT_WORKERS = 2
 DEFAULT_THREADS = 4
 DEFAULT_TIMEOUT_S = 30
 DEFAULT_GRACEFUL_TIMEOUT_S = 30
-DEFAULT_KEEPALIVE_S = 2
+# Sem keepalive: o cliente é o nginx, que fala HTTP/1.0 e fecha a conexão a cada requisição.
+# Com worker_connections = threads (gunicorn.conf.py), uma conexão ociosa esperando a próxima
+# requisição ocuparia a vaga de uma busca.
+DEFAULT_KEEPALIVE_S = 0
 # Recicla cada worker após N requisições (com variação aleatória para não reiniciar
 # todos ao mesmo tempo), limitando o efeito de vazamentos de memória sob carga.
 DEFAULT_MAX_REQUESTS = 5000
@@ -30,7 +33,7 @@ MIN_PORT = 1
 MIN_WORKERS = 1
 MIN_THREADS = 1
 MIN_SECONDS = 1
-MIN_COUNT_OFF = 0  # 0 desliga max_requests / jitter
+MIN_COUNT_OFF = 0  # 0 desliga max_requests / jitter / keepalive
 
 DEFAULT_LOGLEVEL = "info"
 LOG_TO_STDOUT = "-"

@@ -71,7 +71,7 @@ Workers × `DB_POOL_MAX` nunca passa de 45 (o limite de 50 do usuário menos uma
 
 O backend define o próprio `statement_timeout` em cada conexão nova do pool, em vez de depender só do usuário do banco: o 504 funciona com qualquer usuário na `DATABASE_URL` (os testes do CI conectam como `radar`, que não tem timeout), e as `options` que vierem na URL são mantidas. O valor da sessão vale sobre o do usuário `radar_api`.
 
-O limite é por consulta, e os tempos ficam em ordem: 5 s no banco < 15 s do nginx (`proxy_read_timeout`) < 20 s do frontend < 30 s do Gunicorn. Uma busca faz até 4 consultas (cargo, órgão, contagem e página) e pode esperar até 3 s por uma conexão; se ela somar mais de 15 s, quem responde 504 `TEMPO_ESGOTADO` é o nginx.
+O limite é por consulta, e os tempos ficam em ordem: 5 s no banco < 15 s do nginx (`proxy_read_timeout`) < 20 s do frontend. O `GUNICORN_TIMEOUT` não entra nessa conta: com workers `gthread` ele só reinicia worker travado, não corta requisição ([arquitetura](arquitetura.md#limites-conhecidos)). Uma busca faz até 4 consultas (cargo, órgão, contagem e página) e pode esperar até 3 s por uma conexão; se ela somar mais de 15 s, quem responde 504 `TEMPO_ESGOTADO` é o nginx.
 
 ## Índices e desempenho
 

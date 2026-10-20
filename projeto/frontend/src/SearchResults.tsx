@@ -125,8 +125,9 @@ interface EstadoProps {
 
 function EstadoVazio({ busca, focarTitulo, onNavegar }: EstadoProps) {
   const tituloRef = useFocoNoTitulo(focarTitulo)
-  // Nome exato sem filtros: oferece a busca parecida já montada (docs/design/estados.html).
-  const padrao = busca.modo === 'exato' && !temFiltros(busca) ? padraoParecido(busca.termo) : null
+  // Nome exato sem resultado: oferece a busca parecida já montada, com os mesmos filtros
+  // (docs/design/estados.html).
+  const padrao = busca.modo === 'exato' ? padraoParecido(busca.termo) : null
   return (
     <section className="estado-vazio" aria-labelledby="vazio-titulo">
       <h2 className="subtitulo" id="vazio-titulo" ref={tituloRef} tabIndex={-1}>
@@ -151,7 +152,8 @@ function EstadoVazio({ busca, focarTitulo, onNavegar }: EstadoProps) {
 
 function explicacaoVazio(busca: Busca): string {
   if (busca.modo === 'similar') {
-    return 'O padrão vale para o nome inteiro: use % no lugar das partes que você não sabe, como em %MARIA%SILVA%, ou confira a grafia.'
+    const filtros = temFiltros(busca) ? ' Com filtros, o nome também precisa atender a todos eles; tire um filtro se for o caso.' : ''
+    return `O padrão vale para o nome inteiro: use % no lugar das partes que você não sabe, como em %MARIA%SILVA%, ou confira a grafia.${filtros}`
   }
   if (temFiltros(busca)) {
     return 'Nenhum vínculo atende a todos os filtros ao mesmo tempo. Tire um filtro ou confira a grafia.'

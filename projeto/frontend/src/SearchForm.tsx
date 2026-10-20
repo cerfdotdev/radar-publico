@@ -1,6 +1,5 @@
 import { useLayoutEffect, useState, type FormEvent } from 'react'
 import {
-  aceitaFiltros,
   LIMITE_MAX,
   LIMITE_MIN,
   SIMILAR_MIN_LETRAS,
@@ -101,7 +100,6 @@ export function SearchForm({ busca, ocupado, erroExterno, onBuscar }: SearchForm
   const erroOrgao = erroDe('orgao')
   const erroUf = erroDe('uf')
   const similar = form.modo === 'similar'
-  const comFiltros = aceitaFiltros(form.modo)
   const filtrosPreenchidos = [form.cargo, form.orgao, form.uf].filter((valor) => valor.trim() !== '').length
   // Um filtro com erro fica sempre à vista, para receber o foco.
   const filtrosVisiveis = filtrosAbertos || erroCargo !== null || erroOrgao !== null || erroUf !== null
@@ -202,19 +200,12 @@ export function SearchForm({ busca, ocupado, erroExterno, onBuscar }: SearchForm
           </svg>
         </button>
 
-        {/* Desativados na busca parecida, que a API ainda faz só pelo nome (ver aceitaFiltros). */}
+        {/* Valem nos dois modos: a API combina os filtros com o nome exato ou parecido. */}
         <fieldset
           id="filtros"
           className={filtrosVisiveis ? 'busca__filtros busca__filtros--aberto' : 'busca__filtros'}
-          disabled={!comFiltros}
-          aria-describedby={comFiltros ? undefined : 'nota-filtros'}
         >
           <legend className="sr-only">Filtros</legend>
-          {!comFiltros && (
-            <p className="aux busca__nota" id="nota-filtros">
-              A busca por nome parecido usa só o nome: cargo, órgão e UF não se aplicam a ela.
-            </p>
-          )}
 
           <div className={erroCargo === null ? 'campo' : 'campo campo--erro'}>
             <label className="campo__rotulo" htmlFor="campo-cargo">

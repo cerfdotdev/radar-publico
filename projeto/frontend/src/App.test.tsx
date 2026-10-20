@@ -202,6 +202,7 @@ describe('Tela de busca (issue #11)', () => {
     expect(screen.getByText('01/03/2010')).toBeInTheDocument()
     expect(screen.getByText('Referência 05/2026')).toBeInTheDocument()
     expect(screen.getByText(/CONCURSO PUBLICO/)).toBeInTheDocument()
+    expect(screen.queryByText('Não foi possível carregar a ficha completa')).not.toBeInTheDocument()
   })
 
   it('vários resultados: página seguinte muda a URL e busca de novo', async () => {
@@ -361,7 +362,7 @@ describe('Nome parecido e filtros combinados (issue #20)', () => {
     expect(screen.getByText(/Nenhum vínculo atende a todos os filtros/)).toBeInTheDocument()
   })
 
-  it('nome parecido envia similar e limit, sem cargo, órgão e UF, e mostra a semelhança', async () => {
+  it('nome parecido envia similar e limit com cargo, órgão e UF, e mostra a semelhança', async () => {
     const { pedidos } = fetchPendente()
     render(<App />)
     fireEvent.change(campoCargo(), { target: { value: 'professor' } })
@@ -372,17 +373,18 @@ describe('Nome parecido e filtros combinados (issue #20)', () => {
     expect(campoNome()).toHaveValue('%maria%silva%')
     expect(campoNome()).toHaveAccessibleDescription(/Use % no lugar das partes que você não sabe/)
     expect(campoLimite()).toHaveValue(100)
-    // A API ainda ignora os filtros com similar: desativados e com o motivo, sem perder o valor.
-    expect(campoCargo()).toBeDisabled()
+    // A API combina os filtros com similar: continuam ativos, com o que já estava digitado.
+    expect(campoCargo()).toBeEnabled()
     expect(campoCargo()).toHaveValue('professor')
-    expect(screen.getByRole('group', { name: 'Filtros' })).toHaveAccessibleDescription(
-      'A busca por nome parecido usa só o nome: cargo, órgão e UF não se aplicam a ela.',
-    )
+    expect(screen.getByRole('group', { name: 'Filtros' })).not.toHaveAttribute('aria-describedby')
+    expect(screen.queryByText(/usa só o nome/)).not.toBeInTheDocument()
 
+    fireEvent.change(campoOrgao(), { target: { value: 'INSS' } })
+    fireEvent.change(campoUf(), { target: { value: 'RJ' } })
     fireEvent.change(campoLimite(), { target: { value: '50' } })
     fireEvent.click(botaoBuscar())
-    expect(pedidos[0].url).toBe('/api/servidores?similar=%25maria%25silva%25&limit=50')
-    expect(window.location.search).toBe('?similar=%25maria%25silva%25&limit=50')
+    expect(pedidos[0].url).toBe('/api/servidores?similar=%25maria%25silva%25&limit=50&cargo=professor&orgao=INSS&uf=RJ')
+    expect(window.location.search).toBe('?similar=%25maria%25silva%25&limit=50&cargo=professor&orgao=INSS&uf=RJ')
 
     const corpo = corpoServidores(
       [
@@ -393,8 +395,12 @@ describe('Nome parecido e filtros combinados (issue #20)', () => {
     )
     await act(async () => pedidos[0].responder(respostaJson(200, corpo)))
 
-    expect(tituloResultados()).toHaveTextContent('Os 2 nomes mais parecidos com “%maria%silva%”')
-    expect(regiaoViva()).toHaveTextContent('Os 2 nomes mais parecidos com “%maria%silva%”.')
+    expect(tituloResultados()).toHaveTextContent(
+      'Os 2 nomes mais parecidos com “%maria%silva%”, cargo “professor”, órgão “INSS” em RJ',
+    )
+    expect(regiaoViva()).toHaveTextContent(
+      'Os 2 nomes mais parecidos com “%maria%silva%”, cargo “professor”, órgão “INSS” em RJ.',
+    )
     const tabela = screen.getByRole('table')
     expect(within(tabela).getByRole('columnheader', { name: 'Semelhança' })).toHaveAttribute('aria-sort', 'descending')
     expect(within(tabela).getAllByRole('row')[1]).toHaveTextContent('0,86')
@@ -402,10 +408,10 @@ describe('Nome parecido e filtros combinados (issue #20)', () => {
       'semelhança 0,50',
     )
 
-    // Voltar ao nome exato reativa os filtros com o que já estava digitado.
+    // Voltar ao nome exato mantém os filtros digitados.
     fireEvent.click(botaoModo('Nome exato'))
-    expect(campoCargo()).toBeEnabled()
     expect(campoCargo()).toHaveValue('professor')
+    expect(campoUf()).toHaveValue('RJ')
     expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument()
   })
 
@@ -483,7 +489,7 @@ describe('Nome parecido e filtros combinados (issue #20)', () => {
 })
 
 describe('Paginação, detalhe e estados (issue #21)', () => {
-  it('detalhe sem a rota /api/servidores/<id>: avisa, sem inventar campos "não informados"', async () => {
+  it('detalhe que não carrega: avisa, sem inventar campos "não informados"', async () => {
     const { pedidos } = fetchPendente()
     abrirCom('/?nome=Maria')
     await act(async () => pedidos[0].responder(respostaJson(200, corpoServidores([SERVIDOR_APOSENTADO]))))
@@ -546,7 +552,7 @@ describe('Paginação, detalhe e estados (issue #21)', () => {
     expect(pedidos[0].url).toBe('/api/servidores?nome=Maria')
   })
 
-  it('busca parecida não pagina: sem seletor por página e sem paginação', async () => {
+  it('busca parecida não pagina: sem seletor por página e sem paginação, nem page na API', async () => {
     fetchRespondendo(() =>
       respostaJson(
         200,
@@ -559,9 +565,10 @@ describe('Paginação, detalhe e estados (issue #21)', () => {
         ),
       ),
     )
-    abrirCom('/?similar=%25MARIA%25&limit=100&page=2')
+    abrirCom('/?similar=%25MARIA%25&limit=100&uf=RJ&page=2&per_page=50')
     expect(await screen.findByRole('table')).toBeInTheDocument()
-    expect(fetchMockUrl()).toBe('/api/servidores?similar=%25MARIA%25&limit=100')
+    // A API recusa page e per_page com similar; o filtro de UF vai junto.
+    expect(fetchMockUrl()).toBe('/api/servidores?similar=%25MARIA%25&limit=100&uf=RJ')
     expect(screen.queryByRole('navigation', { name: 'Paginação' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Resultados por página')).not.toBeInTheDocument()
   })
@@ -600,11 +607,19 @@ describe('Paginação, detalhe e estados (issue #21)', () => {
     expect(campoNome()).toHaveValue('%JOAO%SILVA%XAVIER%')
   })
 
-  it('sem resultado com filtros, não sugere a busca parecida (ela não aplicaria os filtros)', async () => {
-    fetchRespondendo(() => erroApi(404, 'NAO_ENCONTRADO', 'Nenhum servidor encontrado.'))
-    abrirCom('/?nome=Maria+Silva&uf=RJ')
-    expect(await screen.findByRole('heading', { level: 2 })).toHaveTextContent('Nenhum vínculo encontrado')
-    expect(screen.queryByRole('link', { name: /Buscar nomes parecidos/ })).not.toBeInTheDocument()
+  it('sem resultado com filtros, sugere a busca parecida com os mesmos filtros', async () => {
+    const { pedidos } = fetchPendente()
+    abrirCom('/?nome=Maria+Silva&uf=RJ&per_page=50')
+    await act(async () => pedidos[0].responder(erroApi(404, 'NAO_ENCONTRADO', 'Nenhum servidor encontrado.')))
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Nenhum vínculo encontrado')
+
+    const link = screen.getByRole('link', { name: 'Buscar nomes parecidos: %MARIA%SILVA%' })
+    expect(link).toHaveAttribute('href', '/?similar=%25MARIA%25SILVA%25&limit=100&uf=RJ')
+    fireEvent.click(link)
+    expect(pedidos[1].url).toBe('/api/servidores?similar=%25MARIA%25SILVA%25&limit=100&uf=RJ')
+    await act(async () => pedidos[1].responder(erroApi(404, 'NAO_ENCONTRADO', 'Nenhum servidor encontrado.')))
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Nenhum nome parecido com “%MARIA%SILVA%” em RJ')
+    expect(screen.getByText(/Com filtros, o nome também precisa atender a todos eles/)).toBeInTheDocument()
   })
 })
 

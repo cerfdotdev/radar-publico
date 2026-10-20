@@ -28,6 +28,7 @@ jobs:
       backend: ${{ steps.d.outputs.backend }}
       backend_tests: ${{ steps.d.outputs.backend_tests }}
       desktop: ${{ steps.d.outputs.desktop }}
+      scripts: ${{ steps.d.outputs.scripts }}
       frontend_node: ${{ steps.d.outputs.frontend_node }}
       frontend_js: ${{ steps.d.outputs.frontend_js }}
       dockerfiles: ${{ steps.d.outputs.dockerfiles }}
@@ -42,6 +43,7 @@ jobs:
           has '[ -f projeto/backend/requirements.txt ]' backend
           has '[ -d projeto/backend/tests ]' backend_tests
           has '[ -f projeto/desktop/requirements.txt ]' desktop
+          has '[ -f scripts/pyproject.toml ]' scripts
           has '[ -f projeto/frontend/package.json ]' frontend_node
           has '[ -n "$(find projeto/frontend -name "*.js" -o -name "*.ts" -o -name "*.jsx" -o -name "*.tsx" -o -name "*.vue" -o -name "*.svelte" | grep -v node_modules | head -1)" ]' frontend_js
           has '[ -n "$(find projeto -name Dockerfile | head -1)" ]' dockerfiles
@@ -127,6 +129,34 @@ jobs:
       # pulados se o Qt não carregar; -rs lista no log o que foi pulado e por quê.
       - name: Testes (pytest)
         run: python -m pytest -rs
+
+  # Scripts da equipe (burndown): só biblioteca padrão, então não há dependências para auditar.
+  scripts:
+    needs: detect
+    if: needs.detect.outputs.scripts == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: scripts
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Instalar ferramentas de CI (com hash verificado)
+        run: pip install --require-hashes --no-deps -r ../.github/ci/requirements.txt
+      # Só os arquivos do burndown: os scripts mais antigos não passavam pelo ruff.
+      - name: Lint (ruff)
+        run: ruff check burndown.py tests && ruff format --check burndown.py tests
+      - name: Análise de segurança (bandit)
+        run: bandit burndown.py -ll
+      - name: Testes (pytest)
+        run: python -m pytest
 
   frontend:
     needs: detect
@@ -291,7 +321,7 @@ jobs:
   # Único check obrigatório na proteção da main: falha se qualquer job acima falhar.
   ci-ok:
     if: always()
-    needs: [detect, backend, desktop, frontend, docker, dependency-review, workflows-audit, codeql]
+    needs: [detect, backend, desktop, scripts, frontend, docker, dependency-review, workflows-audit, codeql]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}

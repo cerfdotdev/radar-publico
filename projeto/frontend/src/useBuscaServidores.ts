@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { buscarServidores, FALHA_INESPERADA, TOTAL_CAP, type ParametrosBusca, type SearchOutcome } from './api'
-import { aceitaFiltros, LIMITE_PADRAO, validarBusca } from './filtros'
+import { LIMITE_PADRAO, validarBusca } from './filtros'
 import { limparNome } from './nome'
 import type { Busca, ModoBusca } from './types'
 
@@ -90,16 +90,18 @@ function lerBuscaDaUrl(): Busca | null {
 }
 
 /**
- * O que vai para a API e para a URL: só os filtros preenchidos que o modo aceita.
- * A busca parecida também não pagina: a API devolve tudo de uma vez, até o limite.
+ * O que vai para a API e para a URL: o nome no modo escolhido e os filtros preenchidos.
+ * A busca parecida não pagina (a API devolve tudo de uma vez, até o limite, e recusa
+ * `page` e `per_page`), então só a busca exata leva a página.
  */
 function parametrosDaBusca(busca: Busca): ParametrosBusca {
-  if (!aceitaFiltros(busca.modo)) return { similar: busca.termo, limit: busca.limite }
-  const parametros: ParametrosBusca = {}
-  if (busca.termo !== '') parametros.nome = busca.termo
+  const similar = busca.modo === 'similar'
+  const parametros: ParametrosBusca = similar ? { similar: busca.termo, limit: busca.limite } : {}
+  if (!similar && busca.termo !== '') parametros.nome = busca.termo
   if (busca.cargo !== '') parametros.cargo = busca.cargo
   if (busca.orgao !== '') parametros.orgao = busca.orgao
   if (busca.uf !== '') parametros.uf = busca.uf
+  if (similar) return parametros
   if (busca.pagina !== PAGINA_PADRAO) parametros.page = busca.pagina
   if (busca.porPagina !== POR_PAGINA_PADRAO) parametros.per_page = busca.porPagina
   return parametros

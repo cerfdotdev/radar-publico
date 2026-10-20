@@ -75,10 +75,8 @@ a:hover { color: var(--primary-hover); }
 .limite input { width: 64px; min-height: 44px; border: 0; background: transparent; font-family: var(--mono); font-size: 1rem; color: var(--ink); }
 .limite:has(input[aria-invalid="true"]) { border: 2px solid var(--err-fg); background: var(--err-bg); }
 
-/* Filtros combináveis (fieldset: desativado inteiro na busca parecida) */
+/* Filtros combináveis, nos dois modos do nome */
 .busca__filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s-4); min-inline-size: 0; margin: 0; padding: 20px 0 0; border: 0; border-top: 1px solid var(--line); }
-.busca__filtros:disabled .campo__rotulo { color: var(--ink-2); }
-.busca__nota { grid-column: 1 / -1; }
 .busca__abrir-filtros { display: none; } /* só no celular */
 .contador { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--primary-soft); color: var(--primary-text); font-size: var(--fs-mini); font-weight: 600; }
 

@@ -6,6 +6,7 @@ Todo o trabalho da equipe está no GitHub:
 
 | | |
 |---|---|
+| Aplicação online | <https://radar.dok.hatzer.cloud> |
 | Repositório | <https://github.com/cerfdotdev/radar-publico> |
 | Histórico de commits | <https://github.com/cerfdotdev/radar-publico/commits/main> |
 | Pull requests e revisões | <https://github.com/cerfdotdev/radar-publico/pulls?q=is%3Apr> |

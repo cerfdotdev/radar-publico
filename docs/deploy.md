@@ -2,6 +2,17 @@
 
 O mesmo `projeto/docker-compose.yml` roda no [Dokploy](https://dokploy.com), atrás do Traefik dele, com HTTPS. O deploy contínuo é o job `deploy` do CI ([`ci.yml`](../.github/workflows/ci.yml)): a cada push na `main` com o `ci-ok` verde, ele pede ao Dokploy um novo deploy do compose. A chave da API do Dokploy fica só nos segredos do GitHub.
 
+## Ambiente atual
+
+| | |
+|---|---|
+| Painel | <https://dokploy.hatzer.cloud>, projeto **Radar-Público**, serviço compose `radar-publico` |
+| Site e API | <https://radar.dok.hatzer.cloud> e `/api/` (o DNS `*.dok.hatzer.cloud` já aponta para o servidor) |
+| Endereço de teste | <http://radar-publico-147-15-59-99.traefik.me> (HTTP, sem depender de DNS) |
+| Deploy contínuo | job `deploy` do CI, ambiente `producao` do GitHub |
+
+O serviço foi criado em 20/10/2026 com as variáveis da seção 2 e senhas aleatórias do banco, guardadas só no Dokploy.
+
 ## 1. Criar o serviço no Dokploy
 
 1. **Projects → Create Project** (ex.: "Radar Público") → **Create Service → Compose**.

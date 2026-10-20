@@ -63,6 +63,12 @@ def test_limit_fora_da_faixa_retorna_erro():
 # --- Rota /api/servidores com similar (mock de banco) ---
 
 
+@pytest.fixture
+def mocked_client(make_app):
+    """Cache desligado: a versão dos dados (ETag) viria do banco, que aqui é um mock."""
+    return make_app(API_CACHE_TTL_S=0).test_client()
+
+
 def _mock_row(nome, similaridade=0.75):
     return {
         "id": 1,
@@ -77,7 +83,7 @@ def _mock_row(nome, similaridade=0.75):
     }
 
 
-def test_similar_retorna_200_com_similaridade(client):
+def test_similar_retorna_200_com_similaridade(mocked_client):
     mock_conn = MagicMock()
     mock_cur = MagicMock()
     mock_conn.cursor.return_value.__enter__.return_value = mock_cur
@@ -85,7 +91,7 @@ def test_similar_retorna_200_com_similaridade(client):
 
     with patch("app.routes.servidores.get_db_connection") as mock_get:
         mock_get.return_value.__enter__.return_value = mock_conn
-        response = client.get("/api/servidores", query_string={"similar": "%MARIA%SILVA%"})
+        response = mocked_client.get("/api/servidores", query_string={"similar": "%MARIA%SILVA%"})
 
     assert response.status_code == HTTPStatus.OK
     body = response.get_json()
@@ -94,7 +100,7 @@ def test_similar_retorna_200_com_similaridade(client):
     assert body["meta"]["total"] == 1
 
 
-def test_similar_sem_resultado_retorna_404(client):
+def test_similar_sem_resultado_retorna_404(mocked_client):
     mock_conn = MagicMock()
     mock_cur = MagicMock()
     mock_conn.cursor.return_value.__enter__.return_value = mock_cur
@@ -102,7 +108,9 @@ def test_similar_sem_resultado_retorna_404(client):
 
     with patch("app.routes.servidores.get_db_connection") as mock_get:
         mock_get.return_value.__enter__.return_value = mock_conn
-        response = client.get("/api/servidores", query_string={"similar": "%FULANO%INEXISTENTE%"})
+        response = mocked_client.get(
+            "/api/servidores", query_string={"similar": "%FULANO%INEXISTENTE%"}
+        )
 
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.get_json()["error"]["code"] == "NAO_ENCONTRADO"

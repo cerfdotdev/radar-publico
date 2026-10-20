@@ -2,7 +2,7 @@
 
 Recomendações de desempenho seguidas (docs/banco.md): ids de cargo e órgão resolvidos
 antes (na memória do worker, app/lookup.py), contagem limitada a 10.000 resultados e
-paginação só dentro desse limite.
+paginação só dentro desse limite. Cabeçalhos de cache e 304 em app/http_cache.py.
 """
 
 import math
@@ -14,6 +14,7 @@ from psycopg.rows import dict_row
 
 from app.db import get_db_connection
 from app.errors import ApiError
+from app.http_cache import not_modified
 from app.lookup import get_lookup
 from app.search_params import (
     MAX_TOTAL,
@@ -156,6 +157,9 @@ def serialize_detail(row: dict) -> dict:
 def listar_servidores() -> Response:
     """Busca servidores por nome exato ou parecido, cargo, órgão, UF e situação."""
     params = parse_search_params(request.args)
+    # Revalidação com a versão atual dos dados: 304 sem refazer a busca.
+    if (unchanged := not_modified()) is not None:
+        return unchanged
 
     if params.uf is not None and params.situacao is Situacao.APOSENTADO:
         raise ApiError(
@@ -240,6 +244,8 @@ def detalhar_servidor(raw_id: str) -> Response:
     """Detalhe de um vínculo, com os campos de carreira, aposentadoria e ingresso."""
     # O id é conferido antes do banco: texto ou número fora do bigint dão 400, não 500.
     servidor_id = parse_servidor_id(raw_id, request.args)
+    if (unchanged := not_modified()) is not None:
+        return unchanged
     with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(DETAIL_QUERY, (servidor_id,))
         row = cur.fetchone()

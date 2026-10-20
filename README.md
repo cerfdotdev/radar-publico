@@ -28,6 +28,7 @@ docker compose up --build
 projeto/            # pasta entregue no .zip
 ├── backend/        # API Flask + Gunicorn (Dockerfile)
 ├── frontend/       # aplicação web (Dockerfile)
+├── desktop/        # app PySide6 que consome a API
 ├── db/             # scripts de schema, índices e carga dos dados
 │   ├── init/       # executados pelo Postgres na primeira inicialização
 │   └── data/       # CSVs baixados (não versionados)

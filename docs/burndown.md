@@ -1,6 +1,6 @@
 # Burndown
 
-Gerado em 20/10/2026 10:57 (horário de Brasília) a partir do GitHub Project [Radar Público](https://github.com/users/cerfdotdev/projects/12). Para atualizar, rode `python3 scripts/burndown.py` na raiz do repositório.
+Gerado em 20/10/2026 12:08 (horário de Brasília) a partir do GitHub Project [Radar Público](https://github.com/users/cerfdotdev/projects/12). Para atualizar, rode `python3 scripts/burndown.py` na raiz do repositório.
 
 ![Burndown das sprints](burndown.svg)
 
@@ -9,8 +9,8 @@ Gerado em 20/10/2026 10:57 (horário de Brasília) a partir do GitHub Project [R
 | Sprint | Período | Planejado | Adicionado depois | Concluído na sprint | Concluído após o fim | Em aberto |
 |---|---|--:|--:|--:|--:|--:|
 | Sprint 1 | 18/10 | 41 | 0 | 19 | 21 | 1 |
-| Sprint 2 | 19/10 | 56 | 13 | 0 | 37 | 32 |
-| **Total** |  | **97** | **13** | **19** | **58** | **33** |
+| Sprint 2 | 19/10 | 56 | 13 | 0 | 50 | 19 |
+| **Total** |  | **97** | **13** | **19** | **71** | **20** |
 
 Planejado: issues criadas até o fim da primeira sprint. Concluído na sprint: fechada antes do fim dela; após o fim: fechada depois. Em pontos (campo Pontos).
 
@@ -18,9 +18,9 @@ Planejado: issues criadas até o fim da primeira sprint. Concluído na sprint: f
 
 | Responsável | Atribuídos | Concluídos | Concluídos dentro da sprint |
 |---|--:|--:|--:|
+| @cerfdotdev | 55 | 35 | 19 |
 | @joaoarenda | 32 | 32 | 0 |
 | @Alisson-dutra | 23 | 23 | 0 |
-| @cerfdotdev | 55 | 22 | 19 |
 
 ## Notas
 
@@ -28,6 +28,13 @@ Planejado: issues criadas até o fim da primeira sprint. Concluído na sprint: f
 - Planejado: 97 pts em 27 issues criadas até o fim da Sprint 1 (cadastradas no Project em 18/10 22:30–22:33); a linha real começa nesse cadastro.
 - Escopo adicionado depois: +13 pts (#52, #53 e #54, criadas em 20/10).
 - PR mergeado dentro da sprint, issue fechada só depois do fim (15 pts): #13 (PR #44 em 19/10 22:11); #14, #15 e #16 (PR #38 em 19/10 18:23). Fechadas em 20/10; o gráfico usa o fechamento.
+
+## Avisos sobre os dados
+
+- #23 fechada, mas com Status Backlog
+- #24 fechada, mas com Status Backlog
+- #52 fechada, mas com Status In Progress
+- #53 fechada, mas com Status Todo
 
 <details>
 <summary>Issues do Project (30)</summary>
@@ -56,13 +63,13 @@ Planejado: issues criadas até o fim da primeira sprint. Concluído na sprint: f
 | #20 | Frontend: busca por similaridade e busca combinada | Sprint 2 | 5 | @Alisson-dutra | 18/10 22:32 | 20/10 09:53 | 9 h 53 min após o fim da sprint |
 | #21 | Frontend: paginação, detalhe e estados de erro | Sprint 2 | 5 | @Alisson-dutra | 18/10 22:32 | 20/10 09:54 | 9 h 54 min após o fim da sprint |
 | #22 | Desktop: app PySide6 consumindo a API | Sprint 2 | 5 | @Alisson-dutra | 18/10 22:32 | 20/10 10:03 | 10 h 03 min após o fim da sprint |
-| #23 | Desktop: compilar com PyInstaller | Sprint 2 | 2 | @cerfdotdev | 18/10 22:32 | — | em aberto |
-| #24 | Script de burndown a partir das issues | Sprint 2 | 3 | @cerfdotdev | 18/10 22:32 | — | em aberto |
+| #23 | Desktop: compilar com PyInstaller | Sprint 2 | 2 | @cerfdotdev | 18/10 22:32 | 20/10 11:58 | 11 h 58 min após o fim da sprint |
+| #24 | Script de burndown a partir das issues | Sprint 2 | 3 | @cerfdotdev | 18/10 22:32 | 20/10 11:21 | 11 h 21 min após o fim da sprint |
 | #25 | Relatório final | Sprint 2 | 5 | @cerfdotdev | 18/10 22:32 | — | em aberto |
 | #26 | Sprint review e retrospectiva | Sprint 2 | 1 | @cerfdotdev | 18/10 22:32 | — | em aberto |
 | #27 | Entrega: teste limpo e .zip da pasta projeto | Sprint 2 | 2 | @cerfdotdev | 18/10 22:33 | — | em aberto |
-| #52 | Backend: completar o contrato da API (detalhe, similar com filtros) | Sprint 2 | 5 | @cerfdotdev | 20/10 10:26 | — | em aberto; adicionada após o planejamento |
-| #53 | Docs: arquitetura do sistema (system design) | Sprint 2 | 3 | @cerfdotdev | 20/10 10:30 | — | em aberto; adicionada após o planejamento |
+| #52 | Backend: completar o contrato da API (detalhe, similar com filtros) | Sprint 2 | 5 | @cerfdotdev | 20/10 10:26 | 20/10 11:14 | 11 h 14 min após o fim da sprint; adicionada após o planejamento |
+| #53 | Docs: arquitetura do sistema (system design) | Sprint 2 | 3 | @cerfdotdev | 20/10 10:30 | 20/10 11:18 | 11 h 18 min após o fim da sprint; adicionada após o planejamento |
 | #54 | Backend: cache das buscas | Sprint 2 | 5 | @cerfdotdev | 20/10 10:30 | — | em aberto; adicionada após o planejamento |
 
 </details>

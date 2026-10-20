@@ -353,9 +353,13 @@ jobs:
   # CD: depois do CI verde num push na main, pede ao Dokploy o deploy do compose
   # (docs/deploy.md). As variáveis do ambiente "producao" só existem dentro do job, não
   # no if dele; sem DOKPLOY_COMPOSE_ID, o passo avisa e termina sem deploy.
+  # O !cancelled() troca o success() implícito, que olha toda a cadeia de needs: num push,
+  # o dependency-review (só de PR) fica skipped e pularia o deploy mesmo com o ci-ok verde.
   deploy:
     needs: [ci-ok]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      ${{ !cancelled() && needs.ci-ok.result == 'success'
+      && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: producao

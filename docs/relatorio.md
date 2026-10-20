@@ -66,8 +66,7 @@ O ruleset só aceita merge com commit de merge (sem squash nem rebase), então c
 | CodeQL | Análise estática de workflows, Python e TypeScript |
 | zizmor | Auditoria de segurança dos workflows do GitHub Actions |
 | OpenSSF Scorecard | Avaliação das práticas de segurança do repositório |
-
-<!-- ferramenta do teste de carga: entra com a issue #19 -->
+| k6 (via Docker) | Teste de carga paralela da API com os dados reais ([`carga.md`](carga.md)) |
 
 ## 3. Sprints
 
@@ -232,7 +231,7 @@ Resumo tirado dos assuntos dos commits e dos títulos dos PRs.
 - **20/10 (após as sprints), 00:04 a 00:54.** O Alisson abriu a paginação e o detalhe (#48) e o app desktop (#50). O João abriu o rate limiting (#49).
 - **20/10 (após as sprints), 09:20 a 11:58.** O líder revisou, corrigiu e mergeou #46 a #50, fechou à mão as issues #13 a #18 e #20 (09:53), cujos PRs já estavam mergeados, mergeou o compose com os limites pelo `.env` (#51, aprovado pelo Alisson) e o PR #42 do Dependabot, e fechou o #29 sem merge. Criou as issues #52, #53 e #54 (escopo adicionado) e abriu e mergeou o contrato completo da API (#58), a arquitetura (#56), o script de burndown (#57) e o executável do desktop com PyInstaller (#55, que fechou a issue #23, planejada para o Alisson).
 
-<!-- a preencher pelo líder: o resto de 20/10 e os dias seguintes, até a entrega. -->
+- **20/10, depois das 12:00, até a entrega às 13:00.** Cache das buscas (#59), este relatório (#60), teste de carga paralela com os dados reais (#19), review e retrospectiva das sprints (#26) e o pacote de entrega (#27).
 
 
 ### Commits do líder em PRs de colegas
@@ -302,56 +301,42 @@ O gráfico, as tabelas por responsável e a lista das issues estão em [`burndow
 
 ## 8. Pontos fortes
 
-<!-- a preencher pelo líder -->
-
-Sugestões (fatos verificáveis no repositório):
-
-- Todo o código entrou por pull request desde o ruleset de 18/10 22:43, com o CI (`ci-ok`) obrigatório. Só os três commits iniciais foram direto na `main`.
-- O CI cobre lint, testes, auditoria de dependências, scan das imagens, CodeQL e auditoria dos workflows; actions fixadas por SHA, imagens por digest e ferramentas de CI com hash.
-- Até 19/10 todo PR mergeado na `main` teve aprovação de outro integrante: o João aprovou os do líder e os do Alisson, e o Alisson e o líder aprovaram os do João. A partir de 20/10 os PRs dos colegas foram aprovados só pelo líder, e os PRs #56, #57 e #58 do líder entraram sem revisão.
-- Cada tarefa tem issue, pontos, sprint e PR ligado, o que permite gerar o burndown e este histórico a partir dos dados.
-- Documentação da API, do banco, dos dados e da arquitetura em `docs/`.
+- **Todo o código entrou por pull request com CI obrigatório.** Desde o ruleset de 18/10 22:43, nada foi direto para a `main`; só os três commits iniciais da estrutura vieram antes dele.
+- **Segurança e cadeia de suprimentos desde o primeiro dia.** O CI roda lint, testes com cobertura mínima, auditoria de dependências, scan das imagens, CodeQL e auditoria dos workflows. Actions fixadas por SHA, imagens por digest, ferramentas de CI com hash e Dependabot com cooldown.
+- **Rastreabilidade.** Cada tarefa tem issue, pontos, sprint e PR ligado, e por isso o burndown e este histórico são gerados a partir dos dados, não escritos à mão.
+- **Medido com os dados reais.** O banco tem os 1,5 milhão de vínculos dos dois conjuntos; índices, consultas e limites foram ajustados com medições nessa base (`banco.md`, `carga.md`), e não só na amostra.
+- **Proteções contra sobrecarga em camadas:** validação antes do banco, limite por IP, fila de threads, pool limitado ao orçamento do banco, `statement_timeout`, timeouts do nginx e cache com coalescência de requisições iguais.
+- **Documentação** da API, do banco, dos dados, da arquitetura e do teste de carga em `docs/`, e um app desktop compilado para Linux e Windows além do site.
 
 ## 9. Pontos fracos
 
-<!-- a preencher pelo líder -->
-
-Sugestões (fatos verificáveis no repositório):
-
-- Nenhuma issue tem comentário: as dailies não foram registradas no GitHub.
-- A Sprint 1 terminou com 19 dos 41 pontos planejados fechados dentro dela, e nenhuma issue da Sprint 2 fechou dentro da Sprint 2 (tabela do burndown).
-- Parte dos commits e PRs não segue o padrão de mensagens do `CONTRIBUTING.md` (ex.: commits "resolve o issue 20" e PR "Fix/issue 22").
-- As issues #13 a #18 e #20 não fecharam no merge dos PRs ligados a elas; o líder as fechou à mão em 20/10 às 09:53.
-- 10 dos 12 PRs mergeados dos colegas receberam commits de correção do líder antes do merge (seção 5).
-- Os campos Status de #24, #52 e #53 não acompanharam o fechamento das issues (avisos em `relatorio/historico.md`).
+- **As dailies não aconteceram** (seção 6). O acompanhamento diário ficou só nos PRs e revisões.
+- **Sprints mal dimensionadas.** O backlog foi cadastrado a uma hora e meia do fim da Sprint 1. A Sprint 1 fechou 19 dos 41 pontos dentro dela, e a Sprint 2 não fechou nenhuma issue dentro do dia planejado ([`burndown.md`](burndown.md)).
+- **Trabalho concentrado no líder.** 10 dos 12 PRs mergeados dos colegas receberam commits de correção do líder antes do merge (seção 5); vários chegaram com o CI vermelho ou fora do contrato da API.
+- **Padrões combinados não seguidos por todos:** mensagens de commit e títulos de PR fora do padrão do `CONTRIBUTING.md` (ex.: "resolve o issue 20") e PRs sem `Closes #N`, o que obrigou a fechar issues à mão e corrigir os vínculos depois.
+- **Revisão obrigatória removida no fim.** Em 20/10 a aprovação deixou de ser exigida, e os últimos PRs do líder entraram sem revisão de outro integrante.
 
 ## 10. Dificuldades
 
-<!-- a preencher pelo líder -->
-
-Sugestões (fatos verificáveis no repositório):
-
-- O backlog foi cadastrado a uma hora e meia do fim da Sprint 1, e as sprints de um dia ficaram menores que o trabalho planejado.
-- O trabalho passou do fim da Sprint 2 e do prazo do enunciado; o escopo cresceu em 20/10 (#52, #53 e #54).
-- O PR #44 recebeu pedido de mudanças e precisou de um PR de correção de teste (#45).
-- O repositorio.dados.gov.br nem sempre responde para os runners do GitHub; o CI passou a usar uma amostra sintética (`scripts/gerar_amostra.py`).
+- **Prazo.** O trabalho começou em 18/10, depois do prazo de 13/10 do enunciado, com duas sprints de um dia; parte do escopo ficou para 20/10.
+- **Os dados de origem.** Arquivos grandes, em Latin-1, com campos a tratar e normalizar (maiúsculas, sem acento, espaços) para a busca por nome exato funcionar. O dados.gov.br nem sempre responde aos runners do GitHub, e o CI passou a usar uma amostra sintética (`scripts/gerar_amostra.py`).
+- **Desempenho em 1,5 milhão de linhas.** Buscas por órgão ou cargo raros levavam 1,5 a 2 s e páginas profundas, segundos; resolvemos com índices compostos, estatísticas maiores, paginação pelos ids e contagem limitada a 10.000.
+- **Entradas do jeito que o enunciado escreve.** O exemplo `similar="%NOME%"` tem aspas, e um `%` sem codificar na URL pode virar outro caractere; a API passou a aceitar os dois.
+- **Licença do PySide6 (LGPL).** O executável do desktop precisa manter as bibliotecas do Qt substituíveis, por isso o build é em pasta (onedir), com os textos das licenças.
 
 ## 11. Impedimentos
 
-<!-- a preencher pelo líder -->
-
-Sugestões (fatos verificáveis no repositório):
-
-- A atribuição das issues dependia de os colegas aceitarem o convite do repositório (`scripts/atribuir_responsaveis.sh`).
-- Os PRs do líder precisavam da aprovação de um code owner; o João virou co-dono no `CODEOWNERS` em 18/10 para isso. Em 20/10 a aprovação obrigatória saiu, porque só o líder tinha tarefas abertas (`CONTRIBUTING.md`).
+- **Convites ao repositório.** A atribuição das issues dependeu de os colegas aceitarem o convite (`scripts/atribuir_responsaveis.sh`).
+- **Regras de aprovação.** A exigência de aprovação de um code owner após o último push travava PRs que o líder atualizava; o João virou co-dono no `CODEOWNERS` em 18/10 e, em 20/10, a aprovação obrigatória saiu.
+- **CI bloqueado em 20/10.** Entre 13:38 e 14:06 UTC a configuração de Actions do repositório ficou em "somente actions locais", e todos os workflows falharam ao iniciar; voltou a funcionar com uma lista de actions permitidas e SHA obrigatório.
 
 ## 12. Limitações
 
-<!-- a preencher pelo líder -->
-
-Sugestões (fatos verificáveis no repositório):
-
-- Os limites técnicos da aplicação estão em [`arquitetura.md`](arquitetura.md#limites-conhecidos).
+- **Limites técnicos medidos** no teste de carga paralela, com os dados reais: [`carga.md`](carga.md#limitações-encontradas).
+- **Limites conhecidos da arquitetura** ([`arquitetura.md`](arquitetura.md#limites-conhecidos)): o limite por IP conta em cada worker (com 2 workers, de 60 a 120 por minuto por IP); o `GUNICORN_TIMEOUT` não corta requisição lenta, e quem limita é o `statement_timeout` (por consulta) e o nginx (15 s); a busca por nome parecido não é paginada (até 100 resultados); a navegação vai até o 10.000º resultado.
+- **Dados fixos.** O banco reflete os arquivos da carga (ativos de 08/2026, aposentados de 05/2026); atualizar exige recarregar do zero, e o cache pode mostrar dados antigos por até dois tempos de vida depois disso.
+- **Operação local.** Sem HTTPS (o nginx serve HTTP na 8080) e a porta 5000 da API só aceita conexões da própria máquina, por padrão.
+- **Desktop** testado no CI em Linux e Windows; macOS só documentado.
 - Issues em aberto na geração deste relatório:
 
 <!-- historico:abertas -->
@@ -373,4 +358,6 @@ Sugestões (fatos verificáveis no repositório):
 - [`banco.md`](banco.md): modelo, carga, índices e pool de conexões
 - [`dados.md`](dados.md): arquivos de origem e formato
 - [`burndown.md`](burndown.md): burndown das sprints
+- [`carga.md`](carga.md): teste de carga paralela
+- [`sprints/`](sprints/README.md): review e retrospectiva das sprints
 - [`relatorio/historico.md`](relatorio/historico.md): histórico completo de commits, PRs e revisões

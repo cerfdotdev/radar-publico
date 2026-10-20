@@ -11,7 +11,7 @@ updates:
       actions: { patterns: ["*"] }
 
   - package-ecosystem: pip
-    directories: [/projeto/backend, /.github/ci]
+    directories: [/projeto/backend, /projeto/desktop, /.github/ci]
     schedule: { interval: weekly }
     cooldown: { default-days: 7 }
     groups:

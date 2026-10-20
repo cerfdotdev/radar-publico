@@ -78,7 +78,6 @@ def test_similarity_now_available():
     assert params.similar == "%MARIA%"
 
 
-
 @pytest.mark.parametrize(
     "value",
     ["", " ", "a", "a" * (MAX_TEXT_LENGTH + 1), "a\x00b", "%", "_", "%MARIA%", "x--y", "x;y"],

@@ -1,0 +1,83 @@
+#!/bin/sh
+# Padrões dos limites da borda (README, "Limites e ajuste por máquina"). O entrypoint da imagem
+# do nginx carrega este arquivo (.envsh) antes de gerar a configuração a partir dos templates
+# (20-envsubst-on-templates.sh), e as variáveis exportadas aqui chegam ao envsubst.
+#
+# Como no backend (server_settings.int_from_env), variável vazia ou ausente usa o padrão, e um
+# valor inválido também, com um aviso no log: um erro no .env não deixa o site fora do ar. O
+# docker-compose.yml repassa as variáveis vazias quando o .env não as define.
+
+# Interruptores: 1 liga, 0 desliga (ex.: o teste de carga, docs/carga.md, em que todos os
+# clientes saem do mesmo IP). Desligado, o map de limites-borda.conf deixa a chave vazia, e o
+# nginx não conta requisição com chave vazia.
+LIMITE_PADRAO_LIGADO=1
+
+# Requisições por segundo por IP em /api/, na média. Uma pessoa faz uma requisição por ação
+# (buscar, trocar de página, abrir um detalhe), longe de 1 por segundo; 10 cobrem uma sala de
+# aula ou um celular atrás do mesmo IP (NAT) e seguram um script em laço, que mandaria centenas.
+LIMITE_PADRAO_IP_POR_S=10
+# Quantas passam de uma vez acima da média, sem espera (nodelay): uma turma de 20 buscando ao
+# mesmo tempo. Daí em diante, o excesso leva 429 na hora, antes do cache e do Gunicorn.
+LIMITE_PADRAO_IP_RAJADA=20
+# Requisições em andamento por IP. Metade de LIMITE_PADRAO_BACKEND_SIMULTANEAS: um IP sozinho
+# nunca ocupa mais da metade das vagas do backend.
+LIMITE_PADRAO_IP_SIMULTANEAS=8
+# Requisições ao mesmo tempo no Gunicorn: 2 × (2 workers × 4 threads), os padrões de
+# server_settings.py. Cada thread com uma busca rodando e no máximo uma esperando, então a espera
+# fica em uma busca (até os 5 s do statement_timeout); acima disso, 503 na hora. Ao mudar
+# GUNICORN_WORKERS ou GUNICORN_THREADS, ajuste para 2 × workers × threads.
+LIMITE_PADRAO_BACKEND_SIMULTANEAS=16
+
+# Mínimo de cada número: o nginx recusa 0 em rate=, burst= e limit_conn (para desligar, use o
+# interruptor).
+LIMITE_MINIMO=1
+
+limite_aviso() {
+    echo "limites-borda.envsh: $1=$2 $3; usando $4"
+}
+
+# Interruptor: só 0 ou 1.
+limite_interruptor() {
+    eval "limite_valor=\${$1:-}"
+    case "$limite_valor" in
+        '') limite_valor=$LIMITE_PADRAO_LIGADO ;;
+        0 | 1) ;;
+        *)
+            limite_aviso "$1" "$limite_valor" "não é 0 nem 1" "$LIMITE_PADRAO_LIGADO"
+            limite_valor=$LIMITE_PADRAO_LIGADO
+            ;;
+    esac
+    export "$1=$limite_valor"
+}
+
+# Inteiro positivo; vazio, inválido ou abaixo do mínimo usa o padrão ($2).
+limite_inteiro() {
+    eval "limite_valor=\${$1:-}"
+    case "$limite_valor" in
+        '') limite_valor=$2 ;;
+        *[!0-9]*)
+            limite_aviso "$1" "$limite_valor" "não é um número inteiro" "$2"
+            limite_valor=$2
+            ;;
+        *)
+            if [ "$limite_valor" -lt "$LIMITE_MINIMO" ]; then
+                limite_aviso "$1" "$limite_valor" "é menor que $LIMITE_MINIMO" "$2"
+                limite_valor=$2
+            fi
+            ;;
+    esac
+    export "$1=$limite_valor"
+}
+
+limite_interruptor NGINX_LIMITE_IP
+limite_inteiro NGINX_LIMITE_IP_POR_S "$LIMITE_PADRAO_IP_POR_S"
+limite_inteiro NGINX_LIMITE_IP_RAJADA "$LIMITE_PADRAO_IP_RAJADA"
+limite_inteiro NGINX_LIMITE_IP_SIMULTANEAS "$LIMITE_PADRAO_IP_SIMULTANEAS"
+limite_interruptor NGINX_LIMITE_BACKEND
+limite_inteiro NGINX_LIMITE_BACKEND_SIMULTANEAS "$LIMITE_PADRAO_BACKEND_SIMULTANEAS"
+
+echo "limites-borda.envsh: por IP ${NGINX_LIMITE_IP} (${NGINX_LIMITE_IP_POR_S}/s, rajada ${NGINX_LIMITE_IP_RAJADA}, ${NGINX_LIMITE_IP_SIMULTANEAS} simultâneas); backend ${NGINX_LIMITE_BACKEND} (${NGINX_LIMITE_BACKEND_SIMULTANEAS} simultâneas)"
+
+unset -f limite_aviso limite_interruptor limite_inteiro
+unset limite_valor LIMITE_PADRAO_LIGADO LIMITE_PADRAO_IP_POR_S LIMITE_PADRAO_IP_RAJADA \
+    LIMITE_PADRAO_IP_SIMULTANEAS LIMITE_PADRAO_BACKEND_SIMULTANEAS LIMITE_MINIMO

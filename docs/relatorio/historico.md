@@ -1,6 +1,6 @@
 # Histórico do GitHub por integrante
 
-Gerado em 20/10/2026 12:20 (horário de Brasília) a partir do `git log` de `origin/main` (commit [`30585e6`](https://github.com/cerfdotdev/radar-publico/commit/30585e63bbd142bd5e2654e30ccf7931aeec38a8)), das issues e PRs de [cerfdotdev/radar-publico](https://github.com/cerfdotdev/radar-publico) e do [Project](https://github.com/users/cerfdotdev/projects/12). Para atualizar, rode `git fetch origin`, `python3 scripts/burndown.py` e `python3 scripts/historico_github.py` na raiz do repositório.
+Gerado em 20/10/2026 12:39 (horário de Brasília) a partir do `git log` de `origin/main` (commit [`9120fbe`](https://github.com/cerfdotdev/radar-publico/commit/9120fbe43d1efbe72c26e5d2be407c46808813e2)), das issues e PRs de [cerfdotdev/radar-publico](https://github.com/cerfdotdev/radar-publico) e do [Project](https://github.com/users/cerfdotdev/projects/12). Para atualizar, rode `git fetch origin`, `python3 scripts/burndown.py` e `python3 scripts/historico_github.py` na raiz do repositório.
 
 Gerado por `scripts/historico_github.py`; não edite à mão. O relatório que usa estas tabelas é [`docs/relatorio.md`](../relatorio.md).
 
@@ -16,11 +16,11 @@ Gerado por `scripts/historico_github.py`; não edite à mão. O relatório que u
 
 | Integrante | Papel | Commits | Merges | PRs abertos | PRs mergeados | PRs que mergeou | Revisões | Issues fechadas | Pontos concluídos |
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|
-| @cerfdotdev | Líder técnico | 58 | 46 | 14 | 12 | 25 | 14 | 12 | 40 |
+| @cerfdotdev | Líder técnico | 64 | 53 | 16 | 15 | 28 | 14 | 16 | 53 |
 | @joaoarenda | Backend | 9 | 0 | 7 | 7 | 0 | 11 | 9 | 32 |
 | @Alisson-dutra | Frontend e desktop | 5 | 1 | 5 | 5 | 0 | 9 | 5 | 23 |
 | automação | — | 1 | 0 | 4 | 1 | 0 | 3 | 0 | 0 |
-| **Total** |  | **73** | **47** | **30** | **25** | **25** | **37** | **26** | **95** |
+| **Total** |  | **79** | **54** | **32** | **28** | **28** | **37** | **30** | **108** |
 
 Commits: na main, sem os merges, que ficam na coluna Merges. PRs mergeados: os do integrante; PRs que mergeou: quem apertou o merge. Revisões: enviadas em PRs de outra pessoa, em qualquer estado. Issues fechadas: atribuídas ao integrante, com os pontos do Project.
 
@@ -28,7 +28,7 @@ Commits: na main, sem os merges, que ficam na coluna Merges. PRs mergeados: os d
 
 | Integrante | 18/10 (Sprint 1) | 19/10 (Sprint 2) | 20/10 (após as sprints) | Total |
 |---|--:|--:|--:|--:|
-| @cerfdotdev | 13 | 10 | 35 | 58 |
+| @cerfdotdev | 13 | 10 | 41 | 64 |
 | @joaoarenda | 0 | 7 | 2 | 9 |
 | @Alisson-dutra | 0 | 3 | 2 | 5 |
 | automação | 0 | 1 | 0 | 1 |
@@ -41,8 +41,8 @@ Commits: na main, sem os merges, que ficam na coluna Merges. PRs mergeados: os d
 |---|---|---|--:|--:|--:|--:|--:|--:|--:|
 | 18/10 | Sprint 1 | 22:28–23:10 | 13 | 4 | 4 | 4 | 4 | 0 | 4 (19 pts) |
 | 19/10 | Sprint 2 | 00:01–22:11 | 10 | 15 | 3 | 2 | 9 | 8 | 0 |
-| 20/10 | após as sprints | 09:20–12:19 | 35 | 27 | 7 | 6 | 12 | 6 | 8 (21 pts) |
-| **Total** |  |  | **58** | **46** | **14** | **12** | **25** | **14** | **12 (40 pts)** |
+| 20/10 | após as sprints | 09:20–12:38 | 41 | 34 | 9 | 9 | 15 | 6 | 12 (34 pts) |
+| **Total** |  |  | **64** | **53** | **16** | **15** | **28** | **14** | **16 (53 pts)** |
 
 ### @joaoarenda: João Arenda (Backend)
 
@@ -66,7 +66,7 @@ Commits: na main, sem os merges, que ficam na coluna Merges. PRs mergeados: os d
 
 | Integrante | Issues pelo plano | Pontos pelo plano | Pontos atribuídos | Pontos concluídos | Concluídos dentro da sprint |
 |---|--:|--:|--:|--:|--:|
-| @cerfdotdev | 15 | 53 | 55 | 40 | 19 |
+| @cerfdotdev | 15 | 53 | 55 | 53 | 19 |
 | @joaoarenda | 9 | 32 | 32 | 32 | 0 |
 | @Alisson-dutra | 6 | 25 | 23 | 23 | 0 |
 
@@ -87,11 +87,11 @@ Pelo plano: responsável de cada issue em `scripts/responsaveis.json`; as issues
 | [#5](https://github.com/cerfdotdev/radar-publico/issues/5) | Índices B-tree e pg_trgm para buscas | 3 | Sprint 1 | 18/10 23:10 | pelo commit [`b0c524e`](https://github.com/cerfdotdev/radar-publico/commit/b0c524eb2f5b0be3c71991345208904ac0e02398) | [#31](https://github.com/cerfdotdev/radar-publico/pull/31) | no prazo |
 | [#6](https://github.com/cerfdotdev/radar-publico/issues/6) | docker-compose com db-server, backend e frontend | 3 | Sprint 1 | 20/10 10:22 | pelo PR [#51](https://github.com/cerfdotdev/radar-publico/pull/51) | [#51](https://github.com/cerfdotdev/radar-publico/pull/51) | 1 d 10 h após o fim da sprint |
 | [#12](https://github.com/cerfdotdev/radar-publico/issues/12) | Daily — Sprint 2 | 1 | Sprint 2 | 20/10 12:19 | manual por @cerfdotdev | — | fechada sem conclusão (NOT_PLANNED) |
-| [#19](https://github.com/cerfdotdev/radar-publico/issues/19) | Teste de carga paralela da API | 5 | Sprint 2 | em aberto | — | — | em aberto |
+| [#19](https://github.com/cerfdotdev/radar-publico/issues/19) | Teste de carga paralela da API | 5 | Sprint 2 | 20/10 12:38 | pelo PR [#62](https://github.com/cerfdotdev/radar-publico/pull/62) | [#62](https://github.com/cerfdotdev/radar-publico/pull/62) | 12 h 38 min após o fim da sprint |
 | [#24](https://github.com/cerfdotdev/radar-publico/issues/24) | Script de burndown a partir das issues | 3 | Sprint 2 | 20/10 11:21 | pelo PR [#57](https://github.com/cerfdotdev/radar-publico/pull/57) | [#57](https://github.com/cerfdotdev/radar-publico/pull/57) | 11 h 21 min após o fim da sprint |
-| [#25](https://github.com/cerfdotdev/radar-publico/issues/25) | Relatório final | 5 | Sprint 2 | em aberto | — | — | em aberto |
-| [#26](https://github.com/cerfdotdev/radar-publico/issues/26) | Sprint review e retrospectiva | 1 | Sprint 2 | em aberto | — | — | em aberto |
-| [#27](https://github.com/cerfdotdev/radar-publico/issues/27) | Entrega: teste limpo e .zip da pasta projeto | 2 | Sprint 2 | em aberto | — | — | em aberto |
+| [#25](https://github.com/cerfdotdev/radar-publico/issues/25) | Relatório final | 5 | Sprint 2 | 20/10 12:27 | pelo commit [`3ceea9a`](https://github.com/cerfdotdev/radar-publico/commit/3ceea9ada06ef06c79cb2c1f40ceb7f413ad03ac) | [#61](https://github.com/cerfdotdev/radar-publico/pull/61) | 12 h 27 min após o fim da sprint |
+| [#26](https://github.com/cerfdotdev/radar-publico/issues/26) | Sprint review e retrospectiva | 1 | Sprint 2 | 20/10 12:27 | pelo commit [`3ceea9a`](https://github.com/cerfdotdev/radar-publico/commit/3ceea9ada06ef06c79cb2c1f40ceb7f413ad03ac) | [#61](https://github.com/cerfdotdev/radar-publico/pull/61) | 12 h 27 min após o fim da sprint |
+| [#27](https://github.com/cerfdotdev/radar-publico/issues/27) | Entrega: teste limpo e .zip da pasta projeto | 2 | Sprint 2 | 20/10 12:35 | manual por @cerfdotdev | — | 12 h 35 min após o fim da sprint |
 | [#52](https://github.com/cerfdotdev/radar-publico/issues/52) | Backend: completar o contrato da API (detalhe, similar com filtros) | 5 | Sprint 2 | 20/10 11:14 | pelo PR [#58](https://github.com/cerfdotdev/radar-publico/pull/58) | [#58](https://github.com/cerfdotdev/radar-publico/pull/58) | 11 h 14 min após o fim da sprint; adicionada após o planejamento |
 | [#53](https://github.com/cerfdotdev/radar-publico/issues/53) | Docs: arquitetura do sistema (system design) | 3 | Sprint 2 | 20/10 11:18 | pelo PR [#56](https://github.com/cerfdotdev/radar-publico/pull/56) | [#56](https://github.com/cerfdotdev/radar-publico/pull/56) | 11 h 18 min após o fim da sprint; adicionada após o planejamento |
 | [#54](https://github.com/cerfdotdev/radar-publico/issues/54) | Backend: cache das buscas | 5 | Sprint 2 | 20/10 12:15 | pelo PR [#59](https://github.com/cerfdotdev/radar-publico/pull/59) | [#59](https://github.com/cerfdotdev/radar-publico/pull/59) | 12 h 15 min após o fim da sprint; adicionada após o planejamento |
@@ -154,7 +154,9 @@ Pelo plano: responsável de cada issue em `scripts/responsaveis.json`; as issues
 | [#57](https://github.com/cerfdotdev/radar-publico/pull/57) | feat(scripts): burndown das sprints a partir das issues do Project | @cerfdotdev | `main` | 20/10 10:58 | 20/10 11:21 | @cerfdotdev | @cerfdotdev 4 + 1 merge | — | [#24](https://github.com/cerfdotdev/radar-publico/issues/24) |
 | [#58](https://github.com/cerfdotdev/radar-publico/pull/58) | feat(api): detalhe por id, similar com filtros e % digitado sem codificar | @cerfdotdev | `main` | 20/10 11:00 | 20/10 11:14 | @cerfdotdev | @cerfdotdev 4 + 1 merge | — | [#52](https://github.com/cerfdotdev/radar-publico/issues/52) |
 | [#59](https://github.com/cerfdotdev/radar-publico/pull/59) | feat: cache das buscas (nginx, ETag e ids em memória) | @cerfdotdev | `main` | 20/10 12:11 | 20/10 12:15 | @cerfdotdev | @cerfdotdev 6 + 1 merge | — | [#54](https://github.com/cerfdotdev/radar-publico/issues/54) |
-| [#60](https://github.com/cerfdotdev/radar-publico/pull/60) | docs: relatório final com tarefas, histórico diário do GitHub e burndown | @cerfdotdev | `main` | 20/10 12:12 | aberto | — | @cerfdotdev 3 + 1 merge | — | — |
+| [#60](https://github.com/cerfdotdev/radar-publico/pull/60) | docs: relatório final com tarefas, histórico diário do GitHub e burndown | @cerfdotdev | `main` | 20/10 12:12 | 20/10 12:24 | @cerfdotdev | @cerfdotdev 4 + 2 merges | — | — |
+| [#61](https://github.com/cerfdotdev/radar-publico/pull/61) | docs: avaliação do líder no relatório e retrospectiva das sprints | @cerfdotdev | `main` | 20/10 12:24 | 20/10 12:27 | @cerfdotdev | @cerfdotdev 1 + 1 merge | — | [#25](https://github.com/cerfdotdev/radar-publico/issues/25), [#26](https://github.com/cerfdotdev/radar-publico/issues/26) |
+| [#62](https://github.com/cerfdotdev/radar-publico/pull/62) | test(carga): teste de carga paralela da API com k6 | @cerfdotdev | `main` | 20/10 12:34 | 20/10 12:38 | @cerfdotdev | @cerfdotdev 1 + 1 merge | — | [#19](https://github.com/cerfdotdev/radar-publico/issues/19) |
 
 Commits por autor: todos os commits do PR, como o GitHub os lista (os de PR aberto ainda não estão na main). Revisões marcadas (do autor) são respostas do próprio autor e não contam como revisão feita.
 
@@ -300,6 +302,12 @@ Commits do líder (@cerfdotdev) que entraram na main por PRs abertos por colegas
 | 11:58 | @cerfdotdev | [`c92506a`](https://github.com/cerfdotdev/radar-publico/commit/c92506a6ba3f49d423e2625bc5d94279b407b62a) | feat(frontend): proxy_cache do nginx para a busca e o detalhe | [#59](https://github.com/cerfdotdev/radar-publico/pull/59) |
 | 12:03 | @cerfdotdev | [`9515392`](https://github.com/cerfdotdev/radar-publico/commit/9515392e7245245401aa84484a02cbba1c3580ec) | docs: cache das buscas | [#59](https://github.com/cerfdotdev/radar-publico/pull/59) |
 | 12:07 | @cerfdotdev | [`79886a7`](https://github.com/cerfdotdev/radar-publico/commit/79886a7f5ea59b444e7d8d82c9451d00d7adf0c3) | test(api): janela longa nos testes de cache que contam no limite por IP | [#59](https://github.com/cerfdotdev/radar-publico/pull/59) |
+| 12:08 | @cerfdotdev | [`feb0cf9`](https://github.com/cerfdotdev/radar-publico/commit/feb0cf9f105f769479054acf1a6748a9c25f3e78) | ci: lint e bandit do script de histórico | [#60](https://github.com/cerfdotdev/radar-publico/pull/60) |
+| 12:08 | @cerfdotdev | [`23b4b92`](https://github.com/cerfdotdev/radar-publico/commit/23b4b926ffdca4700e0d197e8653282003317637) | feat(scripts): histórico do GitHub por integrante para o relatório | [#60](https://github.com/cerfdotdev/radar-publico/pull/60) |
+| 12:09 | @cerfdotdev | [`44ba21a`](https://github.com/cerfdotdev/radar-publico/commit/44ba21a62f146f16214b74aa90de36b8376f5fbb) | docs: relatório final com a divisão das tarefas, o histórico diário e o burndown | [#60](https://github.com/cerfdotdev/radar-publico/pull/60) |
+| 12:20 | @cerfdotdev | [`b6d0c1f`](https://github.com/cerfdotdev/radar-publico/commit/b6d0c1f987f9fd03c25a64783c620edfebbef142) | docs: dailies não realizadas e dados atualizados | [#60](https://github.com/cerfdotdev/radar-publico/pull/60) |
+| 12:24 | @cerfdotdev | [`3ceea9a`](https://github.com/cerfdotdev/radar-publico/commit/3ceea9ada06ef06c79cb2c1f40ceb7f413ad03ac) | docs: avaliação do líder no relatório e retrospectiva das sprints | [#61](https://github.com/cerfdotdev/radar-publico/pull/61) |
+| 12:33 | @cerfdotdev | [`182c7eb`](https://github.com/cerfdotdev/radar-publico/commit/182c7eba10ed70908c08f1ab79448ba2081b3269) | test(carga): cenários k6 e resultados do teste de carga | [#62](https://github.com/cerfdotdev/radar-publico/pull/62) |
 
 ## Commits de merge
 
@@ -351,20 +359,27 @@ Commits do líder (@cerfdotdev) que entraram na main por PRs abertos por colegas
 | 20/10 | 11:55 | @cerfdotdev | [`a8f2d2b`](https://github.com/cerfdotdev/radar-publico/commit/a8f2d2be6d8faed26f780d70e8a1574650596563) | merge entre branches | [#55](https://github.com/cerfdotdev/radar-publico/pull/55) | Merge branch 'main' into feat/23-pyinstaller |
 | 20/10 | 11:58 | @cerfdotdev | [`05c3023`](https://github.com/cerfdotdev/radar-publico/commit/05c3023521e88a5c918d9cd1ea2f5b5a84536166) | merge entre branches | [#59](https://github.com/cerfdotdev/radar-publico/pull/59) | Merge remote-tracking branch 'origin/main' into feat/54-cache |
 | 20/10 | 11:58 | @cerfdotdev | [`ffb9b61`](https://github.com/cerfdotdev/radar-publico/commit/ffb9b6177fc03944e06cfcb36896246c340de952) | merge do PR | [#55](https://github.com/cerfdotdev/radar-publico/pull/55) | Merge pull request #55 from cerfdotdev/feat/23-pyinstaller |
+| 20/10 | 12:08 | @cerfdotdev | [`8f454b0`](https://github.com/cerfdotdev/radar-publico/commit/8f454b04ecbb6d7e38bb95eab05314ed12a634b7) | merge entre branches | [#60](https://github.com/cerfdotdev/radar-publico/pull/60) | Merge remote-tracking branch 'origin/main' into docs/25-relatorio |
 | 20/10 | 12:15 | @cerfdotdev | [`30585e6`](https://github.com/cerfdotdev/radar-publico/commit/30585e63bbd142bd5e2654e30ccf7931aeec38a8) | merge do PR | [#59](https://github.com/cerfdotdev/radar-publico/pull/59) | Merge pull request #59 from cerfdotdev/feat/54-cache |
+| 20/10 | 12:21 | @cerfdotdev | [`42ac726`](https://github.com/cerfdotdev/radar-publico/commit/42ac7265e64547f5a5ee63362a9cab6ab42745a5) | merge entre branches | [#60](https://github.com/cerfdotdev/radar-publico/pull/60) | Merge branch 'main' into docs/25-relatorio |
+| 20/10 | 12:24 | @cerfdotdev | [`ae5a2ec`](https://github.com/cerfdotdev/radar-publico/commit/ae5a2eca84b5aab762a17ce917b5d492fb5b841e) | merge do PR | [#60](https://github.com/cerfdotdev/radar-publico/pull/60) | Merge pull request #60 from cerfdotdev/docs/25-relatorio |
+| 20/10 | 12:24 | @cerfdotdev | [`c710690`](https://github.com/cerfdotdev/radar-publico/commit/c7106906e098b88584fc22cbe43a8050dd3d10de) | merge entre branches | [#61](https://github.com/cerfdotdev/radar-publico/pull/61) | Merge remote-tracking branch 'origin/main' into docs/entrega-final |
+| 20/10 | 12:27 | @cerfdotdev | [`d37b6bc`](https://github.com/cerfdotdev/radar-publico/commit/d37b6bc71891e8973d6c85f96f98c8ddb2f1a0de) | merge do PR | [#61](https://github.com/cerfdotdev/radar-publico/pull/61) | Merge pull request #61 from cerfdotdev/docs/entrega-final |
+| 20/10 | 12:35 | @cerfdotdev | [`67c43c5`](https://github.com/cerfdotdev/radar-publico/commit/67c43c5916c1c3e4377a8799788c0e9d39bf20a2) | merge entre branches | [#62](https://github.com/cerfdotdev/radar-publico/pull/62) | Merge remote-tracking branch 'origin/main' into feat/19-teste-carga |
+| 20/10 | 12:38 | @cerfdotdev | [`9120fbe`](https://github.com/cerfdotdev/radar-publico/commit/9120fbe43d1efbe72c26e5d2be407c46808813e2) | merge do PR | [#62](https://github.com/cerfdotdev/radar-publico/pull/62) | Merge pull request #62 from cerfdotdev/feat/19-teste-carga |
 
 ## Dailies
 
 - [#1](https://github.com/cerfdotdev/radar-publico/issues/1) Daily — Sprint 1: 1 comentário (fechada em 20/10 12:19).
 - [#12](https://github.com/cerfdotdev/radar-publico/issues/12) Daily — Sprint 2: 1 comentário (fechada em 20/10 12:19).
-- Nas 30 issues do repositório há 2 comentários no total.
+- Nas 30 issues do repositório há 3 comentários no total.
 
 ## Contas dos autores
 
 | Nome do autor no git | Conta | Como foi ligada | Commits na main |
 |---|---|---|--:|
-| Carlos Rodrigues | @cerfdotdev | autor dos commits nos PRs | 67 |
-| Carlos Rodrigues | @cerfdotdev | e-mail noreply do GitHub | 37 |
+| Carlos Rodrigues | @cerfdotdev | autor dos commits nos PRs | 76 |
+| Carlos Rodrigues | @cerfdotdev | e-mail noreply do GitHub | 41 |
 | joaoarenda | @joaoarenda | autor dos commits nos PRs | 9 |
 | Alisson Dutra | @Alisson-dutra | autor dos commits nos PRs | 6 |
 | dependabot[bot] | dependabot[bot] (automação) | e-mail noreply do GitHub | 1 |

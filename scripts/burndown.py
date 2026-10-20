@@ -33,7 +33,7 @@ import html
 import json
 import math
 import shutil
-import subprocess  # nosec B404: só chama o gh, com argumentos fixos e sem shell
+import subprocess  # nosec B404
 import sys
 import textwrap
 from collections import defaultdict
@@ -1073,7 +1073,8 @@ def executar_gh(argumentos: Sequence[str]) -> str:
     gh = shutil.which("gh")
     if gh is None:
         raise ErroDados("o GitHub CLI (gh) não foi encontrado no PATH")
-    resultado = subprocess.run(  # nosec B603: argumentos montados pelo script, sem shell
+    # Só o gh, achado no PATH, com argumentos montados aqui e sem shell.
+    resultado = subprocess.run(  # nosec B603
         [gh, *argumentos], capture_output=True, text=True, check=False
     )
     if resultado.returncode != 0:

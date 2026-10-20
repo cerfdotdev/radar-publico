@@ -28,7 +28,7 @@ Os scripts de `projeto/db/init/` rodam na primeira vez que o container sobe com 
 | `04-indices.sql` | Cria os índices e roda `VACUUM ANALYZE` |
 | `05-usuario-api.sh` | Cria o usuário da API |
 
-Para recarregar do zero: `docker compose down -v && docker compose up --build`.
+Para recarregar do zero: `docker compose down -v && docker compose up --build`. Isso recria também o backend e o frontend, o que limpa os caches da busca ([README](../README.md#cache)).
 
 **Amostra para testes rápidos.** `projeto/db/amostra/` tem 300 ativos e 150 aposentados fictícios, no mesmo formato dos arquivos reais (gerados por `scripts/gerar_amostra.py`). O smoke test do CI usa essa amostra, porque o repositorio.dados.gov.br nem sempre responde para os servidores do GitHub. Para usar localmente, com o volume vazio: `cp projeto/db/amostra/* projeto/db/data/` (apague depois para voltar aos dados reais). A carga leva cerca de 3 s.
 
@@ -71,7 +71,7 @@ Workers × `DB_POOL_MAX` nunca passa de 45 (o limite de 50 do usuário menos uma
 
 O backend define o próprio `statement_timeout` em cada conexão nova do pool, em vez de depender só do usuário do banco: o 504 funciona com qualquer usuário na `DATABASE_URL` (os testes do CI conectam como `radar`, que não tem timeout), e as `options` que vierem na URL são mantidas. O valor da sessão vale sobre o do usuário `radar_api`.
 
-O limite é por consulta, e os tempos ficam em ordem: 5 s no banco < 15 s do nginx (`proxy_read_timeout`) < 20 s do frontend. O `GUNICORN_TIMEOUT` não entra nessa conta: com workers `gthread` ele só reinicia worker travado, não corta requisição ([arquitetura](arquitetura.md#limites-conhecidos)). Uma busca faz até 4 consultas (cargo, órgão, contagem e página) e pode esperar até 3 s por uma conexão; se ela somar mais de 15 s, quem responde 504 `TEMPO_ESGOTADO` é o nginx.
+O limite é por consulta, e os tempos ficam em ordem: 5 s no banco < 15 s do nginx (`proxy_read_timeout`) < 20 s do frontend. O `GUNICORN_TIMEOUT` não entra nessa conta: com workers `gthread` ele só reinicia worker travado, não corta requisição ([arquitetura](arquitetura.md#limites-conhecidos)). Uma busca faz até 2 consultas (contagem e página; os ids de cargo e órgão vêm da memória do worker) e pode esperar até 3 s por uma conexão: 13 s no pior caso. Só a primeira busca de cada worker soma uma leitura da versão dos dados e uma de cargo e órgão, e pode passar dos 15 s; aí quem responde 504 `TEMPO_ESGOTADO` é o nginx.
 
 ## Índices e desempenho
 
@@ -80,7 +80,7 @@ O limite é por consulta, e os tempos ficam em ordem: 5 s no banco < 15 s do ngi
 | `servidor (nome, id)` | nome exato e ordenação padrão |
 | GIN trigram em `servidor.nome` | `similar` com `%` |
 | `servidor (cargo_id, nome, id)`, `(orgao_id, nome, id)`, `(uf, nome, id)` | filtros já na ordem da listagem |
-| GIN trigram em `cargo.nome` e `orgao.nome`, `upper(orgao.sigla)` | resolver `cargo`/`orgao` por "contém" ou sigla |
+| GIN trigram em `cargo.nome` e `orgao.nome`, `upper(orgao.sigla)` | resolver `cargo`/`orgao` por "contém" ou sigla. A API resolve na memória do worker (conclusão 1); os índices servem a consultas manuais |
 
 `EXPLAIN ANALYZE` dos exemplos do enunciado, com cache quente:
 
@@ -98,7 +98,7 @@ O limite é por consulta, e os tempos ficam em ordem: 5 s no banco < 15 s do ngi
 
 Conclusões para o backend:
 
-1. **Resolva os ids de `cargo` e `orgao` antes** (`SELECT id FROM cargo WHERE nome LIKE ...`) e passe como `= ANY(%s)` (ou `= %s` quando for um id só). Com subconsulta no `IN`, o Postgres não sabe quantos ids vêm e `orgao=INSS` leva 536 ms em vez de 0,2 ms.
+1. **Resolva os ids de `cargo` e `orgao` antes** e passe como `= ANY(%s)` (ou `= %s` quando for um id só). Com subconsulta no `IN`, o Postgres não sabe quantos ids vêm e `orgao=INSS` leva 536 ms em vez de 0,2 ms. O backend lê as duas tabelas (2.999 cargos e 230 órgãos) uma vez por worker e resolve na memória, com a mesma regra do `nome LIKE '%texto%'` e do `sigla = texto` (`projeto/backend/app/lookup.py`); assim a busca não faz uma consulta a mais por filtro.
    Para órgãos e cargos raros (1 a 20 vínculos), as estatísticas padrão estimavam ~1.000 linhas e o planejador percorria o índice de nome inteiro: 1,5 a 2 s por consulta. O `04-indices.sql` aumenta as estatísticas de `orgao_id` e `cargo_id` (`SET STATISTICS 1000/3000`) e essas buscas caem para 4 a 20 ms.
 2. **Não conte tudo**: conte no máximo 10.001 linhas (`SELECT count(*) FROM (... LIMIT 10001)`). Contagem exata em filtros amplos custa até 0,8 s por requisição.
 3. **Limite a navegação** aos primeiros 10.000 resultados, porque `OFFSET` grande lê todas as linhas anteriores.

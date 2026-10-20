@@ -349,3 +349,29 @@ jobs:
           if echo "$RESULTS" | grep -Eq '"(failure|cancelled)"'; then
             echo "::error::Algum job do CI falhou"; exit 1
           fi
+
+  # CD: depois do CI verde num push na main, pede ao Dokploy o deploy do compose
+  # (docs/deploy.md). Sem a variável DOKPLOY_COMPOSE_ID no ambiente "producao", não roda.
+  deploy:
+    needs: [ci-ok]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DOKPLOY_COMPOSE_ID != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: producao
+    permissions: {}
+    concurrency:
+      group: deploy-producao
+      cancel-in-progress: false
+    steps:
+      - name: Pedir o deploy ao Dokploy
+        env:
+          DOKPLOY_URL: ${{ vars.DOKPLOY_URL }}
+          DOKPLOY_COMPOSE_ID: ${{ vars.DOKPLOY_COMPOSE_ID }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+        run: |
+          corpo=$(jq -n --arg id "$DOKPLOY_COMPOSE_ID" '{composeId: $id}')
+          curl --fail-with-body -sS --retry 3 --max-time 60 \
+            -X POST "${DOKPLOY_URL%/}/api/compose.deploy" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$corpo"

@@ -38,6 +38,9 @@ NOT_FOUND_QUERIES = [
 ]
 CACHE_ENV = ["API_CACHE_TTL_S"]
 SHORT_POOL_TIMEOUT_S = 1
+# A janela do limite por IP é fixa no relógio: com 60 s, ela pode virar entre duas requisições
+# do teste e zerar a contagem. Com um dia, não vira durante o teste.
+NO_ROLLOVER_WINDOW_S = 86_400
 
 
 def populate(conn) -> None:
@@ -182,7 +185,12 @@ def test_400_is_never_stored(api, path):
 
 
 def test_429_is_never_stored(make_app, schema_url):
-    api = make_app(DATABASE_URL=schema_url, API_CACHE_TTL_S=TTL_S, RATE_LIMIT_REQUESTS=1)
+    api = make_app(
+        DATABASE_URL=schema_url,
+        API_CACHE_TTL_S=TTL_S,
+        RATE_LIMIT_REQUESTS=1,
+        RATE_LIMIT_WINDOW_S=NO_ROLLOVER_WINDOW_S,
+    )
     client = api.test_client()
     assert client.get(SEARCH, query_string=FOUND).status_code == HTTPStatus.OK
     response = client.get(SEARCH, query_string=FOUND)
@@ -277,7 +285,10 @@ def test_invalid_input_is_400_even_with_matching_etag(api, version):
 def test_304_counts_against_the_rate_limit(make_app, schema_url, version):
     limit = 2
     client = make_app(
-        DATABASE_URL=schema_url, API_CACHE_TTL_S=TTL_S, RATE_LIMIT_REQUESTS=limit
+        DATABASE_URL=schema_url,
+        API_CACHE_TTL_S=TTL_S,
+        RATE_LIMIT_REQUESTS=limit,
+        RATE_LIMIT_WINDOW_S=NO_ROLLOVER_WINDOW_S,
     ).test_client()
     headers = {"If-None-Match": f'"{version}"'}
     for _ in range(limit):

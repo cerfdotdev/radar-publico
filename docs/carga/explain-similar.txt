@@ -1,0 +1,313 @@
+Pager usage is off.
+SET
+== %JOSE%SILVA%, limit 100
+                                                                            QUERY PLAN                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=29917.27..29917.52 rows=100 width=119) (actual time=198.293..198.746 rows=100 loops=1)
+   Buffers: shared hit=4210 read=4505
+   ->  Sort  (cost=29917.27..29993.84 rows=30630 width=119) (actual time=198.289..198.465 rows=100 loops=1)
+         Sort Key: (similarity(s.nome, '%JOSE%SILVA%'::text)) DESC, s.nome, s.id
+         Sort Method: top-N heapsort  Memory: 57kB
+         Buffers: shared hit=4210 read=4505
+         ->  Hash Left Join  (cost=373.70..28746.61 rows=30630 width=119) (actual time=27.826..177.735 rows=11774 loops=1)
+               Hash Cond: (s.cargo_id = c.id)
+               Buffers: shared hit=4201 read=4505
+               ->  Hash Join  (cost=283.22..28499.04 rows=30630 width=94) (actual time=18.859..105.054 rows=11774 loops=1)
+                     Hash Cond: (s.orgao_id = o.id)
+                     Buffers: shared hit=4178 read=4505
+                     ->  Bitmap Heap Scan on servidor s  (cost=275.04..28408.98 rows=30630 width=59) (actual time=18.135..67.788 rows=11774 loops=1)
+                           Recheck Cond: (nome ~~ '%JOSE%SILVA%'::text)
+                           Rows Removed by Index Recheck: 22
+                           Heap Blocks: exact=8435
+                           Buffers: shared hit=4175 read=4505
+                           ->  Bitmap Index Scan on servidor_nome_trgm_idx  (cost=0.00..267.39 rows=30630 width=0) (actual time=17.316..17.318 rows=11796 loops=1)
+                                 Index Cond: (nome ~~ '%JOSE%SILVA%'::text)
+                                 Buffers: shared hit=239 read=6
+                     ->  Hash  (cost=5.30..5.30 rows=230 width=43) (actual time=0.703..0.707 rows=230 loops=1)
+                           Buckets: 1024  Batches: 1  Memory Usage: 26kB
+                           Buffers: shared hit=3
+                           ->  Seq Scan on orgao o  (cost=0.00..5.30 rows=230 width=43) (actual time=0.008..0.348 rows=230 loops=1)
+                                 Buffers: shared hit=3
+               ->  Hash  (cost=52.99..52.99 rows=2999 width=29) (actual time=8.929..8.933 rows=2999 loops=1)
+                     Buckets: 4096  Batches: 1  Memory Usage: 217kB
+                     Buffers: shared hit=23
+                     ->  Seq Scan on cargo c  (cost=0.00..52.99 rows=2999 width=29) (actual time=0.012..4.407 rows=2999 loops=1)
+                           Buffers: shared hit=23
+ Planning:
+   Buffers: shared hit=482 read=5
+ Planning Time: 3.141 ms
+ Execution Time: 199.290 ms
+(34 rows)
+
+== %JOSE%SILVA% + uf=RJ, limit 100
+                                                                               QUERY PLAN                                                                                
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=14593.27..14593.52 rows=100 width=119) (actual time=44.982..45.445 rows=100 loops=1)
+   Buffers: shared hit=986 read=1056
+   ->  Sort  (cost=14593.27..14600.75 rows=2990 width=119) (actual time=44.978..45.156 rows=100 loops=1)
+         Sort Key: (similarity(s.nome, '%JOSE%SILVA%'::text)) DESC, s.nome, s.id
+         Sort Method: top-N heapsort  Memory: 55kB
+         Buffers: shared hit=986 read=1056
+         ->  Hash Left Join  (cost=5761.87..14479.00 rows=2990 width=119) (actual time=32.446..43.526 rows=799 loops=1)
+               Hash Cond: (s.cargo_id = c.id)
+               Buffers: shared hit=986 read=1056
+               ->  Nested Loop  (cost=5671.40..14373.19 rows=2990 width=94) (actual time=23.448..30.344 rows=799 loops=1)
+                     Buffers: shared hit=963 read=1056
+                     ->  Bitmap Heap Scan on servidor s  (cost=5671.24..14261.28 rows=2990 width=59) (actual time=23.412..25.434 rows=799 loops=1)
+                           Recheck Cond: ((nome ~~ '%JOSE%SILVA%'::text) AND (uf = 'RJ'::bpchar))
+                           Rows Removed by Index Recheck: 4
+                           Heap Blocks: exact=645
+                           Buffers: shared hit=889 read=1056
+                           ->  BitmapAnd  (cost=5671.24..5671.24 rows=2990 width=0) (actual time=23.338..23.345 rows=0 loops=1)
+                                 Buffers: shared hit=294 read=1006
+                                 ->  Bitmap Index Scan on servidor_nome_trgm_idx  (cost=0.00..267.39 rows=30630 width=0) (actual time=14.630..14.631 rows=11796 loops=1)
+                                       Index Cond: (nome ~~ '%JOSE%SILVA%'::text)
+                                       Buffers: shared hit=216 read=29
+                                 ->  Bitmap Index Scan on servidor_uf_nome_idx  (cost=0.00..5402.11 rows=146891 width=0) (actual time=8.433..8.434 rows=144561 loops=1)
+                                       Index Cond: (uf = 'RJ'::bpchar)
+                                       Buffers: shared hit=78 read=977
+                     ->  Memoize  (cost=0.15..0.18 rows=1 width=43) (actual time=0.002..0.002 rows=1 loops=799)
+                           Cache Key: s.orgao_id
+                           Cache Mode: logical
+                           Hits: 762  Misses: 37  Evictions: 0  Overflows: 0  Memory Usage: 6kB
+                           Buffers: shared hit=74
+                           ->  Index Scan using orgao_pkey on orgao o  (cost=0.14..0.17 rows=1 width=43) (actual time=0.003..0.003 rows=1 loops=37)
+                                 Index Cond: (id = s.orgao_id)
+                                 Buffers: shared hit=74
+               ->  Hash  (cost=52.99..52.99 rows=2999 width=29) (actual time=8.967..8.971 rows=2999 loops=1)
+                     Buckets: 4096  Batches: 1  Memory Usage: 217kB
+                     Buffers: shared hit=23
+                     ->  Seq Scan on cargo c  (cost=0.00..52.99 rows=2999 width=29) (actual time=0.005..4.367 rows=2999 loops=1)
+                           Buffers: shared hit=23
+ Planning:
+   Buffers: shared hit=39
+ Planning Time: 0.494 ms
+ Execution Time: 45.819 ms
+(41 rows)
+
+== %MARIA%, limit 100
+                                                                                 QUERY PLAN                                                                                 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=34213.45..34225.12 rows=100 width=119) (actual time=771.508..776.852 rows=100 loops=1)
+   Buffers: shared hit=4806 read=20477
+   ->  Gather Merge  (cost=34213.45..54913.90 rows=177420 width=119) (actual time=771.504..776.564 rows=100 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=4806 read=20477
+         ->  Sort  (cost=33213.43..33435.20 rows=88710 width=119) (actual time=767.806..767.946 rows=80 loops=3)
+               Sort Key: (similarity(s.nome, '%MARIA%'::text)) DESC, s.nome, s.id
+               Sort Method: top-N heapsort  Memory: 61kB
+               Buffers: shared hit=4806 read=20477
+               Worker 0:  Sort Method: top-N heapsort  Memory: 59kB
+               Worker 1:  Sort Method: top-N heapsort  Memory: 63kB
+               ->  Hash Left Join  (cost=1576.99..29823.00 rows=88710 width=119) (actual time=35.739..668.518 rows=61880 loops=3)
+                     Hash Cond: (s.cargo_id = c.id)
+                     Buffers: shared hit=4758 read=20477
+                     ->  Hash Join  (cost=1486.51..29277.55 rows=88710 width=94) (actual time=25.999..347.093 rows=61880 loops=3)
+                           Hash Cond: (s.orgao_id = o.id)
+                           Buffers: shared hit=4689 read=20477
+                           ->  Parallel Bitmap Heap Scan on servidor s  (cost=1478.34..29032.21 rows=88710 width=59) (actual time=25.130..157.743 rows=61880 loops=3)
+                                 Recheck Cond: (nome ~~ '%MARIA%'::text)
+                                 Rows Removed by Index Recheck: 489
+                                 Heap Blocks: exact=8461
+                                 Buffers: shared hit=4616 read=20477
+                                 ->  Bitmap Index Scan on servidor_nome_trgm_idx  (cost=0.00..1425.11 rows=212904 width=0) (actual time=25.894..25.895 rows=187107 loops=1)
+                                       Index Cond: (nome ~~ '%MARIA%'::text)
+                                       Buffers: shared hit=195
+                           ->  Hash  (cost=5.30..5.30 rows=230 width=43) (actual time=0.757..0.761 rows=230 loops=3)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 26kB
+                                 Buffers: shared hit=9
+                                 ->  Seq Scan on orgao o  (cost=0.00..5.30 rows=230 width=43) (actual time=0.010..0.378 rows=230 loops=3)
+                                       Buffers: shared hit=9
+                     ->  Hash  (cost=52.99..52.99 rows=2999 width=29) (actual time=9.691..9.695 rows=2999 loops=3)
+                           Buckets: 4096  Batches: 1  Memory Usage: 217kB
+                           Buffers: shared hit=69
+                           ->  Seq Scan on cargo c  (cost=0.00..52.99 rows=2999 width=29) (actual time=0.016..4.736 rows=2999 loops=3)
+                                 Buffers: shared hit=69
+ Planning:
+   Buffers: shared hit=27
+ Planning Time: 0.411 ms
+ Execution Time: 777.203 ms
+(40 rows)
+
+== %MARIA% + cargo contém PROFESSOR (ids resolvidos como a API), limit 100
+                                                                                 QUERY PLAN                                                                                 
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=8446.60..8446.85 rows=100 width=119) (actual time=497.040..497.498 rows=100 loops=1)
+   Buffers: shared hit=3978 read=4719
+   InitPlan 1 (returns $0)
+     ->  Seq Scan on cargo  (cost=0.00..60.49 rows=61 width=4) (actual time=0.038..0.264 rows=42 loops=1)
+           Filter: (nome ~~ '%PROFESSOR%'::text)
+           Rows Removed by Filter: 2957
+           Buffers: shared hit=23
+   ->  Sort  (cost=8386.11..8391.06 rows=1980 width=119) (actual time=497.037..497.205 rows=100 loops=1)
+         Sort Key: (similarity(s.nome, '%MARIA%'::text)) DESC, s.nome, s.id
+         Sort Method: top-N heapsort  Memory: 68kB
+         Buffers: shared hit=3978 read=4719
+         ->  Hash Left Join  (cost=2066.19..8310.43 rows=1980 width=119) (actual time=50.578..446.853 rows=29284 loops=1)
+               Hash Cond: (s.cargo_id = c.id)
+               Buffers: shared hit=3978 read=4719
+               ->  Nested Loop  (cost=1975.71..8209.80 rows=1980 width=94) (actual time=41.646..282.306 rows=29284 loops=1)
+                     Buffers: shared hit=3955 read=4719
+                     ->  Bitmap Heap Scan on servidor s  (cost=1975.55..8122.34 rows=1980 width=59) (actual time=41.611..106.754 rows=29284 loops=1)
+                           Recheck Cond: ((cargo_id = ANY ($0)) AND (nome ~~ '%MARIA%'::text))
+                           Rows Removed by Index Recheck: 260
+                           Heap Blocks: exact=6106
+                           Buffers: shared hit=3701 read=4719
+                           ->  BitmapAnd  (cost=1975.55..1975.55 rows=1980 width=0) (actual time=40.980..40.988 rows=0 loops=1)
+                                 Buffers: shared hit=214 read=2100
+                                 ->  Bitmap Index Scan on servidor_cargo_nome_idx  (cost=0.00..549.20 rows=13988 width=0) (actual time=13.175..13.177 rows=266082 loops=1)
+                                       Index Cond: (cargo_id = ANY ($0))
+                                       Buffers: shared hit=141 read=1978
+                                 ->  Bitmap Index Scan on servidor_nome_trgm_idx  (cost=0.00..1425.11 rows=212904 width=0) (actual time=27.473..27.474 rows=187107 loops=1)
+                                       Index Cond: (nome ~~ '%MARIA%'::text)
+                                       Buffers: shared hit=73 read=122
+                     ->  Memoize  (cost=0.15..0.18 rows=1 width=43) (actual time=0.002..0.002 rows=1 loops=29284)
+                           Cache Key: s.orgao_id
+                           Cache Mode: logical
+                           Hits: 29157  Misses: 127  Evictions: 0  Overflows: 0  Memory Usage: 19kB
+                           Buffers: shared hit=254
+                           ->  Index Scan using orgao_pkey on orgao o  (cost=0.14..0.17 rows=1 width=43) (actual time=0.004..0.004 rows=1 loops=127)
+                                 Index Cond: (id = s.orgao_id)
+                                 Buffers: shared hit=254
+               ->  Hash  (cost=52.99..52.99 rows=2999 width=29) (actual time=8.897..8.902 rows=2999 loops=1)
+                     Buckets: 4096  Batches: 1  Memory Usage: 217kB
+                     Buffers: shared hit=23
+                     ->  Seq Scan on cargo c  (cost=0.00..52.99 rows=2999 width=29) (actual time=0.008..4.399 rows=2999 loops=1)
+                           Buffers: shared hit=23
+ Planning:
+   Buffers: shared hit=27 read=1
+ Planning Time: 0.467 ms
+ Execution Time: 497.927 ms
+(46 rows)
+
+== %ANA% (3 letras), limit 100
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=30397.63..30409.30 rows=100 width=119) (actual time=381.618..386.844 rows=100 loops=1)
+   Buffers: shared hit=2997 read=20241
+   ->  Gather Merge  (cost=30397.63..39258.85 rows=75948 width=119) (actual time=381.614..386.522 rows=100 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=2997 read=20241
+         ->  Sort  (cost=29397.61..29492.54 rows=37974 width=119) (actual time=377.888..378.039 rows=80 loops=3)
+               Sort Key: (similarity(s.nome, '%ANA%'::text)) DESC, s.nome, s.id
+               Sort Method: top-N heapsort  Memory: 61kB
+               Buffers: shared hit=2997 read=20241
+               Worker 0:  Sort Method: top-N heapsort  Memory: 64kB
+               Worker 1:  Sort Method: top-N heapsort  Memory: 62kB
+               ->  Hash Left Join  (cost=730.32..27946.27 rows=37974 width=119) (actual time=17.290..330.114 rows=29421 loops=3)
+                     Hash Cond: (s.cargo_id = c.id)
+                     Buffers: shared hit=2949 read=20241
+                     ->  Hash Join  (cost=639.84..27661.03 rows=37974 width=94) (actual time=7.588..177.243 rows=29421 loops=3)
+                           Hash Cond: (s.orgao_id = o.id)
+                           Buffers: shared hit=2880 read=20241
+                           ->  Parallel Bitmap Heap Scan on servidor s  (cost=631.67..27551.34 rows=37974 width=59) (actual time=6.715..86.414 rows=29421 loops=3)
+                                 Recheck Cond: (nome ~~ '%ANA%'::text)
+                                 Heap Blocks: exact=7898
+                                 Buffers: shared hit=2807 read=20241
+                                 ->  Bitmap Index Scan on servidor_nome_trgm_idx  (cost=0.00..608.88 rows=91137 width=0) (actual time=7.839..7.841 rows=88263 loops=1)
+                                       Index Cond: (nome ~~ '%ANA%'::text)
+                                       Buffers: shared hit=3 read=17
+                           ->  Hash  (cost=5.30..5.30 rows=230 width=43) (actual time=0.758..0.763 rows=230 loops=3)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 26kB
+                                 Buffers: shared hit=9
+                                 ->  Seq Scan on orgao o  (cost=0.00..5.30 rows=230 width=43) (actual time=0.012..0.379 rows=230 loops=3)
+                                       Buffers: shared hit=9
+                     ->  Hash  (cost=52.99..52.99 rows=2999 width=29) (actual time=9.654..9.658 rows=2999 loops=3)
+                           Buckets: 4096  Batches: 1  Memory Usage: 217kB
+                           Buffers: shared hit=69
+                           ->  Seq Scan on cargo c  (cost=0.00..52.99 rows=2999 width=29) (actual time=0.012..4.753 rows=2999 loops=3)
+                                 Buffers: shared hit=69
+ Planning:
+   Buffers: shared hit=27
+ Planning Time: 0.446 ms
+ Execution Time: 387.196 ms
+(39 rows)
+
+== %ANA% + uf=SP, limit 100
+                                                                              QUERY PLAN                                                                               
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=11130.07..11130.32 rows=100 width=119) (actual time=69.623..70.080 rows=100 loops=1)
+   Buffers: shared hit=949 read=1438
+   ->  Sort  (cost=11130.07..11137.36 rows=2916 width=119) (actual time=69.619..69.786 rows=100 loops=1)
+         Sort Key: (similarity(s.nome, '%ANA%'::text)) DESC, s.nome, s.id
+         Sort Method: top-N heapsort  Memory: 59kB
+         Buffers: shared hit=949 read=1438
+         ->  Hash Left Join  (cost=2474.74..11018.62 rows=2916 width=119) (actual time=20.144..64.092 rows=3157 loops=1)
+               Hash Cond: (s.cargo_id = c.id)
+               Buffers: shared hit=949 read=1438
+               ->  Nested Loop  (cost=2384.26..10913.19 rows=2916 width=94) (actual time=11.342..39.717 rows=3157 loops=1)
+                     Buffers: shared hit=926 read=1438
+                     ->  Bitmap Heap Scan on servidor s  (cost=2384.11..10803.10 rows=2916 width=59) (actual time=11.309..20.995 rows=3157 loops=1)
+                           Recheck Cond: ((nome ~~ '%ANA%'::text) AND (uf = 'SP'::bpchar))
+                           Heap Blocks: exact=1946
+                           Buffers: shared hit=884 read=1438
+                           ->  BitmapAnd  (cost=2384.11..2384.11 rows=2916 width=0) (actual time=11.063..11.071 rows=0 loops=1)
+                                 Buffers: shared hit=3 read=373
+                                 ->  Bitmap Index Scan on servidor_nome_trgm_idx  (cost=0.00..608.88 rows=91137 width=0) (actual time=6.931..6.933 rows=88263 loops=1)
+                                       Index Cond: (nome ~~ '%ANA%'::text)
+                                       Buffers: shared hit=3 read=17
+                                 ->  Bitmap Index Scan on servidor_uf_nome_idx  (cost=0.00..1773.52 rows=48145 width=0) (actual time=3.305..3.307 rows=49624 loops=1)
+                                       Index Cond: (uf = 'SP'::bpchar)
+                                       Buffers: shared read=356
+                     ->  Memoize  (cost=0.15..0.18 rows=1 width=43) (actual time=0.002..0.002 rows=1 loops=3157)
+                           Cache Key: s.orgao_id
+                           Cache Mode: logical
+                           Hits: 3136  Misses: 21  Evictions: 0  Overflows: 0  Memory Usage: 3kB
+                           Buffers: shared hit=42
+                           ->  Index Scan using orgao_pkey on orgao o  (cost=0.14..0.17 rows=1 width=43) (actual time=0.004..0.004 rows=1 loops=21)
+                                 Index Cond: (id = s.orgao_id)
+                                 Buffers: shared hit=42
+               ->  Hash  (cost=52.99..52.99 rows=2999 width=29) (actual time=8.770..8.775 rows=2999 loops=1)
+                     Buckets: 4096  Batches: 1  Memory Usage: 217kB
+                     Buffers: shared hit=23
+                     ->  Seq Scan on cargo c  (cost=0.00..52.99 rows=2999 width=29) (actual time=0.007..4.239 rows=2999 loops=1)
+                           Buffers: shared hit=23
+ Planning:
+   Buffers: shared hit=27
+ Planning Time: 0.469 ms
+ Execution Time: 70.514 ms
+(40 rows)
+
+== %A%A%A% (nenhum trigrama), limit 100
+                                                                         QUERY PLAN                                                                         
+------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=55200.32..55211.99 rows=100 width=119) (actual time=4094.249..4099.498 rows=100 loops=1)
+   Buffers: shared hit=16001 read=10692
+   ->  Gather Merge  (cost=55200.32..155700.04 rows=861366 width=119) (actual time=4094.242..4099.214 rows=100 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=16001 read=10692
+         ->  Sort  (cost=54200.30..55277.01 rows=430683 width=119) (actual time=4090.819..4090.950 rows=79 loops=3)
+               Sort Key: (similarity(s.nome, '%A%A%A%'::text)) DESC, s.nome, s.id
+               Sort Method: top-N heapsort  Memory: 60kB
+               Buffers: shared hit=16001 read=10692
+               Worker 0:  Sort Method: top-N heapsort  Memory: 59kB
+               Worker 1:  Sort Method: top-N heapsort  Memory: 61kB
+               ->  Hash Left Join  (cost=98.65..37739.91 rows=430683 width=119) (actual time=10.506..3516.300 rows=358742 loops=3)
+                     Hash Cond: (s.cargo_id = c.id)
+                     Buffers: shared hit=15895 read=10692
+                     ->  Hash Join  (cost=8.18..35440.58 rows=430683 width=94) (actual time=0.894..1697.001 rows=358742 loops=3)
+                           Hash Cond: (s.orgao_id = o.id)
+                           Buffers: shared hit=15826 read=10692
+                           ->  Parallel Seq Scan on servidor s  (cost=0.00..34281.02 rows=430683 width=59) (actual time=0.013..600.984 rows=358742 loops=3)
+                                 Filter: (nome ~~ '%A%A%A%'::text)
+                                 Rows Removed by Filter: 142764
+                                 Buffers: shared hit=15755 read=10690
+                           ->  Hash  (cost=5.30..5.30 rows=230 width=43) (actual time=0.756..0.761 rows=230 loops=3)
+                                 Buckets: 1024  Batches: 1  Memory Usage: 26kB
+                                 Buffers: shared hit=9
+                                 ->  Seq Scan on orgao o  (cost=0.00..5.30 rows=230 width=43) (actual time=0.011..0.372 rows=230 loops=3)
+                                       Buffers: shared hit=9
+                     ->  Hash  (cost=52.99..52.99 rows=2999 width=29) (actual time=9.579..9.584 rows=2999 loops=3)
+                           Buckets: 4096  Batches: 1  Memory Usage: 217kB
+                           Buffers: shared hit=69
+                           ->  Seq Scan on cargo c  (cost=0.00..52.99 rows=2999 width=29) (actual time=0.010..4.698 rows=2999 loops=3)
+                                 Buffers: shared hit=69
+ Planning:
+   Buffers: shared hit=27
+ Planning Time: 0.420 ms
+ Execution Time: 4099.835 ms
+(36 rows)
+

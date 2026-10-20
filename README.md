@@ -38,6 +38,7 @@ O app desktop (PySide6) usa a mesma API: veja [`projeto/desktop/README.md`](proj
 - [`docs/api.md`](docs/api.md): contrato da API
 - [`docs/banco.md`](docs/banco.md): modelo, carga, índices e pool de conexões
 - [`docs/dados.md`](docs/dados.md): arquivos de origem e formato
+- [`docs/carga.md`](docs/carga.md): teste de carga com os dados reais (vazão, latência, sobrecarga e limitações)
 
 ## Limites e ajuste por máquina
 

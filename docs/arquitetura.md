@@ -329,6 +329,7 @@ flowchart LR
 - **Cache depois de uma recarga.** O navegador pode guardar uma resposta que já estava no nginx: depois de recarregar a base, ele mostra dados antigos por até 2 × `API_CACHE_TTL_S` (2 min com o padrão). Recarregar sem recriar os containers deixa cargos, órgãos e a versão antigos na memória dos workers até o backend reiniciar (ver o [README](../README.md#cache)).
 - **Espera de 500 ms no lock.** Quem espera uma busca igual que já está no backend acorda em passos de 500 ms, fixos no nginx: a primeira rajada numa URL nova leva até ~0,5 s, e depois as respostas saem do cache em ~1 ms.
 - **Sem HTTPS.** O nginx serve HTTP na 8080; TLS ficaria num proxy na frente dele.
+- **Sob carga.** Vazão, sobrecarga, recuperação e `similar` sem trigramas, medidos com os dados reais: [`carga.md`](carga.md#limitações-encontradas).
 
 ## Evolução prevista
 

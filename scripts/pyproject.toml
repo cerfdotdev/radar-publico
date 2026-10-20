@@ -1,5 +1,6 @@
-# Lint e testes dos scripts da equipe. O CI roda só nos arquivos do burndown:
-#   ruff check burndown.py tests && ruff format --check burndown.py tests && python -m pytest
+# Lint e testes dos scripts da equipe. O CI roda só nos arquivos do burndown e do histórico:
+#   ruff check burndown.py historico_github.py tests
+#   ruff format --check burndown.py historico_github.py tests && python -m pytest
 [tool.ruff]
 target-version = "py313"
 line-length = 100

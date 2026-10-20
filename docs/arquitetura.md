@@ -13,6 +13,8 @@ O documento descreve a `main`. O que ainda depende de issue aberta aparece com o
 | `db-server` | PostgreSQL 16 + `pg_trgm` | 5432, só dentro da rede do compose | Banco carregado na primeira subida |
 | Desktop | PySide6 6.12, HTTP com `urllib` | — | Cliente da mesma API, fora do compose |
 
+Rotas da API na `main`: `GET /api/servidores` (busca, [`api.md`](api.md)) e `GET /api/health` (sem banco e fora do limite por IP). `GET /api/servidores/<id>` (issue #52) está no contrato e o site e o desktop já a chamam, mas hoje responde 404 `ROTA_INEXISTENTE`.
+
 ## Contêineres e rede
 
 ```mermaid

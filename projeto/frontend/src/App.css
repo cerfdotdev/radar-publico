@@ -63,6 +63,25 @@ a:hover { color: var(--primary-hover); }
 .busca__linha .controle { flex: 999 1 360px; min-width: 0; }
 .busca__linha .aux, .busca__linha .campo__erro { flex-basis: 100%; } /* dica e erro abaixo do campo */
 
+/* Alternador Nome exato × Nome parecido (um fieldset, por isso zera margem e largura mínima) */
+.alternador { display: inline-flex; min-inline-size: 0; margin: 0; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: var(--r-controle); background: var(--bg); }
+.alternador button { min-height: 40px; padding: 0 14px; border: 0; border-radius: var(--r-chip); background: transparent; color: var(--ink-2); font: inherit; font-size: var(--fs-aux); font-weight: 500; cursor: pointer; }
+.alternador button:hover { color: var(--ink); }
+.alternador button[aria-pressed="true"] { background: var(--ink); color: var(--bg); font-weight: 600; }
+.alternador button[aria-disabled="true"] { cursor: not-allowed; }
+
+/* Limite de resultados da busca parecida */
+.limite { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 var(--s-1) 0 14px; border: 1.5px solid var(--line-strong); border-radius: var(--r-controle); font-size: var(--fs-aux); color: var(--ink-2); }
+.limite input { width: 64px; min-height: 44px; border: 0; background: transparent; font-family: var(--mono); font-size: 1rem; color: var(--ink); }
+.limite:has(input[aria-invalid="true"]) { border: 2px solid var(--err-fg); background: var(--err-bg); }
+
+/* Filtros combináveis (fieldset: desativado inteiro na busca parecida) */
+.busca__filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s-4); min-inline-size: 0; margin: 0; padding: 20px 0 0; border: 0; border-top: 1px solid var(--line); }
+.busca__filtros:disabled .campo__rotulo { color: var(--ink-2); }
+.busca__nota { grid-column: 1 / -1; }
+.busca__abrir-filtros { display: none; } /* só no celular */
+.contador { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--primary-soft); color: var(--primary-text); font-size: var(--fs-mini); font-weight: 600; }
+
 /* Pílulas de situação */
 .pilula { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 12px; font-size: var(--fs-mini); font-weight: 600; white-space: nowrap; }
 .pilula--ativo { background: var(--ativo-bg); color: var(--ativo-fg); }
@@ -89,6 +108,9 @@ a:hover { color: var(--primary-hover); }
 .tabela td a:hover { text-decoration: underline; }
 .tabela .secundario { color: var(--ink-2); letter-spacing: 0.01em; }
 .tabela .direita { text-align: right; }
+.semelhanca { display: flex; align-items: center; gap: 10px; }
+.semelhanca__barra { width: 56px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.semelhanca__barra span { display: block; height: 6px; background: var(--primary); }
 
 /* Lista mobile (substitui a tabela abaixo de 640px) */
 .lista { display: none; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line); }
@@ -130,7 +152,7 @@ a:hover { color: var(--primary-hover); }
 /* Movimento */
 @keyframes pulso { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 @media (prefers-reduced-motion: no-preference) {
-  .btn, .controle, .tabela tbody tr { transition: background-color var(--t-rapido) var(--ease), border-color var(--t-rapido) var(--ease), color var(--t-rapido) var(--ease); }
+  .btn, .controle, .alternador button, .tabela tbody tr { transition: background-color var(--t-rapido) var(--ease), border-color var(--t-rapido) var(--ease), color var(--t-rapido) var(--ease); }
   .esqueleto__linha { animation: pulso 1.4s var(--ease) infinite; }
 }
 
@@ -145,6 +167,10 @@ a:hover { color: var(--primary-hover); }
   .lead { display: none; }
   .busca { padding: 0; background: none; border: 0; gap: var(--s-3); }
   .busca__nome-topo { flex-direction: column; align-items: stretch; }
+  .alternador { display: grid; grid-template-columns: 1fr 1fr; }
+  .busca__abrir-filtros { display: flex; align-items: center; justify-content: space-between; min-height: 48px; padding: 0 14px; border: 1.5px solid var(--line-strong); border-radius: var(--r-controle); background: var(--bg); color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; }
+  .busca__abrir-filtros[aria-expanded="true"] svg { transform: rotate(180deg); }
+  .busca__filtros:not(.busca__filtros--aberto) { display: none; }
   .busca__linha .btn { width: 100%; order: 3; }
   .tabela-caixa { display: none; }
   .lista { display: block; }

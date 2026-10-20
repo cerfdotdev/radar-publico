@@ -2,6 +2,24 @@
 
 export type Situacao = 'ativo' | 'aposentado'
 
+/** Como o nome é enviado: exato (`nome`) ou parecido (`similar`). */
+export type ModoBusca = 'exato' | 'similar'
+
+/** Filtros combináveis do formulário e da URL. */
+export interface Busca {
+  modo: ModoBusca
+  /** Nome exato ou padrão de similaridade, conforme `modo`. */
+  termo: string
+  /** Máximo de resultados; só vale para `similar`. */
+  limite: number
+  cargo: string
+  orgao: string
+  uf: string
+}
+
+/** Campo do formulário que recebe um erro de validação, local ou da API. */
+export type CampoBusca = 'termo' | 'limite' | 'cargo' | 'orgao' | 'uf'
+
 export interface Servidor {
   id: number
   nome: string
@@ -14,6 +32,8 @@ export interface Servidor {
   uf: string | null
   // O contrato diz número, mas a coluna aceita NULL e o backend repassa null.
   valor: number | null
+  /** Só na busca por `similar`: semelhança com o padrão, de 0 a 1. */
+  similaridade?: number
 }
 
 export interface Meta {

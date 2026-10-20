@@ -63,10 +63,15 @@ describe('validarBusca', () => {
     })
   })
 
-  it('busca parecida exige o padrão e ignora cargo, órgão e UF, que ela não envia', () => {
+  it('busca parecida exige o padrão e valida cargo, órgão e UF, que ela também envia', () => {
     expect(validarBusca(busca({ modo: 'similar', cargo: 'professor' }))?.campo).toBe('termo')
-    expect(validarBusca(busca({ modo: 'similar', termo: '%MARIA%', limite: LIMITE_MIN, cargo: 'a', uf: 'XX' }))).toBeNull()
+    expect(validarBusca(busca({ modo: 'similar', termo: '%MARIA%', limite: LIMITE_MIN, cargo: 'a' }))?.campo).toBe('cargo')
+    expect(validarBusca(busca({ modo: 'similar', termo: '%MARIA%', orgao: 'saude;' }))?.campo).toBe('orgao')
+    expect(validarBusca(busca({ modo: 'similar', termo: '%MARIA%', uf: 'XX' }))?.campo).toBe('uf')
     expect(validarBusca(busca({ modo: 'similar', termo: '%MARIA%', limite: LIMITE_MAX }))).toBeNull()
+    expect(
+      validarBusca(busca({ modo: 'similar', termo: '%MARIA%', cargo: 'professor', orgao: 'INSS', uf: 'RJ' })),
+    ).toBeNull()
   })
 })
 

@@ -4,6 +4,7 @@ from http import HTTPStatus
 
 from flask import Flask, Response, current_app, jsonify
 from psycopg_pool import PoolTimeout, TooManyRequests
+from flask_limiter import RateLimitExceeded
 from werkzeug.exceptions import HTTPException, MethodNotAllowed
 
 ERRO_INTERNO = "ERRO_INTERNO"
@@ -62,6 +63,18 @@ def register_error_handlers(app: Flask) -> None:
         )
         response.status_code = status
         response.headers["Retry-After"] = str(BUSY_RETRY_AFTER_S)
+        return response
+
+    @app.errorhandler(RateLimitExceeded)
+    def handle_rate_limit(error: RateLimitExceeded) -> Response:
+        # Erro 429 do flask-limiter
+        response, status = error_response(
+            "MUITAS_REQUISICOES",
+            "Limite de requisições excedido. Tente novamente mais tarde.",
+            HTTPStatus.TOO_MANY_REQUESTS,
+        )
+        response.status_code = status
+        # O flask-limiter já adiciona Retry-After, mas podemos garantir aqui
         return response
 
     @app.errorhandler(Exception)

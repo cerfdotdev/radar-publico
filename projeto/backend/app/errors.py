@@ -3,7 +3,6 @@
 from http import HTTPStatus
 
 from flask import Flask, Response, current_app, jsonify
-from flask_limiter import RateLimitExceeded
 from psycopg_pool import PoolTimeout, TooManyRequests
 from werkzeug.exceptions import HTTPException, MethodNotAllowed
 
@@ -18,6 +17,10 @@ HTTP_ERRORS: dict[int, tuple[str, str]] = {
     HTTPStatus.BAD_REQUEST: ("PARAMETRO_INVALIDO", "Requisição inválida."),
     HTTPStatus.NOT_FOUND: ("ROTA_INEXISTENTE", "Rota não encontrada."),
     HTTPStatus.METHOD_NOT_ALLOWED: ("METODO_NAO_PERMITIDO", "Método não permitido."),
+    HTTPStatus.TOO_MANY_REQUESTS: (
+        "MUITAS_REQUISICOES",
+        "Muitas requisições em pouco tempo. Aguarde e tente de novo.",
+    ),
 }
 INTERNAL_ERROR_MESSAGE = "Algo deu errado do nosso lado. Tente de novo em instantes."
 
@@ -50,6 +53,10 @@ def register_error_handlers(app: Flask) -> None:
         response, status = error_response(code, message, error.code)
         if isinstance(error, MethodNotAllowed) and error.valid_methods:
             response.headers["Allow"] = ", ".join(error.valid_methods)
+        # 429 do limite por IP (app/rate_limit.py): em quantos segundos tentar de novo.
+        retry_after = dict(error.get_headers()).get("Retry-After")
+        if retry_after:
+            response.headers["Retry-After"] = retry_after
         response.status_code = status
         return response
 
@@ -63,18 +70,6 @@ def register_error_handlers(app: Flask) -> None:
         )
         response.status_code = status
         response.headers["Retry-After"] = str(BUSY_RETRY_AFTER_S)
-        return response
-
-    @app.errorhandler(RateLimitExceeded)
-    def handle_rate_limit(error: RateLimitExceeded) -> Response:
-        # Erro 429 do flask-limiter
-        response, status = error_response(
-            "MUITAS_REQUISICOES",
-            "Limite de requisições excedido. Tente novamente mais tarde.",
-            HTTPStatus.TOO_MANY_REQUESTS,
-        )
-        response.status_code = status
-        # O flask-limiter já adiciona Retry-After, mas podemos garantir aqui
         return response
 
     @app.errorhandler(Exception)

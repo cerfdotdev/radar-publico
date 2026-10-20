@@ -1,18 +1,17 @@
 """Fábrica da aplicação Flask do Radar Público."""
 
 from flask import Flask
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 from app.config import load_config
 from app.db import init_db
 from app.errors import register_error_handlers
+from app.rate_limit import init_rate_limit
 
 
 def create_app(test_config: dict | None = None) -> Flask:
     """Cria e configura a instância do Flask."""
     app = Flask(__name__, static_folder=None)
-    # Mensagens com acento saem como não, e não como \u00e3o.
+    # Mensagens com acento saem como "não", e não "não".
     app.json.ensure_ascii = False
 
     app.config.update(load_config())
@@ -21,14 +20,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         app.config.update(test_config)
 
     init_db(app)
-
-    # Rate limiting por IP
-    Limiter(
-        get_remote_address,
-        app=app,
-        default_limits=["200 per day", "50 per hour"],
-        storage_uri="memory://",
-    )
+    init_rate_limit(app)
 
     from app.routes.health import health_bp
     from app.routes.servidores import servidores_bp

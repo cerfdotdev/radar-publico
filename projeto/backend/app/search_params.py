@@ -31,7 +31,11 @@ MAX_PAGE = math.ceil(MAX_TOTAL / MIN_PER_PAGE)
 DEFAULT_LIMIT = 100
 MIN_LIMIT = 1
 MAX_LIMIT = 100
-MIN_SIMILAR_LETTERS = 3
+# O índice trigram de servidor.nome só filtra o LIKE de 'similar' se algum trecho entre os '%'
+# tiver 3 letras seguidas. Sem nenhum (%A%A%A%, %AB%CD%, A%B%C), o Postgres lê a tabela
+# inteira e calcula a similarity() de cada nome: 2,4 s em produção, contra 0,13 s de uma
+# busca normal (docs/carga.md).
+MIN_TRIGRAM_LETTERS = 3
 # GET /api/servidores/<id>: o id é bigint (projeto/db/init/01-schema.sql).
 MIN_ID = 1
 MAX_ID = 9_223_372_036_854_775_807
@@ -47,6 +51,11 @@ UFS = (
 NOME_PATTERN = re.compile(r"[A-Z .'-]+")
 CARGO_ORGAO_PATTERN = re.compile(r"[A-Z0-9 .'/(),-]+")
 SIMILAR_PATTERN = re.compile(r"[A-Z .'%-]+")
+# Trecho é o que fica entre os '%', com os espaços (JOSE SILVA é um trecho só). O espaço
+# separa as letras, como o pg_trgm separa as palavras; o '%' não é letra, então a sequência
+# nunca atravessa um curinga.
+TRIGRAM_RUN = re.compile(rf"[A-Z]{{{MIN_TRIGRAM_LETTERS},}}")
+TRIGRAM_MESSAGE = f"Use pelo menos um trecho com {MIN_TRIGRAM_LETTERS} letras seguidas entre os %."
 FORBIDDEN_SEQUENCE = "--"
 # Aspas em volta do valor, como no exemplo do enunciado: similar="%NOME%" ou ”%NOME%”.
 QUOTE_MARKS = frozenset('"“”')
@@ -119,9 +128,8 @@ def parse_similar(args: MultiDict) -> str | None:
         raise invalid(f"'similar' deve ter de {MIN_TEXT_LENGTH} a {MAX_TEXT_LENGTH} caracteres.")
     if not SIMILAR_PATTERN.fullmatch(value) or FORBIDDEN_SEQUENCE in value:
         raise invalid("'similar' contém caracteres não permitidos.")
-    letters_count = sum(1 for c in value if c.isalpha())
-    if letters_count < MIN_SIMILAR_LETTERS:
-        raise invalid(f"'similar' precisa de pelo menos {MIN_SIMILAR_LETTERS} letras fora dos '%'.")
+    if TRIGRAM_RUN.search(value) is None:
+        raise invalid(TRIGRAM_MESSAGE)
     return value
 
 

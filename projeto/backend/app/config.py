@@ -1,4 +1,4 @@
-"""Configuração da aplicação lida do ambiente: banco, pool de conexões, limite por IP e cache.
+"""Configuração da aplicação lida do ambiente: banco, pool de conexões, limites por IP e cache.
 
 Os valores são lidos quando create_app() roda (e não na importação do módulo), para que
 o ambiente de cada processo, e o dos testes, seja respeitado.
@@ -29,6 +29,12 @@ MIN_SECONDS = 1
 # página: uma pessoa fica longe de 1 por segundo, e um script em laço leva 429 logo.
 DEFAULT_RATE_LIMIT_REQUESTS = 60
 DEFAULT_RATE_LIMIT_WINDOW_S = 60
+# Limite próprio das buscas com 'similar', além do geral: é a busca mais cara (até 0,8 s com
+# padrões comuns como %MARIA%, docs/carga.md, cenário 4). Uma pessoa faz poucas por minuto:
+# digita o padrão, olha a lista e ajusta; o site ainda sugere um padrão parecido quando o nome
+# exato não acha ninguém, uma busca a mais. Com 2 workers, um IP faz até 20 por minuto, cerca
+# de 16 s de thread a 0,8 s cada, de 480 (8 threads × 60 s): o resto fica para os outros.
+DEFAULT_RATE_LIMIT_SIMILAR_REQUESTS = 10
 # Proxies na frente do backend que trocam o X-Forwarded-For: o nginx do frontend.
 DEFAULT_PROXY_HOPS = 1
 
@@ -80,6 +86,10 @@ def load_config() -> dict:
         # 0 desliga o limite (ex.: teste de carga) ou deixa de confiar no X-Forwarded-For.
         "RATE_LIMIT_REQUESTS": s.int_from_env(
             "RATE_LIMIT_REQUESTS", DEFAULT_RATE_LIMIT_REQUESTS, s.MIN_COUNT_OFF
+        ),
+        # Na mesma janela do limite geral; 0 desliga só este.
+        "RATE_LIMIT_SIMILAR_REQUESTS": s.int_from_env(
+            "RATE_LIMIT_SIMILAR_REQUESTS", DEFAULT_RATE_LIMIT_SIMILAR_REQUESTS, s.MIN_COUNT_OFF
         ),
         "RATE_LIMIT_WINDOW_S": s.int_from_env(
             "RATE_LIMIT_WINDOW_S", DEFAULT_RATE_LIMIT_WINDOW_S, MIN_SECONDS

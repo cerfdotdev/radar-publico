@@ -33,7 +33,7 @@ Para cada issue, passe para a IA: este brief, `tokens.css`, `componentes.css`, o
 >
 > Regras que não aparecem no HTML:
 > - O estado da busca fica na URL (`?similar=...&orgao=...&page=2`). Recarregar a página, "Copiar link" e voltar no navegador devem manter a busca.
-> - Valide antes de chamar a API: nome com 2 a 100 caracteres; em "Nome parecido", pelo menos 3 letras além dos `%`; limite de 1 a 100.
+> - Valide antes de chamar a API: nome com 2 a 100 caracteres; em "Nome parecido", pelo menos um trecho entre os `%` com 3 letras seguidas; limite de 1 a 100.
 > - "Nome exato" envia `nome=`; "Nome parecido" envia `similar=` e `limit=` e mostra a coluna Semelhança.
 > - Se `meta.total` for 1, abra direto o detalhe. Se `meta.total_exato` for `false`, mostre o aviso de mais de 10.000.
 > - Mapeie cada `error.code` para o estado correspondente de `estados.html`. Em 429/503, conte o tempo do header `Retry-After` e reabilite o botão sozinho.

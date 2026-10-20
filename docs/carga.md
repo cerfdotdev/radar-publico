@@ -132,7 +132,7 @@ A 71ª, e não a 61ª, porque o contador é por worker: as requisições se divi
 | `%ANA%` | `uf=SP` | 88.263 ∩ 49.624 | BitmapAnd | 71 ms |
 | `%A%A%A%` | — | nenhum trigrama | **Parallel Seq Scan** em `servidor` (1,08 milhão de linhas casam) | **4.100 ms** |
 
-Os filtros entram no plano: o Postgres combina o índice trigram com os índices de UF ou cargo, e a busca fica mais rápida, não mais lenta. Isso responde à pendência do PR #58. Todos os padrões com pedaços de 3 letras ou mais ficam bem abaixo dos 5 s do `DB_STATEMENT_TIMEOUT_S`. A exceção são os padrões cujos pedaços têm 1 ou 2 letras: eles não geram trigramas, e a busca lê a tabela inteira e calcula a `similarity()` de mais de 1 milhão de nomes. Pela API, sozinho e com a máquina parada, `%A%A%A%` levou 0,94 s. Sob `EXPLAIN ANALYZE` e com a máquina carregada, 4,1 s: perto do corte de 5 s.
+Os filtros entram no plano: o Postgres combina o índice trigram com os índices de UF ou cargo, e a busca fica mais rápida, não mais lenta. Isso responde à pendência do PR #58. Todos os padrões com pedaços de 3 letras ou mais ficam bem abaixo dos 5 s do `DB_STATEMENT_TIMEOUT_S`. A exceção eram os padrões cujos pedaços têm 1 ou 2 letras: eles não geram trigramas, e a busca lê a tabela inteira e calcula a `similarity()` de mais de 1 milhão de nomes. Pela API, sozinho e com a máquina parada, `%A%A%A%` levou 0,94 s (2,4 s em produção, contra 0,13 s de uma busca normal). Sob `EXPLAIN ANALYZE` e com a máquina carregada, 4,1 s: perto do corte de 5 s. Hoje a API recusa esses padrões com 400 (ver [Limitações encontradas](#limitações-encontradas)).
 
 ## Mecanismos de segurança observados
 
@@ -142,7 +142,7 @@ Os filtros entram no plano: o Postgres combina o índice trigram com os índices
 | Orçamento do pool (45) | Nunca passou de 8 conexões do `radar_api`; o banco não ficou sem conexões |
 | `proxy_read_timeout` do nginx (15 s) | Foi o que garantiu uma resposta a todos na sobrecarga: 504 `TEMPO_ESGOTADO` em vez de espera sem fim |
 | `statement_timeout` (5 s) | Nenhuma consulta isolada chegou perto, a não ser `%A%A%A%` sob carga. Na sobrecarga, o limite que agiu foi o do nginx |
-| Limite por IP | 429 a partir da 71ª requisição de um mesmo IP, com `Retry-After`. O health nunca é limitado, e o cache continua respondendo |
+| Limite por IP | 429 a partir da 71ª requisição de um mesmo IP, com `Retry-After`. O health nunca é limitado, e o cache continua respondendo. Depois desta medição, a busca `similar` ganhou um limite próprio, menor (`RATE_LIMIT_SIMILAR_REQUESTS`) |
 | Cache e `proxy_cache_lock` | 150 vezes mais vazão na mistura (19.278 contra 128 req/s), com 99,3% de `HIT` e p99 de 8 ms |
 
 ## Limitações encontradas
@@ -152,6 +152,6 @@ Os filtros entram no plano: o Postgres combina o índice trigram com os índices
 - **Trabalho desperdiçado e recuperação lenta.** O Gunicorn executa as buscas que o nginx ou o cliente já abandonaram. Depois do fim da carga, um dos workers ainda dava 504 ao `/api/health` e às buscas 45 s depois. A fila não tem limite de tamanho nem descarte por tempo de espera.
 - **`/api/health` na mesma fila.** Durante a sobrecarga, o health esperou 15 s, e o container ficou `unhealthy` em 48 de 131 s, sem reiniciar. Isso confirma o que [arquitetura](arquitetura.md#limites-conhecidos) já descreve.
 - **Fila por worker.** Cada worker tem a própria fila. Depois da carga, as requisições que caíam no worker livre respondiam em 5 ms, e as do outro esperavam 15 s.
-- **`similar` sem trigramas.** Padrões só com pedaços de 1 ou 2 letras (`%A%A%A%`) leem a tabela inteira: 0,9 s sozinho e 4,1 s sob carga, contra os 5 s do `statement_timeout`. Com 8 deles ao mesmo tempo, a fila enche em segundos. A validação exige 3 letras no total, e não um pedaço de 3 letras.
+- **`similar` sem trigramas (mitigado).** Padrões só com pedaços de 1 ou 2 letras (`%A%A%A%`) liam a tabela inteira: 0,9 s sozinho, 2,4 s em produção e 4,1 s sob carga, contra os 5 s do `statement_timeout`. Com 8 deles ao mesmo tempo, a fila enchia em segundos, e um IP só, dentro do limite geral (60 por minuto em cada um dos 2 workers), ocupava a maior parte das 8 threads. Agora a validação exige um trecho entre os `%` com 3 letras seguidas (`MIN_TRIGRAM_LETTERS`) e responde 400 `PARAMETRO_INVALIDO` antes do banco para `%A%A%A%`, `%AB%CD%` e `A%B%C`. E a busca `similar` ganhou um limite próprio por IP, além do geral: `RATE_LIMIT_SIMILAR_REQUESTS`, 10 a cada 60 s por worker. Continua cara uma busca válida com um trigrama muito comum (`%MARIA%`, 0,8 s): é ela que o limite próprio segura.
 - **Cache só ajuda URLs repetidas.** Os 19 mil req/s dependem de 99% de `HIT`. Uma carga de URLs sempre novas tem o desempenho da coluna sem cache.
 - **Medição curta.** Execuções de 60 s, a uma concorrência só, com o k6 na mesma máquina da stack. Não foram medidas a porta 5000 direta, 100 VUs nem a sobrecarga com cache ligado.

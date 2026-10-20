@@ -3,7 +3,7 @@
 import pytest
 
 from radar_desktop.api import Busca, Situacao
-from radar_desktop.validacao import UFS, normalizar_texto, validar_busca
+from radar_desktop.validacao import UFS, ErroBusca, normalizar_texto, validar_busca
 
 TEXTO_LONGO = "A" * 101
 
@@ -21,6 +21,10 @@ def campo_do_erro(busca: Busca) -> str | None:
         Busca(nome="Ana", situacao=Situacao.APOSENTADO),
         Busca(similar="%MARIA%SILVA%", limite=50),
         Busca(similar="JOSE%SILVA"),
+        Busca(similar="%JOSE%SILVA%"),
+        Busca(similar="MARIA%"),
+        Busca(similar="%ANA%"),
+        Busca(similar="%A%B%SILVA%"),
         Busca(cargo="PROFESSOR DO MAGISTERIO SUPERIOR (CLASSE A), 2/3"),
         Busca(orgao="MS"),
         Busca(uf="RJ", situacao=Situacao.ATIVO),
@@ -63,8 +67,18 @@ def test_buscas_invalidas(busca, campo):
     assert campo_do_erro(busca) == campo
 
 
-def test_tres_letras_contam_depois_da_normalizacao():
-    assert validar_busca(Busca(similar="%Á%É%Í%")) is None
+def test_letras_seguidas_contam_depois_da_normalizacao():
+    assert validar_busca(Busca(similar="%JOSÉ%")) is None
+
+
+# Sem um trecho com 3 letras seguidas, o índice trigram não filtra (docs/api.md).
+@pytest.mark.parametrize(
+    "similar", ["%A%A%A%", "%AB%CD%", "A%B%C", "%JO SE%", "%A B%", "%Á%É%Í%", "%D'A%", "%%%"]
+)
+def test_similar_sem_trecho_de_3_letras_seguidas(similar):
+    assert validar_busca(Busca(similar=similar)) == ErroBusca(
+        "termo", "Use pelo menos um trecho com 3 letras seguidas entre os %."
+    )
 
 
 def test_limite_so_conta_com_similar():

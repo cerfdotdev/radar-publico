@@ -13,7 +13,7 @@ Busca servidores ativos e aposentados. Os filtros se combinam com **E**.
 | Parâmetro | Tipo | Regra | Exemplo |
 |---|---|---|---|
 | `nome` | texto | Nome **exato** (sem diferenciar maiúsculas e acentos) | `nome=Maria da Silva` |
-| `similar` | texto | Nome parecido: padrão `LIKE` com `%` como curinga, do nome inteiro (sem `%`, só o nome igual). Precisa de pelo menos 3 letras fora dos `%`. Resultados do mais ao menos parecido (`similaridade`), sem páginas. Combina com `cargo`, `orgao`, `uf` e `situacao` | `similar=%MARIA%SILVA%` |
+| `similar` | texto | Nome parecido: padrão `LIKE` com `%` como curinga, do nome inteiro (sem `%`, só o nome igual). Precisa de um trecho entre os `%` com pelo menos 3 letras seguidas (regra abaixo). Resultados do mais ao menos parecido (`similaridade`), sem páginas. Combina com `cargo`, `orgao`, `uf` e `situacao` | `similar=%MARIA%SILVA%` |
 | `limit` | inteiro | Só com `similar`. Máximo de resultados, de 1 a 100. Padrão 100 | `limit=50` |
 | `cargo` | texto | Parte do nome do cargo (contém) | `cargo=professor` |
 | `orgao` | texto | Parte do nome ou a sigla do órgão | `orgao=saude` ou `orgao=INSS` |
@@ -27,6 +27,7 @@ Regras:
 - Pelo menos um filtro entre `nome`, `similar`, `cargo`, `orgao` e `uf` é obrigatório.
 - `nome` e `similar` não podem ser usados juntos.
 - `limit` só vale com `similar`; `page` e `per_page` não valem com `similar` (a busca parecida não tem páginas, devolve até `limit` resultados). Os dois casos respondem 400 `PARAMETRO_INVALIDO`, em vez de ignorar o parâmetro.
+- **`similar` precisa de um trecho com 3 letras seguidas.** Trecho é o que fica entre os `%`, com os espaços (`JOSE SILVA` é um trecho só); o espaço, o `'`, o `.` e o `-` separam as letras, e os acentos saem antes da contagem. Valem `%JOSE%SILVA%`, `MARIA%`, `%ANA%` e `%A%B%SILVA%`; `%A%A%A%`, `%AB%CD%`, `A%B%C` e `%JO SE%` respondem 400 `PARAMETRO_INVALIDO` com a mensagem "Use pelo menos um trecho com 3 letras seguidas entre os %.". Sem esse trecho, o índice trigram do nome não tem o que filtrar, e a busca lê a tabela inteira (2,4 s em produção, contra 0,13 s de uma busca normal; ver `docs/carga.md`).
 - Textos: de 2 a 100 caracteres, sem `--`. Em `nome` e `similar`: só letras, espaços, `'`, `.` e `-` (e `%` em `similar`). Em `cargo` e `orgao`: também dígitos, `/`, `(`, `)` e `,`. A entrada é convertida para maiúsculas, sem acentos e com espaços simples antes da busca, como os dados na carga.
 - Aspas em volta do valor são ignoradas em `nome`, `similar`, `cargo` e `orgao`, como no exemplo do enunciado: `similar="%MARIA%SILVA%"`, `similar=”%MARIA%SILVA%”` e `similar=“%MARIA%SILVA%”` valem o mesmo que `similar=%MARIA%SILVA%`. Só um par, nas duas pontas; aspas em outro lugar são caractere não permitido.
 - **`%` sem codificar.** No curl ou na barra do navegador, `?similar=%MARIA%DE%BARROS%` chega com o `%` cru. A API decodifica um `%XY` só quando ele forma um caractere que ela usa (ASCII, letra acentuada ou as aspas acima), como `%25` (`%`), `%20` (espaço) e `%C3%A9` (`é`); os outros ficam como texto. Assim `%DE%BA`, que formaria um caractere de outro alfabeto, continua `%DE%BA`. Clientes que codificam o `%` como `%25` (o frontend e o desktop) não são afetados. Bytes que não são UTF-8 respondem 400, nunca 500.
@@ -154,7 +155,7 @@ Todo erro tem o formato:
 | HTTP | `code` | Quando |
 |---|---|---|
 | 400 | `PARAMETRO_DESCONHECIDO` | Parâmetro fora da lista |
-| 400 | `PARAMETRO_INVALIDO` | Texto vazio, curto, longo ou com caracteres proibidos; número fora da faixa; `nome` com `similar`; `limit` sem `similar`; `page` ou `per_page` com `similar`; `id` do detalhe que não é um inteiro de 1 a 9223372036854775807 |
+| 400 | `PARAMETRO_INVALIDO` | Texto vazio, curto, longo ou com caracteres proibidos; `similar` sem um trecho com 3 letras seguidas; número fora da faixa; `nome` com `similar`; `limit` sem `similar`; `page` ou `per_page` com `similar`; `id` do detalhe que não é um inteiro de 1 a 9223372036854775807 |
 | 400 | `FILTRO_OBRIGATORIO` | Nenhum filtro informado |
 | 400 | `UF_INVALIDA` | `uf` não é uma das 27 siglas |
 | 404 | `CARGO_NAO_ENCONTRADO` | Nenhum cargo corresponde a `cargo` |
@@ -163,7 +164,7 @@ Todo erro tem o formato:
 | 404 | `PAGINA_INEXISTENTE` | `page` maior que `total_pages` (inclusive além do 10.000º resultado) |
 | 404 | `ROTA_INEXISTENTE` | URL que não existe |
 | 405 | `METODO_NAO_PERMITIDO` | Método diferente de GET |
-| 429 | `MUITAS_REQUISICOES` | Limite de requisições por IP excedido; vem com o header `Retry-After`. Nunca vem do cache |
+| 429 | `MUITAS_REQUISICOES` | Limite de requisições por IP excedido: o geral (`RATE_LIMIT_REQUESTS`, padrão 60 a cada 60 s) ou o das buscas com `similar` (`RATE_LIMIT_SIMILAR_REQUESTS`, padrão 10 a cada 60 s), que contam nos dois. Os limites são por worker do Gunicorn (README, "Limites e ajuste por máquina"). Vem com o header `Retry-After`. Nunca vem do cache |
 | 503 | `SERVIDOR_OCUPADO` | O backend não conseguiu uma conexão com o banco em `DB_POOL_TIMEOUT_S` (padrão 3 s): banco fora do ar ou lento para aceitar conexões. Vem com `Retry-After`. Não é limite de buscas simultâneas: na configuração padrão o pool tem uma conexão por thread, e as buscas além das threads esperam na fila do Gunicorn (ver `docs/banco.md`) |
 | 504 | `TEMPO_ESGOTADO` | A busca passou do tempo limite no banco, ou o backend não respondeu ao nginx em 15 s |
 | 500 | `ERRO_INTERNO` | Erro inesperado (sem detalhes internos na mensagem) |

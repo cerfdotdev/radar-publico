@@ -2,7 +2,7 @@ import { useLayoutEffect, useState, type FormEvent } from 'react'
 import {
   LIMITE_MAX,
   LIMITE_MIN,
-  SIMILAR_MIN_LETRAS,
+  SIMILAR_MIN_LETRAS_SEGUIDAS,
   UFS,
   validarBusca,
   type ErroBusca,
@@ -170,7 +170,7 @@ export function SearchForm({ busca, ocupado, erroExterno, onBuscar }: SearchForm
             {erroTermo === null ? (
               <p className="aux" id="dica-nome">
                 {similar
-                  ? `Use % no lugar das partes que você não sabe: %MARIA%SILVA%, MARIA SILVA% ou MARIA%SILVA. Pelo menos ${SIMILAR_MIN_LETRAS} letras. Mostra os mais parecidos primeiro.`
+                  ? `Use % no lugar das partes que você não sabe: %MARIA%SILVA%, MARIA SILVA% ou MARIA%SILVA. Pelo menos um trecho com ${SIMILAR_MIN_LETRAS_SEGUIDAS} letras seguidas. Mostra os mais parecidos primeiro.`
                   : 'Digite o nome completo, como no registro.'}
               </p>
             ) : (

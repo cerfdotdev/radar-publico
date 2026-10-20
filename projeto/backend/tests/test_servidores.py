@@ -10,8 +10,9 @@ from http import HTTPStatus
 import pytest
 from psycopg import sql
 
+from app.config import DEFAULT_RATE_LIMIT_SIMILAR_REQUESTS
 from app.routes import servidores
-from app.search_params import MAX_ID
+from app.search_params import MAX_ID, TRIGRAM_MESSAGE
 from tests.db_schema import temporary_schema
 
 ORGAOS = [
@@ -291,6 +292,72 @@ def test_similar_rejects_paging(api, paging):
     assert status == HTTPStatus.BAD_REQUEST
     assert body["error"]["code"] == "PARAMETRO_INVALIDO"
     assert "'similar'" in body["error"]["message"]
+
+
+# --- Padrão sem trigrama e limite próprio de 'similar' ---
+
+# Limites pequenos para os testes; a janela não vira no meio de um teste.
+SIMILAR_LIMIT = 2
+GENERAL_LIMIT = 10
+NO_ROLLOVER_WINDOW_S = 86_400
+
+
+@pytest.mark.parametrize("padrao", ["%A%A%A%", "%AB%CD%", "A%B%C"])
+def test_similar_without_trigram_is_rejected(api, padrao):
+    status, body = search(api, similar=padrao)
+    assert status == HTTPStatus.BAD_REQUEST
+    assert body["error"] == {"code": "PARAMETRO_INVALIDO", "message": TRIGRAM_MESSAGE}
+
+
+@pytest.mark.parametrize(
+    ("padrao", "expected"),
+    [
+        ("%JOSE%SILVA%", ["JOSE CARLOS DA SILVA"]),
+        ("MARIA%", ["MARIA DA SILVA", "MARIA DA SILVA", "MARIA DE ABREU"]),
+        ("%ANA%", ["ANA COSTA"]),
+    ],
+)
+def test_similar_with_a_trigram_is_searched(api, padrao, expected):
+    status, body = search(api, similar=padrao)
+    assert status == HTTPStatus.OK
+    assert sorted(names(body)) == expected
+
+
+def limited_api(make_app, schema_url, similar_limit, general_limit=GENERAL_LIMIT):
+    return make_app(
+        DATABASE_URL=schema_url,
+        RATE_LIMIT_REQUESTS=general_limit,
+        RATE_LIMIT_SIMILAR_REQUESTS=similar_limit,
+        RATE_LIMIT_WINDOW_S=NO_ROLLOVER_WINDOW_S,
+    ).test_client()
+
+
+def test_similar_has_its_own_tighter_limit(make_app, schema_url):
+    api = limited_api(make_app, schema_url, SIMILAR_LIMIT)
+    for _ in range(SIMILAR_LIMIT):
+        assert search(api, similar="%MARIA%")[0] == HTTPStatus.OK
+    # Outro padrão não escapa: o limite é do IP, não da URL.
+    status, body = search(api, similar="%SILVA%", uf="RJ")
+    assert status == HTTPStatus.TOO_MANY_REQUESTS
+    assert body["error"]["code"] == "MUITAS_REQUISICOES"
+    # As outras buscas seguem no limite geral, que ainda tem folga.
+    assert search(api, uf="RJ")[0] == HTTPStatus.OK
+    assert search(api, cargo="professor")[0] == HTTPStatus.OK
+
+
+def test_similar_also_counts_in_the_general_limit(make_app, schema_url):
+    api = limited_api(make_app, schema_url, GENERAL_LIMIT)
+    for _ in range(GENERAL_LIMIT):
+        assert search(api, similar="%MARIA%")[0] == HTTPStatus.OK
+    assert search(api, uf="RJ")[0] == HTTPStatus.TOO_MANY_REQUESTS
+
+
+def test_zero_disables_the_similar_limit(make_app, schema_url):
+    # Mais buscas parecidas que o padrão deixaria, todas dentro do limite geral.
+    searches = DEFAULT_RATE_LIMIT_SIMILAR_REQUESTS + 1
+    api = limited_api(make_app, schema_url, 0, general_limit=searches)
+    for _ in range(searches):
+        assert search(api, similar="%MARIA%")[0] == HTTPStatus.OK
 
 
 # --- Aspas e '%' digitados como no enunciado ---

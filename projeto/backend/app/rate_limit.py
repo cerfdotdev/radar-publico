@@ -1,8 +1,12 @@
-"""Limite de requisições por IP: acima dele, 429 MUITAS_REQUISICOES com Retry-After.
+"""Limites de requisições por IP: acima deles, 429 MUITAS_REQUISICOES com Retry-After.
+
+Há dois: o geral (RATE_LIMIT_REQUESTS), que vale para toda requisição menos o health, e um
+menor só para as buscas com 'similar' (RATE_LIMIT_SIMILAR_REQUESTS), a busca mais cara. A
+busca parecida conta nos dois, na mesma janela de RATE_LIMIT_WINDOW_S.
 
 A contagem fica na memória de cada worker do Gunicorn (não há armazenamento compartilhado,
-como Redis): com N workers, um IP consegue até N × RATE_LIMIT_REQUESTS por janela,
-conforme o Gunicorn distribui as conexões entre eles.
+como Redis): com N workers, um IP consegue até N × o limite por janela, conforme o Gunicorn
+distribui as conexões entre eles.
 """
 
 import math
@@ -17,10 +21,17 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import server_settings as s
 
 EXTENSION_KEY = "rate_limiter"
+SIMILAR_EXTENSION_KEY = "similar_rate_limiter"
+# Só a busca usa 'similar'; no detalhe ele é parâmetro desconhecido (400) e conta só no geral.
+SIMILAR_ENDPOINT = "servidores.listar_servidores"
+SIMILAR_PARAM = "similar"
 
 
 class FixedWindowLimiter:
-    """Conta requisições por chave em janelas fixas de window_s segundos."""
+    """Conta requisições por chave em janelas fixas de window_s segundos.
+
+    A memória fica limitada às chaves de uma janela: na virada, as contagens são apagadas.
+    """
 
     def __init__(
         self, limit: int, window_s: int, clock: Callable[[], float] = time.monotonic
@@ -51,25 +62,48 @@ class FixedWindowLimiter:
         return math.ceil((window + 1) * self.window_s - now)
 
 
+def build_limiter(app: Flask, key: str, limit: int) -> FixedWindowLimiter | None:
+    """Limitador guardado em app.extensions[key], ou None se o limite é 0 (desligado)."""
+    if not limit:
+        return None
+    limiter = FixedWindowLimiter(limit, app.config["RATE_LIMIT_WINDOW_S"])
+    app.extensions[key] = limiter
+    return limiter
+
+
+def enforce(limiter: FixedWindowLimiter, client: str) -> None:
+    """Conta a requisição do cliente; acima do limite, 429 com Retry-After."""
+    retry_after = limiter.hit(client)
+    if retry_after is not None:
+        raise TooManyRequests(retry_after=retry_after)
+
+
 def init_rate_limit(app: Flask) -> None:
-    """Liga o limite por IP (RATE_LIMIT_REQUESTS=0 desliga) e acha o IP real atrás do nginx."""
+    """Liga os limites por IP (0 desliga cada um) e acha o IP real atrás do nginx."""
     hops = app.config["PROXY_HOPS"]
     if hops:
         # O nginx do frontend troca o X-Forwarded-For pelo IP de quem conectou nele. Sem
         # isso, todo usuário da web teria o IP do nginx e dividiria o mesmo limite.
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=hops, x_proto=0)
 
-    limit = app.config["RATE_LIMIT_REQUESTS"]
-    if not limit:
+    general = build_limiter(app, EXTENSION_KEY, app.config["RATE_LIMIT_REQUESTS"])
+    similar = build_limiter(app, SIMILAR_EXTENSION_KEY, app.config["RATE_LIMIT_SIMILAR_REQUESTS"])
+    if general is None and similar is None:
         return
-    limiter = FixedWindowLimiter(limit, app.config["RATE_LIMIT_WINDOW_S"])
-    app.extensions[EXTENSION_KEY] = limiter
 
     @app.before_request
     def limit_by_ip() -> None:
         # O healthcheck do container e o smoke test do CI nunca podem receber 429.
         if request.path == s.HEALTH_PATH:
             return
-        retry_after = limiter.hit(request.remote_addr or "")
-        if retry_after is not None:
-            raise TooManyRequests(retry_after=retry_after)
+        # A mesma chave nos dois: o IP do cliente, já corrigido pelo ProxyFix.
+        client = request.remote_addr or ""
+        if general is not None:
+            enforce(general, client)
+        # Conta antes da validação, como o geral: o padrão inválido também pesa no limite.
+        if (
+            similar is not None
+            and request.endpoint == SIMILAR_ENDPOINT
+            and SIMILAR_PARAM in request.args
+        ):
+            enforce(similar, client)

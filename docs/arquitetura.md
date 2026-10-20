@@ -164,7 +164,8 @@ O limite de cada etapa, com a variável que o controla:
 | Gunicorn | 2 workers × 4 threads = 8 buscas ao mesmo tempo | `GUNICORN_WORKERS`, `GUNICORN_THREADS` | As outras esperam na fila do worker (até 1.000 conexões por worker, padrão do Gunicorn) |
 | Gunicorn | worker sem sinal de vida por 30 s é reiniciado | `GUNICORN_TIMEOUT` | Ver [Limites conhecidos](#limites-conhecidos) |
 | Limite por IP | 60 requisições a cada 60 s, por worker | `RATE_LIMIT_REQUESTS` (`0` desliga), `RATE_LIMIT_WINDOW_S`, `PROXY_HOPS` | 429 `MUITAS_REQUISICOES` com `Retry-After` até a janela virar |
-| Validação | textos de 2 a 100 caracteres, `per_page` e `limit` até 100 | `app/search_params.py` | 400, antes de qualquer consulta |
+| Limite de `similar` por IP | 10 buscas parecidas a cada 60 s, por worker, além do geral | `RATE_LIMIT_SIMILAR_REQUESTS` (`0` desliga), mesma janela e mesmo IP do geral | O mesmo 429 com `Retry-After` |
+| Validação | textos de 2 a 100 caracteres, `per_page` e `limit` até 100; `similar` com um trecho de 3 letras seguidas entre os `%` | `app/search_params.py` | 400, antes de qualquer consulta |
 | Pool | 4 conexões por worker (= threads); workers × pool ≤ 45 | `DB_POOL_MAX`, `DB_POOL_MIN` (1) | Espera até `DB_POOL_TIMEOUT_S` (3 s), depois 503 `SERVIDOR_OCUPADO` com `Retry-After: 2` |
 | Conexão nova | 5 s para conectar | `DB_CONNECT_TIMEOUT_S` | O pool tenta de novo; quem espera recebe o 503 acima |
 | Consulta | 5 s cada | `DB_STATEMENT_TIMEOUT_S` (sessão); o role tem o seu, `POSTGRES_API_STATEMENT_TIMEOUT` | O banco cancela e a API responde 504 `TEMPO_ESGOTADO` |

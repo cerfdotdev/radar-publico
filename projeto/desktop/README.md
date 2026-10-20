@@ -37,8 +37,9 @@ Com o app aberto, dá para trocar em **Configurações → URL da API…**.
 ## Uso
 
 - Enter em qualquer campo do formulário busca; Alt + a letra sublinhada leva a cada campo.
-- **Nome parecido** aceita `%` como curinga, precisa de 3 letras fora dos `%` e devolve até o
-  limite escolhido (1 a 100), sem paginação.
+- **Nome parecido** aceita `%` como curinga, precisa de um trecho entre os `%` com 3 letras
+  seguidas (como `%ANA%` ou `MARIA%`; `%A%A%A%` não serve) e devolve até o limite escolhido
+  (1 a 100), sem paginação.
 - O filtro de UF só encontra servidores ativos: a fonte dos aposentados não traz UF.
 - Enter ou duplo clique numa linha, ou **Ver detalhe**, abre a ficha do vínculo.
 - As chamadas à API rodam fora da thread da interface, com tempo limite de 20 s

@@ -18,7 +18,14 @@ RUN apk add --no-cache libexpat=2.9.0-r0 zlib=1.3.2-r1 libx11=1.8.14-r0
 # Arquivos pertencem ao root: o usuário do nginx só lê.
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
+# Na subida, o entrypoint da imagem gera /etc/nginx/conf.d/api-cache.conf a partir deste
+# template, trocando só as variáveis API_CACHE_* (NGINX_ENVSUBST_FILTER).
+COPY api-cache.conf.template /etc/nginx/templates/api-cache.conf.template
 COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Vazio = cache ligado, como no backend; o docker-compose.yml repassa o valor do .env.
+ENV API_CACHE_TTL_S="" \
+    NGINX_ENVSUBST_FILTER="^API_CACHE_"
 
 USER nginx
 

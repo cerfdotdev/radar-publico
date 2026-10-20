@@ -109,11 +109,39 @@ Para ativos, os campos de aposentadoria vêm `null` e `codigo_carreira` é preen
 - `id` só com dígitos, de 1 a 9223372036854775807 (o `bigint` do banco). Texto, sinal, ponto ou número fora dessa faixa respondem 400 `PARAMETRO_INVALIDO` sem consultar o banco.
 - `id` válido sem vínculo: 404 `NAO_ENCONTRADO`.
 - A rota não tem parâmetros: qualquer um na query string responde 400 `PARAMETRO_DESCONHECIDO`.
-- Conta no limite de requisições por IP, como a busca.
+- Conta no limite de requisições por IP, como a busca (o que o nginx responde do cache não chega ao backend e não conta; ver [Cache](#cache)).
 
 ## `GET /api/health`
 
-`{"status": "ok"}`, sem tocar no banco. É o healthcheck do container e nunca recebe 429.
+`{"status": "ok"}`, sem tocar no banco. É o healthcheck do container, nunca recebe 429 e nunca vem de cache (`Cache-Control: no-store`).
+
+## Cache
+
+Os dados só mudam quando a base é recarregada. As respostas **200 e 404** de `GET /api/servidores` e `GET /api/servidores/<id>` podem ser reusadas pelo navegador e pelo nginx do frontend:
+
+```
+Cache-Control: public, max-age=60
+ETag: "2026-05:412354+2026-08:1092162@7698757299317346338"
+```
+
+- `max-age` é `API_CACHE_TTL_S` (padrão 60 s, README).
+- O `ETag` é a versão dos dados, igual em todas as respostas da mesma carga: os meses de referência, quantas linhas vieram de cada um e o identificador do cluster do Postgres (muda a cada recarga). O backend lê a versão uma vez por worker, na primeira busca ou detalhe válido.
+- Com `If-None-Match` igual ao `ETag` atual (também `W/"..."`, que é como o gzip do nginx entrega, ou `*`), a resposta é **304** sem corpo, com os mesmos `Cache-Control` e `ETag`, e a busca não roda. A validação vem antes: parâmetro inválido continua 400.
+- Todo o resto sai com `Cache-Control: no-store`: 400, 405, 429, 5xx, rotas inexistentes e `/api/health`.
+- Com `API_CACHE_TTL_S=0`, tudo sai com `no-store`, sem `ETag` e sem 304.
+
+Pelo nginx (porta 8080), as respostas dessas duas rotas trazem `X-Cache-Status`:
+
+| Valor | Quer dizer |
+|---|---|
+| `MISS` | Não estava no cache; veio do backend (e é guardada se for 200 ou 404) |
+| `HIT` | Veio do cache, sem ir ao backend |
+| `EXPIRED` | Estava vencida e veio do backend |
+| `REVALIDATED` | Estava vencida, o backend respondeu 304 e ela voltou a valer |
+| `UPDATING` | Estava vencida e outra requisição já a está atualizando: veio a guardada |
+| `STALE` | O backend falhou (fora do ar, 5xx ou tempo esgotado): veio a guardada, da mesma carga |
+
+O que vem do cache (`HIT`, `UPDATING`, `STALE`) não chega ao backend e não conta no limite por IP. 429, 5xx e os 502/504 gerados pelo nginx nunca são guardados. Sem cache no nginx (`API_CACHE_TTL_S=0`, ou `/api/health`), o cabeçalho não aparece.
 
 ## Erros
 
@@ -135,7 +163,7 @@ Todo erro tem o formato:
 | 404 | `PAGINA_INEXISTENTE` | `page` maior que `total_pages` (inclusive além do 10.000º resultado) |
 | 404 | `ROTA_INEXISTENTE` | URL que não existe |
 | 405 | `METODO_NAO_PERMITIDO` | Método diferente de GET |
-| 429 | `MUITAS_REQUISICOES` | Limite de requisições por IP excedido; vem com o header `Retry-After` |
+| 429 | `MUITAS_REQUISICOES` | Limite de requisições por IP excedido; vem com o header `Retry-After`. Nunca vem do cache |
 | 503 | `SERVIDOR_OCUPADO` | O backend não conseguiu uma conexão com o banco em `DB_POOL_TIMEOUT_S` (padrão 3 s): banco fora do ar ou lento para aceitar conexões. Vem com `Retry-After`. Não é limite de buscas simultâneas: na configuração padrão o pool tem uma conexão por thread, e as buscas além das threads esperam na fila do Gunicorn (ver `docs/banco.md`) |
 | 504 | `TEMPO_ESGOTADO` | A busca passou do tempo limite no banco, ou o backend não respondeu ao nginx em 15 s |
 | 500 | `ERRO_INTERNO` | Erro inesperado (sem detalhes internos na mensagem) |

@@ -1,7 +1,8 @@
 """GET /api/servidores e GET /api/servidores/<id>: busca e detalhe de vínculos (docs/api.md).
 
 Recomendações de desempenho seguidas (docs/banco.md): ids de cargo e órgão resolvidos
-antes, contagem limitada a 10.000 resultados e paginação só dentro desse limite.
+antes (na memória do worker, app/lookup.py), contagem limitada a 10.000 resultados e
+paginação só dentro desse limite. Cabeçalhos de cache e 304 em app/http_cache.py.
 """
 
 import math
@@ -13,6 +14,8 @@ from psycopg.rows import dict_row
 
 from app.db import get_db_connection
 from app.errors import ApiError
+from app.http_cache import not_modified
+from app.lookup import get_lookup
 from app.search_params import (
     MAX_TOTAL,
     SearchParams,
@@ -27,10 +30,7 @@ servidores_bp = Blueprint("servidores", __name__)
 COUNT_LIMIT = MAX_TOTAL + 1
 # A busca por similaridade vem inteira, até 'limit' resultados, numa página só.
 SINGLE_PAGE = 1
-LIKE_ESCAPE = "\\"
 
-CARGO_LOOKUP = sql.SQL("SELECT id FROM cargo WHERE nome LIKE %s")
-ORGAO_LOOKUP = sql.SQL("SELECT id FROM orgao WHERE nome LIKE %s OR sigla = %s")
 COUNT_QUERY = sql.SQL(
     "SELECT count(*) FROM (SELECT 1 FROM servidor s WHERE {where} LIMIT %s) AS limitado"
 )
@@ -85,19 +85,7 @@ DETAIL_QUERY = sql.SQL(
 DATE_FIELDS = ("data_aposentadoria", "data_ingresso")
 
 
-def like_contains(text: str) -> str:
-    """Padrão LIKE de "contém", com % _ e \\ da entrada tratados como texto."""
-    escaped = (
-        text.replace(LIKE_ESCAPE, LIKE_ESCAPE * 2)
-        .replace("%", LIKE_ESCAPE + "%")
-        .replace("_", LIKE_ESCAPE + "_")
-    )
-    return f"%{escaped}%"
-
-
-def resolve_ids(cur: Cursor, query: sql.Composable, args: tuple, code: str, label: str) -> list:
-    cur.execute(query, args)
-    ids = [row["id"] for row in cur.fetchall()]
+def require_ids(ids: list[int], code: str, label: str) -> list[int]:
     if not ids:
         raise ApiError(code, f"Nenhum {label} corresponde à busca.", HTTPStatus.NOT_FOUND)
     return ids
@@ -111,26 +99,19 @@ def id_filter(column: str, ids: list) -> tuple[sql.Composable, object]:
     return sql.SQL("{} = ANY(%s)").format(target), ids
 
 
-def build_filters(cur: Cursor, params: SearchParams) -> tuple[sql.Composable, list]:
+def build_filters(params: SearchParams) -> tuple[sql.Composable, list]:
+    """WHERE da busca. Chame sem conexão em mãos: a primeira vez lê cargo e órgão do banco."""
     conditions: list[sql.Composable] = []
     values: list = []
 
     if params.cargo is not None:
-        ids = resolve_ids(
-            cur, CARGO_LOOKUP, (like_contains(params.cargo),), "CARGO_NAO_ENCONTRADO", "cargo"
-        )
+        ids = require_ids(get_lookup().cargo_ids(params.cargo), "CARGO_NAO_ENCONTRADO", "cargo")
         condition, value = id_filter("cargo_id", ids)
         conditions.append(condition)
         values.append(value)
 
     if params.orgao is not None:
-        ids = resolve_ids(
-            cur,
-            ORGAO_LOOKUP,
-            (like_contains(params.orgao), params.orgao),
-            "ORGAO_NAO_ENCONTRADO",
-            "órgão",
-        )
+        ids = require_ids(get_lookup().orgao_ids(params.orgao), "ORGAO_NAO_ENCONTRADO", "órgão")
         condition, value = id_filter("orgao_id", ids)
         conditions.append(condition)
         values.append(value)
@@ -176,6 +157,9 @@ def serialize_detail(row: dict) -> dict:
 def listar_servidores() -> Response:
     """Busca servidores por nome exato ou parecido, cargo, órgão, UF e situação."""
     params = parse_search_params(request.args)
+    # Revalidação com a versão atual dos dados: 304 sem refazer a busca.
+    if (unchanged := not_modified()) is not None:
+        return unchanged
 
     if params.uf is not None and params.situacao is Situacao.APOSENTADO:
         raise ApiError(
@@ -184,8 +168,9 @@ def listar_servidores() -> Response:
             HTTPStatus.NOT_FOUND,
         )
 
+    # Antes de pegar a conexão da busca: nunca duas conexões do pool na mesma thread.
+    where, values = build_filters(params)
     with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
-        where, values = build_filters(cur, params)
         if params.similar is not None:
             return buscar_similares(cur, params, where, values)
 
@@ -259,6 +244,8 @@ def detalhar_servidor(raw_id: str) -> Response:
     """Detalhe de um vínculo, com os campos de carreira, aposentadoria e ingresso."""
     # O id é conferido antes do banco: texto ou número fora do bigint dão 400, não 500.
     servidor_id = parse_servidor_id(raw_id, request.args)
+    if (unchanged := not_modified()) is not None:
+        return unchanged
     with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         cur.execute(DETAIL_QUERY, (servidor_id,))
         row = cur.fetchone()

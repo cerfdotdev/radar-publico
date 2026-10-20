@@ -35,9 +35,10 @@ const ORGAOS = ['INSS', 'saude', 'educacao', 'fazenda', 'universidade', 'IBAMA',
 const NOMES = ['MARIA DA SILVA', 'JOSE CARLOS DA SILVA'];
 const PADROES = ['%MARIA%SILVA%', '%JOSE%SILVA%', '"%MARIA%DA%SILVA%"', '%MARIA%', '%JOSE%',
   '%SILVA%', '%SANTOS%', '%SOUZA%', '%OLIVEIRA%', '%PEREIRA%', '%COSTA%', '%FERREIRA%'];
-// Padrões caros: pedaços de uma letra não geram trigramas e a busca lê e compara muito mais.
-export const PADROES_PESADOS = ['%A%A%A%', '%A%E%I%', '%A%E%O%', '%E%A%O%', '%MAR%', '%ARI%',
-  '%ANA%', '%MARIA%'];
+// Padrões caros que a API aceita: trigramas muito comuns (%MARIA%, 0,8 s nos dados reais) casam
+// com centenas de milhares de nomes. Os sem trigrama (%A%A%A%) agora são 400 antes do banco (#68).
+export const PADROES_PESADOS = ['%MARIA%', '%SILVA%', '%SANTOS%', '%JOSE%', '%MAR%', '%ARI%',
+  '%ANA%', '%SOUZA%'];
 
 // Mistura realista: tipo de consulta e peso (soma 100).
 export const MISTURA = [

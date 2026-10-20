@@ -20,6 +20,10 @@ HTTP_ERRORS: dict[int, tuple[str, str]] = {
     HTTPStatus.BAD_REQUEST: ("PARAMETRO_INVALIDO", "Requisição inválida."),
     HTTPStatus.NOT_FOUND: ("ROTA_INEXISTENTE", "Rota não encontrada."),
     HTTPStatus.METHOD_NOT_ALLOWED: ("METODO_NAO_PERMITIDO", "Método não permitido."),
+    HTTPStatus.TOO_MANY_REQUESTS: (
+        "MUITAS_REQUISICOES",
+        "Muitas requisições em pouco tempo. Aguarde e tente de novo.",
+    ),
 }
 INTERNAL_ERROR_MESSAGE = "Algo deu errado do nosso lado. Tente de novo em instantes."
 
@@ -52,6 +56,10 @@ def register_error_handlers(app: Flask) -> None:
         response, status = error_response(code, message, error.code)
         if isinstance(error, MethodNotAllowed) and error.valid_methods:
             response.headers["Allow"] = ", ".join(error.valid_methods)
+        # 429 do limite por IP (app/rate_limit.py): em quantos segundos tentar de novo.
+        retry_after = dict(error.get_headers()).get("Retry-After")
+        if retry_after:
+            response.headers["Retry-After"] = retry_after
         response.status_code = status
         return response
 

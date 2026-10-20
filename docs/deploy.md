@@ -7,7 +7,7 @@ O mesmo `projeto/docker-compose.yml` roda no [Dokploy](https://dokploy.com), atr
 | | |
 |---|---|
 | Painel | <https://dokploy.hatzer.cloud>, projeto **Radar-Público**, serviço compose `radar-publico` |
-| Site e API | <https://radar.hatzer.cloud> e `/api/` (registro DNS `A` para `147.15.59.99`) |
+| Site e API | <https://radar.dok.hatzer.cloud> e `/api/` (o DNS `*.dok.hatzer.cloud` já aponta para o servidor) |
 | Endereço de teste | <http://radar-publico-147-15-59-99.traefik.me> (HTTP, sem depender de DNS) |
 | Deploy contínuo | job `deploy` do CI, ambiente `producao` do GitHub |
 

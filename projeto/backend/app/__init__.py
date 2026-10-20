@@ -5,6 +5,7 @@ from flask import Flask
 from app.config import load_config
 from app.db import init_db
 from app.errors import register_error_handlers
+from app.rate_limit import init_rate_limit
 
 
 def create_app(test_config: dict | None = None) -> Flask:
@@ -19,10 +20,13 @@ def create_app(test_config: dict | None = None) -> Flask:
         app.config.update(test_config)
 
     init_db(app)
+    init_rate_limit(app)
 
     from app.routes.health import health_bp
+    from app.routes.servidores import servidores_bp
 
     app.register_blueprint(health_bp, url_prefix="/api")
+    app.register_blueprint(servidores_bp, url_prefix="/api")
     register_error_handlers(app)
 
     return app

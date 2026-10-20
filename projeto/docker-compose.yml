@@ -7,6 +7,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-radar}
       POSTGRES_API_USER: ${POSTGRES_API_USER:-radar_api}
       POSTGRES_API_PASSWORD: ${POSTGRES_API_PASSWORD:-radar_api}
+      # Só vale na criação do banco; vazio usa o padrão de db/init/05-usuario-api.sh.
+      POSTGRES_API_STATEMENT_TIMEOUT: ${POSTGRES_API_STATEMENT_TIMEOUT:-}
     security_opt: ["no-new-privileges:true"]
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -26,11 +28,23 @@ services:
     security_opt: ["no-new-privileges:true"]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_API_USER:-radar_api}:${POSTGRES_API_PASSWORD:-radar_api}@db-server:5432/${POSTGRES_DB:-radar}
+      # Limites lidos do .env; vazio usa o padrão do código (README, "Limites e ajuste por máquina").
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-}
+      GUNICORN_THREADS: ${GUNICORN_THREADS:-}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-}
+      DB_POOL_MAX: ${DB_POOL_MAX:-}
+      DB_POOL_TIMEOUT_S: ${DB_POOL_TIMEOUT_S:-}
+      DB_STATEMENT_TIMEOUT_S: ${DB_STATEMENT_TIMEOUT_S:-}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-}
+      RATE_LIMIT_WINDOW_S: ${RATE_LIMIT_WINDOW_S:-}
+      PROXY_HOPS: ${PROXY_HOPS:-}
     depends_on:
       db-server:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      # Por padrão só nesta máquina: de outra, a API é acessada pelo nginx do frontend
+      # (porta 8080), que reescreve o X-Forwarded-For usado no limite por IP.
+      - "${API_BIND_ADDRESS:-127.0.0.1}:5000:5000"
 
   frontend:
     build: ./frontend

@@ -1,45 +1,72 @@
+/* Tokens do Radar Público. Fonte da verdade: docs/DESIGN.md */
 :root {
   /* Neutros */
-  --bg: oklch(1 0 0);                    /* #FFFFFF fundo */
-  --surface: oklch(0.975 0.004 42);      /* #F9F6F5 painel de busca, cabeçalho de tabela, hover de linha */
-  --line: oklch(0.9 0.008 42);           /* #E3DCDA divisórias */
-  --line-strong: oklch(0.62 0.012 42);   /* #8D8481 borda de campos, 3,7:1 */
-  --ink: oklch(0.22 0.012 42);           /* #201916 texto, 17,4:1 */
-  --ink-2: oklch(0.4 0.012 42);          /* #4E4643 texto secundário, 9,3:1 */
-  --muted: oklch(0.5 0.012 42);          /* #6A615E placeholder, 6,0:1 */
+  --bg: oklch(1 0 0);
+  --surface: oklch(0.975 0.004 42);
+  --line: oklch(0.9 0.008 42);
+  --line-strong: oklch(0.62 0.012 42);
+  --ink: oklch(0.22 0.012 42);
+  --ink-2: oklch(0.4 0.012 42);
+  --muted: oklch(0.5 0.012 42);
 
   /* Marca */
-  --primary: oklch(0.5 0.13 42);         /* #9E441D botão principal, foco; texto branco 6,4:1 */
-  --primary-hover: oklch(0.44 0.12 42);  /* #873611 */
-  --primary-soft: oklch(0.955 0.022 42); /* #FEECE5 chips de filtro */
-  --primary-text: oklch(0.42 0.12 42);   /* #803009 links, 8,9:1 */
+  --primary: oklch(0.5 0.13 42);
+  --primary-hover: oklch(0.44 0.12 42);
+  --primary-soft: oklch(0.955 0.022 42);
+  --primary-text: oklch(0.42 0.12 42);
 
   /* Situação do vínculo */
-  --ativo-bg: oklch(0.95 0.03 240);      /* #DDF2FF */
-  --ativo-fg: oklch(0.38 0.09 240);      /* #00476D 8,6:1 sobre ativo-bg */
-  --apos-bg: oklch(0.95 0.045 85);       /* #FCEDCD */
-  --apos-fg: oklch(0.42 0.08 75);        /* #664610 7,4:1 sobre apos-bg */
+  --ativo-bg: oklch(0.95 0.03 240);
+  --ativo-fg: oklch(0.38 0.09 240);
+  --apos-bg: oklch(0.95 0.045 85);
+  --apos-fg: oklch(0.42 0.08 75);
 
   /* Retorno */
-  --info-bg: oklch(0.96 0.02 240);   --info-fg: oklch(0.38 0.09 240);  --info-line: oklch(0.86 0.04 240);
-  --warn-bg: oklch(0.965 0.04 85);   --warn-fg: oklch(0.42 0.08 70);   --warn-line: oklch(0.86 0.07 80);
-  --err-bg: oklch(0.96 0.022 12);    --err-fg: oklch(0.48 0.17 12);    --err-line: oklch(0.85 0.06 12);
+  --info-bg: oklch(0.96 0.02 240);
+  --info-fg: oklch(0.38 0.09 240);
+  --info-line: oklch(0.86 0.04 240);
+  --warn-bg: oklch(0.965 0.04 85);
+  --warn-fg: oklch(0.42 0.08 70);
+  --warn-line: oklch(0.86 0.07 80);
+  --err-bg: oklch(0.96 0.022 12);
+  --err-fg: oklch(0.48 0.17 12);
+  --err-line: oklch(0.85 0.06 12);
 
   /* Tipografia */
   --sans: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --fs-pagina: 2.125rem;  /* 34 */
+  --fs-secao: 1.4375rem;  /* 23 */
+  --fs-sub: 1.1875rem;    /* 19 */
+  --fs-corpo: 1rem;       /* 16 */
+  --fs-aux: 0.875rem;     /* 14 */
+  --fs-mini: 0.8125rem;   /* 13 */
+
+  /* Espaço */
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px;
+  --s-5: 24px; --s-6: 32px; --s-7: 40px; --s-8: 64px;
+
+  /* Raio */
+  --r-chip: 6px; --r-controle: 8px; --r-painel: 10px; --r-pilula: 16px;
+
+  /* Movimento */
+  --ease: cubic-bezier(.25, 1, .5, 1);
+  --t-rapido: 150ms;
+  --t-troca: 200ms;
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 body {
-  font-family: var(--sans);
+  margin: 0;
   background-color: var(--bg);
   color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--fs-corpo);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }

@@ -9,6 +9,16 @@ LANGUAGE sql IMMUTABLE AS $$
 $$;
 
 -- 'DDMMYYYY' -> date; vazio ou data impossível -> NULL
+-- Nomes, cargos e órgãos como a API compara: maiúsculas, sem acento, espaços simples.
+-- (A fonte é quase toda assim, mas há exceções, como um cargo com "Ã" e 28 nomes com
+-- espaço duplo; a API normaliza a entrada do usuário do mesmo jeito.)
+CREATE FUNCTION pg_temp.texto(t text) RETURNS text
+LANGUAGE sql IMMUTABLE AS $$
+    SELECT upper(translate(regexp_replace(trim(t), '\s+', ' ', 'g'),
+                           'áàâãäéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ',
+                           'aaaaaeeeeiiiiooooouuuucnAAAAAEEEEIIIIOOOOOUUUUCN'))
+$$;
+
 CREATE FUNCTION pg_temp.data(t text) RETURNS date
 LANGUAGE plpgsql IMMUTABLE AS $$
 BEGIN
@@ -37,16 +47,16 @@ $$;
 
 -- Ativos: descarta título, cabeçalho e linhas de total (CPF vazio).
 CREATE TEMP TABLE ativo AS
-SELECT trim(a[1]) AS nome, trim(a[3]) AS codigo_carreira, trim(a[4]) AS cargo,
-       trim(a[5]) AS uf, trim(a[6]) AS orgao, pg_temp.valor(a[8]) AS valor
+SELECT pg_temp.texto(a[1]) AS nome, trim(a[3]) AS codigo_carreira, pg_temp.texto(a[4]) AS cargo,
+       trim(a[5]) AS uf, pg_temp.texto(a[6]) AS orgao, pg_temp.valor(a[8]) AS valor
 FROM (SELECT string_to_array(linha, ';') AS a FROM linha_ativo) s
 WHERE cardinality(a) >= 8 AND trim(a[2]) <> '' AND trim(a[1]) <> 'Nome';
 
 -- Aposentados: os 13 primeiros e os 4 últimos campos são fixos; o que sobra no meio é a
 -- portaria, que em 123 linhas contém ';'.
 CREATE TEMP TABLE aposentado AS
-SELECT trim(a[1]) AS nome, trim(a[4]) AS orgao, nullif(trim(a[5]), '') AS sigla,
-       nullif(trim(a[7]), '') AS cargo, nullif(trim(a[12]), '') AS tipo_aposentadoria,
+SELECT pg_temp.texto(a[1]) AS nome, pg_temp.texto(a[4]) AS orgao, nullif(trim(a[5]), '') AS sigla,
+       nullif(pg_temp.texto(a[7]), '') AS cargo, nullif(trim(a[12]), '') AS tipo_aposentadoria,
        nullif(trim(a[13]), '') AS fundamento_legal,
        nullif(trim(array_to_string(a[14:n - 4], ';')), '') AS portaria,
        pg_temp.data(a[n - 3]) AS data_aposentadoria, nullif(trim(a[n - 2]), '') AS forma_ingresso,

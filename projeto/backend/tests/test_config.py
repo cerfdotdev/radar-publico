@@ -13,6 +13,7 @@ DB_ENV = [
     "DB_POOL_MIN",
     "DB_POOL_MAX",
     "DB_POOL_TIMEOUT_S",
+    "DB_STATEMENT_TIMEOUT_S",
     "DB_CONNECT_TIMEOUT_S",
 ]
 
@@ -30,6 +31,7 @@ def test_defaults_follow_gunicorn_threads(env):
     assert config["DB_POOL_MIN"] == c.DEFAULT_POOL_MIN
     assert config["DB_POOL_TIMEOUT_S"] == c.DEFAULT_POOL_TIMEOUT_S
     assert config["DB_CONNECT_TIMEOUT_S"] == c.DEFAULT_CONNECT_TIMEOUT_S
+    assert config["DB_STATEMENT_TIMEOUT_S"] == c.DEFAULT_STATEMENT_TIMEOUT_S
 
 
 def test_pool_max_follows_threads(env):
@@ -41,9 +43,11 @@ def test_explicit_values(env):
     env.setenv("DB_POOL_MIN", "2")
     env.setenv("DB_POOL_MAX", "5")
     env.setenv("DB_POOL_TIMEOUT_S", "7")
+    env.setenv("DB_STATEMENT_TIMEOUT_S", "10")
     env.setenv("DATABASE_URL", "postgresql://u:p@db:5432/x")
     config = c.load_config()
     assert (config["DB_POOL_MIN"], config["DB_POOL_MAX"], config["DB_POOL_TIMEOUT_S"]) == (2, 5, 7)
+    assert config["DB_STATEMENT_TIMEOUT_S"] == 10
     assert config["DATABASE_URL"] == "postgresql://u:p@db:5432/x"
 
 
@@ -65,6 +69,12 @@ def test_min_never_exceeds_max(env):
 def test_invalid_pool_max_falls_back_to_threads(env, raw):
     env.setenv("DB_POOL_MAX", raw)
     assert c.load_config()["DB_POOL_MAX"] == s.DEFAULT_THREADS
+
+
+@pytest.mark.parametrize("raw", ["abc", "0", "-5"])
+def test_invalid_statement_timeout_falls_back_to_default(env, raw):
+    env.setenv("DB_STATEMENT_TIMEOUT_S", raw)
+    assert c.load_config()["DB_STATEMENT_TIMEOUT_S"] == c.DEFAULT_STATEMENT_TIMEOUT_S
 
 
 def test_create_app_reads_environment_at_call_time(env, make_app):

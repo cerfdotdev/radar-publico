@@ -1,103 +1,67 @@
 import { useState } from 'react'
 import './App.css'
-
-export const HEALTH_URL = '/api/health'
-/** Tempo máximo esperando a API antes de desistir. */
-export const HEALTH_TIMEOUT_MS = 5000
-const MS_PER_SECOND = 1000
-
-type ApiStatus =
-  | { kind: 'idle' }
-  | { kind: 'loading' }
-  | { kind: 'ok'; text: string }
-  | { kind: 'error'; text: string }
-
-function isHealthy(body: unknown): boolean {
-  return typeof body === 'object' && body !== null && 'status' in body && body.status === 'ok'
-}
-
-async function fetchHealth(signal: AbortSignal): Promise<ApiStatus> {
-  let response: Response
-  try {
-    response = await fetch(HEALTH_URL, { signal, headers: { Accept: 'application/json' } })
-  } catch {
-    if (signal.aborted) {
-      return {
-        kind: 'error',
-        text: `A API não respondeu em ${HEALTH_TIMEOUT_MS / MS_PER_SECOND} s.`,
-      }
-    }
-    return { kind: 'error', text: 'Não foi possível conectar à API.' }
-  }
-
-  if (!response.ok) {
-    return { kind: 'error', text: `A API respondeu com erro (HTTP ${response.status}).` }
-  }
-
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
-    return { kind: 'error', text: 'A API respondeu, mas não em JSON.' }
-  }
-
-  return isHealthy(body)
-    ? { kind: 'ok', text: 'API conectada.' }
-    : { kind: 'error', text: 'Resposta inesperada da API.' }
-}
+import { anunciar } from './mensagens'
+import { SearchForm } from './SearchForm'
+import { SearchResults } from './SearchResults'
+import { SiteHeader } from './SiteHeader'
+import type { Busca } from './types'
+import { useBuscaServidores } from './useBuscaServidores'
 
 export function App() {
-  const [status, setStatus] = useState<ApiStatus>({ kind: 'idle' })
-  const loading = status.kind === 'loading'
+  const { busca, state, buscar } = useBuscaServidores()
+  // Busca pedida pela área de resultados (página, tentar de novo): o foco vai para o
+  // título do novo resultado. Pelo formulário, o foco fica no campo.
+  const [focarResultados, setFocarResultados] = useState(false)
 
-  async function checkApiHealth() {
-    if (loading) return
-    setStatus({ kind: 'loading' })
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), HEALTH_TIMEOUT_MS)
-    try {
-      setStatus(await fetchHealth(controller.signal))
-    } finally {
-      clearTimeout(timer)
-    }
+  function buscarPeloFormulario(novaBusca: Busca) {
+    setFocarResultados(false)
+    buscar(novaBusca)
+  }
+
+  function navegarNosResultados(novaBusca: Busca) {
+    setFocarResultados(true)
+    buscar(novaBusca)
   }
 
   return (
-    <div className="app-container">
-      <header className="app-header">
-        <h1 className="brand-title">Radar Público</h1>
-        <p className="brand-subtitle">
-          Consulta cívica a dados abertos de servidores públicos federais
-        </p>
-      </header>
+    <>
+      <SiteHeader />
 
-      <main className="app-main">
-        <section className="status-card" aria-labelledby="status-heading">
-          <h2 id="status-heading">Ambiente Frontend Inicializado</h2>
-          <p>
-            Stack Vite + React + TypeScript configurada. As requisições para <code>/api/*</code> são
-            roteadas para o backend pelo proxy reverso do Nginx (ou do servidor de desenvolvimento
-            do Vite).
+      <main className="container pagina">
+        <div>
+          <h1 className="titulo-pagina">Buscar servidores federais</h1>
+          <p className="lead">
+            Consulte vínculos de servidores ativos e aposentados do Poder Executivo Federal, com dados abertos do governo.
           </p>
-          {/* aria-disabled em vez de disabled: o botão continua focável enquanto verifica. */}
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={checkApiHealth}
-            aria-disabled={loading}
-            aria-busy={loading}
-          >
-            {loading ? 'Verificando…' : 'Testar conexão com /api/health'}
-          </button>
+        </div>
 
-          {/* <output> tem papel "status" (região viva): sempre presente, para leitores de tela
-              anunciarem a mudança. */}
-          <output className={`api-status api-status--${status.kind}`}>
-            {status.kind === 'ok' || status.kind === 'error' ? status.text : ''}
-          </output>
-        </section>
+        <SearchForm
+          busca={busca}
+          ocupado={state.kind === 'loading'}
+          erroExterno={state.kind === 'invalid' ? { campo: state.campo, mensagem: state.message } : null}
+          onBuscar={buscarPeloFormulario}
+        />
+
+        {/* Região viva única e sempre presente: anuncia "Buscando…" e o resultado da busca. */}
+        <output className="sr-only" aria-live="polite">
+          {anunciar(state)}
+        </output>
+
+        <SearchResults state={state} onNavegar={navegarNosResultados} focarTitulo={focarResultados} />
+
+        {/* Meses de referência dos arquivos carregados no banco (docs/dados.md). */}
+        <footer className="nota-fonte">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v5M12 8h.01" />
+          </svg>
+          <span>
+            Fonte: Gestão de Pessoas do Executivo Federal, dados.gov.br. Ativos com referência em 08/2026; aposentados,
+            05/2026. O conjunto de aposentados não informa a UF, por isso ela aparece como “—”.
+          </span>
+        </footer>
       </main>
-    </div>
+    </>
   )
 }
 

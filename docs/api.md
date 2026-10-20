@@ -13,20 +13,20 @@ Busca servidores ativos e aposentados. Os filtros se combinam com **E**.
 | Parâmetro | Tipo | Regra | Exemplo |
 |---|---|---|---|
 | `nome` | texto | Nome **exato** (sem diferenciar maiúsculas e acentos) | `nome=Maria da Silva` |
-| `similar` | texto | Padrão com `%` como curinga, ordenado por semelhança. Precisa de pelo menos 3 letras fora dos `%` | `similar=%MARIA%SILVA%` |
+| `similar` | texto | Padrão com `%` como curinga, ordenado por semelhança. Precisa de pelo menos 3 letras fora dos `%`. **Ainda não implementado** (issue #13): por enquanto responde 400 `PARAMETRO_INVALIDO` | `similar=%MARIA%SILVA%` |
 | `limit` | inteiro | Só com `similar`. Máximo de resultados, de 1 a 100. Padrão 100 | `limit=50` |
 | `cargo` | texto | Parte do nome do cargo (contém) | `cargo=professor` |
 | `orgao` | texto | Parte do nome ou a sigla do órgão | `orgao=saude` ou `orgao=INSS` |
 | `uf` | texto | Sigla de uma das 27 UFs. **Só ativos têm UF** | `uf=DF` |
 | `situacao` | texto | `ativo`, `aposentado` ou `todos`. Padrão `todos` | `situacao=ativo` |
-| `page` | inteiro | Página, a partir de 1. Padrão 1 | `page=2` |
+| `page` | inteiro | Página, de 1 até `total_pages` (no máximo 10.000). Padrão 1 | `page=2` |
 | `per_page` | inteiro | Itens por página, de 1 a 100. Padrão 20 | `per_page=50` |
 
 Regras:
 
 - Pelo menos um filtro entre `nome`, `similar`, `cargo`, `orgao` e `uf` é obrigatório.
 - `nome` e `similar` não podem ser usados juntos.
-- Textos: de 2 a 100 caracteres, sem `--`. Em `nome` e `similar`: só letras, espaços, `'`, `.` e `-` (e `%` em `similar`). Em `cargo` e `orgao`: também dígitos, `/`, `(` e `)`. A entrada é convertida para maiúsculas e sem acentos antes da busca.
+- Textos: de 2 a 100 caracteres, sem `--`. Em `nome` e `similar`: só letras, espaços, `'`, `.` e `-` (e `%` em `similar`). Em `cargo` e `orgao`: também dígitos, `/`, `(`, `)` e `,`. A entrada é convertida para maiúsculas, sem acentos e com espaços simples antes da busca, como os dados na carga.
 - Parâmetro desconhecido é erro, não é ignorado.
 - Ordenação: por `nome` e depois `id`; com `similar`, pela semelhança (maior primeiro).
 
@@ -67,7 +67,8 @@ Regras:
 ```
 
 - `valor`: remuneração (ativos) ou valor da aposentadoria (aposentados), em reais, como número.
-- `sigla_orgao` só existe para aposentados; `uf` só para ativos. O campo ausente na fonte vem `null`.
+- `sigla_orgao`: sigla do órgão quando a fonte a traz (só o arquivo de aposentados tem siglas, mas elas valem para todos os vínculos do órgão; alguns órgãos não têm). `uf` só existe para ativos. O campo ausente na fonte vem `null`.
+- Como aposentados não têm UF, `uf` com `situacao=aposentado` responde 404 `NAO_ENCONTRADO` sem consultar o banco.
 - **Total limitado a 10.000.** Contar centenas de milhares de linhas custa até 0,8 s por requisição (ver `docs/banco.md`). Se houver mais de 10.000 resultados, `total` vem `10000`, `total_exato` vem `false` e só as páginas até o 10.000º resultado existem. O frontend deve mostrar "mais de 10.000 resultados, refine a busca".
 - Com `similar`, cada item também traz `"similaridade": 0.82` (de 0 a 1), e `total` é no máximo `limit`.
 

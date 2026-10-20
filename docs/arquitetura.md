@@ -275,7 +275,7 @@ flowchart LR
 - **Smoke test** (job `docker`): copia `projeto/db/amostra` para `projeto/db/data`, sobe o compose com `--wait` (até 300 s) e chama `localhost:5000/api/health`, `localhost:8080/` e `localhost:8080/api/health`.
 - **Licenças:** o `dependency-review` recusa dependências GPL-3.0 e AGPL-3.0; a exceção é só `pyside6-essentials` e `shiboken6`, usados sob a opção LGPL-3.0 do Qt for Python.
 - **Fixação:** actions por SHA de commit, imagens base por digest, versões exatas em `requirements.txt` e `package.json`, ferramentas de CI com hash (`.github/ci/requirements.txt`). Todos os workflows começam com `permissions: {}`.
-- **Dependabot:** actions, pip (`projeto/backend` e `.github/ci`), npm (`projeto/frontend`), Dockerfiles e compose, toda semana, esperando 7 dias depois de cada versão publicada.
+- **Dependabot:** actions, pip (`projeto/backend` e `.github/ci`), npm (`projeto/frontend`), Dockerfiles e compose, toda semana, esperando 7 dias depois de cada versão publicada. O `requirements.txt` de `projeto/desktop` ainda não está na lista.
 - Fora do `ci.yml`, o `scorecard.yml` roda o OpenSSF Scorecard a cada push na `main` e toda segunda-feira.
 
 ## Decisões e alternativas

@@ -58,7 +58,7 @@ Clique em **Deploy**. Na primeira subida, o `db-server` baixa os arquivos do dad
    - variável `DOKPLOY_URL`: o endereço do painel do Dokploy (ex.: `https://dokploy.seudominio`);
    - variável `DOKPLOY_COMPOSE_ID`: o id do serviço, que aparece no endereço da página dele no Dokploy.
 
-Sem `DOKPLOY_COMPOSE_ID`, o job `deploy` não roda. Com ela, cada merge na `main` com o CI verde chama `POST /api/compose.deploy`.
+Sem `DOKPLOY_COMPOSE_ID`, o job `deploy` termina com um aviso e não faz deploy. Com ela, cada merge na `main` com o CI verde chama `POST /api/compose.deploy`.
 
 ## 6. Conferir
 

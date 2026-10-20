@@ -351,10 +351,11 @@ jobs:
           fi
 
   # CD: depois do CI verde num push na main, pede ao Dokploy o deploy do compose
-  # (docs/deploy.md). Sem a variável DOKPLOY_COMPOSE_ID no ambiente "producao", não roda.
+  # (docs/deploy.md). As variáveis do ambiente "producao" só existem dentro do job, não
+  # no if dele; sem DOKPLOY_COMPOSE_ID, o passo avisa e termina sem deploy.
   deploy:
     needs: [ci-ok]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DOKPLOY_COMPOSE_ID != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: producao
@@ -369,6 +370,10 @@ jobs:
           DOKPLOY_COMPOSE_ID: ${{ vars.DOKPLOY_COMPOSE_ID }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
         run: |
+          if [ -z "$DOKPLOY_COMPOSE_ID" ] || [ -z "$DOKPLOY_URL" ]; then
+            echo "::notice::Deploy não configurado (ambiente producao sem DOKPLOY_URL/DOKPLOY_COMPOSE_ID)"
+            exit 0
+          fi
           corpo=$(jq -n --arg id "$DOKPLOY_COMPOSE_ID" '{composeId: $id}')
           curl --fail-with-body -sS --retry 3 --max-time 60 \
             -X POST "${DOKPLOY_URL%/}/api/compose.deploy" \

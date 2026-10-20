@@ -13,22 +13,25 @@ Busca servidores ativos e aposentados. Os filtros se combinam com **E**.
 | Parâmetro | Tipo | Regra | Exemplo |
 |---|---|---|---|
 | `nome` | texto | Nome **exato** (sem diferenciar maiúsculas e acentos) | `nome=Maria da Silva` |
-| `similar` | texto | Padrão com `%` como curinga, ordenado por semelhança. Precisa de pelo menos 3 letras fora dos `%`. **Ainda não implementado** (issue #13): por enquanto responde 400 `PARAMETRO_INVALIDO` | `similar=%MARIA%SILVA%` |
+| `similar` | texto | Nome parecido: padrão `LIKE` com `%` como curinga, do nome inteiro (sem `%`, só o nome igual). Precisa de pelo menos 3 letras fora dos `%`. Resultados do mais ao menos parecido (`similaridade`), sem páginas. Combina com `cargo`, `orgao`, `uf` e `situacao` | `similar=%MARIA%SILVA%` |
 | `limit` | inteiro | Só com `similar`. Máximo de resultados, de 1 a 100. Padrão 100 | `limit=50` |
 | `cargo` | texto | Parte do nome do cargo (contém) | `cargo=professor` |
 | `orgao` | texto | Parte do nome ou a sigla do órgão | `orgao=saude` ou `orgao=INSS` |
 | `uf` | texto | Sigla de uma das 27 UFs. **Só ativos têm UF** | `uf=DF` |
 | `situacao` | texto | `ativo`, `aposentado` ou `todos`. Padrão `todos` | `situacao=ativo` |
-| `page` | inteiro | Página, de 1 até `total_pages` (no máximo 10.000). Padrão 1 | `page=2` |
-| `per_page` | inteiro | Itens por página, de 1 a 100. Padrão 20 | `per_page=50` |
+| `page` | inteiro | Página, de 1 até `total_pages` (no máximo 10.000). Padrão 1. Não vale com `similar` | `page=2` |
+| `per_page` | inteiro | Itens por página, de 1 a 100. Padrão 20. Não vale com `similar` | `per_page=50` |
 
 Regras:
 
 - Pelo menos um filtro entre `nome`, `similar`, `cargo`, `orgao` e `uf` é obrigatório.
 - `nome` e `similar` não podem ser usados juntos.
+- `limit` só vale com `similar`; `page` e `per_page` não valem com `similar` (a busca parecida não tem páginas, devolve até `limit` resultados). Os dois casos respondem 400 `PARAMETRO_INVALIDO`, em vez de ignorar o parâmetro.
 - Textos: de 2 a 100 caracteres, sem `--`. Em `nome` e `similar`: só letras, espaços, `'`, `.` e `-` (e `%` em `similar`). Em `cargo` e `orgao`: também dígitos, `/`, `(`, `)` e `,`. A entrada é convertida para maiúsculas, sem acentos e com espaços simples antes da busca, como os dados na carga.
+- Aspas em volta do valor são ignoradas em `nome`, `similar`, `cargo` e `orgao`, como no exemplo do enunciado: `similar="%MARIA%SILVA%"`, `similar=”%MARIA%SILVA%”` e `similar=“%MARIA%SILVA%”` valem o mesmo que `similar=%MARIA%SILVA%`. Só um par, nas duas pontas; aspas em outro lugar são caractere não permitido.
+- **`%` sem codificar.** No curl ou na barra do navegador, `?similar=%MARIA%DE%BARROS%` chega com o `%` cru. A API decodifica um `%XY` só quando ele forma um caractere que ela usa (ASCII, letra acentuada ou as aspas acima), como `%25` (`%`), `%20` (espaço) e `%C3%A9` (`é`); os outros ficam como texto. Assim `%DE%BA`, que formaria um caractere de outro alfabeto, continua `%DE%BA`. Clientes que codificam o `%` como `%25` (o frontend e o desktop) não são afetados. Bytes que não são UTF-8 respondem 400, nunca 500.
 - Parâmetro desconhecido é erro, não é ignorado.
-- Ordenação: por `nome` e depois `id`; com `similar`, pela semelhança (maior primeiro).
+- Ordenação: por `nome` e depois `id`; com `similar`, pela semelhança (maior primeiro), depois `nome` e `id`.
 
 ### Resposta `200`
 
@@ -70,13 +73,13 @@ Regras:
 - `sigla_orgao`: sigla do órgão quando a fonte a traz (só o arquivo de aposentados tem siglas, mas elas valem para todos os vínculos do órgão; alguns órgãos não têm). `uf` só existe para ativos. O campo ausente na fonte vem `null`.
 - Como aposentados não têm UF, `uf` com `situacao=aposentado` responde 404 `NAO_ENCONTRADO` sem consultar o banco.
 - **Total limitado a 10.000.** Contar centenas de milhares de linhas custa até 0,8 s por requisição (ver `docs/banco.md`). Se houver mais de 10.000 resultados, `total` vem `10000`, `total_exato` vem `false` e só as páginas até o 10.000º resultado existem. O frontend deve mostrar "mais de 10.000 resultados, refine a busca".
-- Com `similar`, cada item também traz `"similaridade": 0.82` (de 0 a 1), e `total` é no máximo `limit`.
+- Com `similar`, cada item também traz `"similaridade": 0.82` (de 0 a 1, a `similarity()` do `pg_trgm` entre o nome e o padrão, com 4 casas). A resposta vem inteira, sem páginas: `meta.total` é quantos itens vieram (no máximo `limit`, não quantos nomes casam com o padrão), `total_exato` é `true`, `page` e `total_pages` são 1 e `per_page` é o `limit`. Sem nenhum nome parecido, 404 `NAO_ENCONTRADO`.
 
 Se `total` for 1, o frontend mostra o detalhe direto; se for maior, mostra a lista paginada.
 
 ## `GET /api/servidores/<id>`
 
-Detalhe de um servidor. Além dos campos da lista:
+Detalhe de um vínculo, pelo `id` que a busca devolve. Além dos campos da lista:
 
 ```json
 {
@@ -101,18 +104,16 @@ Detalhe de um servidor. Além dos campos da lista:
 }
 ```
 
-Para ativos, os campos de aposentadoria vêm `null` e `codigo_carreira` é preenchido. Datas no formato ISO `AAAA-MM-DD`.
+Para ativos, os campos de aposentadoria vêm `null` e `codigo_carreira` é preenchido. Datas no formato ISO `AAAA-MM-DD`; `referencia` é o mês do arquivo de origem (`AAAA-MM`). Campo ausente na fonte vem `null`.
 
-## Listas auxiliares
+- `id` só com dígitos, de 1 a 9223372036854775807 (o `bigint` do banco). Texto, sinal, ponto ou número fora dessa faixa respondem 400 `PARAMETRO_INVALIDO` sem consultar o banco.
+- `id` válido sem vínculo: 404 `NAO_ENCONTRADO`.
+- A rota não tem parâmetros: qualquer um na query string responde 400 `PARAMETRO_DESCONHECIDO`.
+- Conta no limite de requisições por IP, como a busca.
 
-Para preencher selects e autocomplete no frontend.
+## `GET /api/health`
 
-| Rota | Resposta |
-|---|---|
-| `GET /api/ufs` | `{"data": ["AC", "AL", ...]}` |
-| `GET /api/orgaos?q=<texto>` | `{"data": [{"id": 1, "nome": "...", "sigla": "MS"}]}` (até 20) |
-| `GET /api/cargos?q=<texto>` | `{"data": [{"id": 1, "nome": "..."}]}` (até 20) |
-| `GET /api/health` | `{"status": "ok"}`, sem tocar no banco |
+`{"status": "ok"}`, sem tocar no banco. É o healthcheck do container e nunca recebe 429.
 
 ## Erros
 
@@ -125,17 +126,17 @@ Todo erro tem o formato:
 | HTTP | `code` | Quando |
 |---|---|---|
 | 400 | `PARAMETRO_DESCONHECIDO` | Parâmetro fora da lista |
-| 400 | `PARAMETRO_INVALIDO` | Texto vazio, curto, longo ou com caracteres proibidos; número fora da faixa; `nome` com `similar` |
+| 400 | `PARAMETRO_INVALIDO` | Texto vazio, curto, longo ou com caracteres proibidos; número fora da faixa; `nome` com `similar`; `limit` sem `similar`; `page` ou `per_page` com `similar`; `id` do detalhe que não é um inteiro de 1 a 9223372036854775807 |
 | 400 | `FILTRO_OBRIGATORIO` | Nenhum filtro informado |
 | 400 | `UF_INVALIDA` | `uf` não é uma das 27 siglas |
 | 404 | `CARGO_NAO_ENCONTRADO` | Nenhum cargo corresponde a `cargo` |
 | 404 | `ORGAO_NAO_ENCONTRADO` | Nenhum órgão corresponde a `orgao` |
-| 404 | `NAO_ENCONTRADO` | Filtros válidos, mas nenhum servidor encontrado (ex.: nome inexistente) |
+| 404 | `NAO_ENCONTRADO` | Filtros válidos, mas nenhum servidor encontrado (ex.: nome inexistente, `uf` com `situacao=aposentado`); ou `id` do detalhe sem vínculo |
 | 404 | `PAGINA_INEXISTENTE` | `page` maior que `total_pages` (inclusive além do 10.000º resultado) |
 | 404 | `ROTA_INEXISTENTE` | URL que não existe |
 | 405 | `METODO_NAO_PERMITIDO` | Método diferente de GET |
 | 429 | `MUITAS_REQUISICOES` | Limite de requisições por IP excedido; vem com o header `Retry-After` |
-| 503 | `SERVIDOR_OCUPADO` | Limite de buscas simultâneas atingido; vem com `Retry-After` |
+| 503 | `SERVIDOR_OCUPADO` | O backend não conseguiu uma conexão com o banco em `DB_POOL_TIMEOUT_S` (padrão 3 s): banco fora do ar ou lento para aceitar conexões. Vem com `Retry-After`. Não é limite de buscas simultâneas: na configuração padrão o pool tem uma conexão por thread, e as buscas além das threads esperam na fila do Gunicorn (ver `docs/banco.md`) |
 | 504 | `TEMPO_ESGOTADO` | A busca passou do tempo limite no banco, ou o backend não respondeu ao nginx em 15 s |
 | 500 | `ERRO_INTERNO` | Erro inesperado (sem detalhes internos na mensagem) |
 | 502 | `SERVIDOR_INDISPONIVEL` | Gerado pelo nginx do frontend quando o backend está fora do ar |
@@ -150,4 +151,13 @@ GET /api/servidores?uf=RJ
 GET /api/servidores?orgao=INSS
 GET /api/servidores?nome=JOSE CARLOS DA SILVA&cargo=agente&uf=DF
 GET /api/servidores?similar=%JOSE%SILVA%&limit=100
+GET /api/servidores?similar="%MARIA%DA%SILVA%"&limit=100
+```
+
+Outros:
+
+```
+GET /api/servidores?similar=%MARIA%SILVA%&uf=RJ&situacao=ativo
+GET /api/servidores?similar=%JOSE%SILVA%&cargo=professor&orgao=UFRJ&limit=20
+GET /api/servidores/1048213
 ```

@@ -111,6 +111,14 @@ def test_health_is_never_limited(limited):
         assert via_nginx(limited, CLIENT_A, s.HEALTH_PATH).status_code == HTTPStatus.OK
 
 
+def test_detail_route_is_limited_too(limited):
+    # Id inválido responde 400 sem consultar o banco, mas conta no limite como a busca.
+    detail_path = "/api/servidores/abc"
+    for _ in range(LIMIT):
+        assert via_nginx(limited, CLIENT_A, detail_path).status_code == HTTPStatus.BAD_REQUEST
+    assert via_nginx(limited, CLIENT_A, detail_path).status_code == HTTPStatus.TOO_MANY_REQUESTS
+
+
 def test_clients_behind_nginx_have_their_own_limit(limited):
     use_up_limit(via_nginx, limited, CLIENT_A)
     assert via_nginx(limited, CLIENT_A).status_code == HTTPStatus.TOO_MANY_REQUESTS

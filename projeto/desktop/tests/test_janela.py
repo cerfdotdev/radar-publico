@@ -267,6 +267,23 @@ def test_nome_parecido_nao_tem_paginacao(abrir):
     assert janela.botao_proxima.isHidden()
 
 
+def test_nome_parecido_combina_com_os_filtros(abrir):
+    cliente = ClienteFalso(pagina(ATIVO))
+    janela = abrir(cliente)
+    janela.modo.setCurrentIndex(janela.modo.findData(MODO_SIMILAR))
+    janela.campo_nome.setText("%MARIA%")
+    janela.campo_cargo.setText("professor")
+    janela.campo_uf.setCurrentIndex(janela.campo_uf.findData("RJ"))
+    janela.campo_situacao.setCurrentIndex(janela.campo_situacao.findData(Situacao.ATIVO))
+    janela.buscar()
+    esperar_tarefas()
+
+    assert all(campo.isEnabled() for campo in (janela.campo_cargo, janela.campo_orgao))
+    assert cliente.buscas == [
+        Busca(similar="%MARIA%", cargo="professor", uf="RJ", situacao=Situacao.ATIVO)
+    ]
+
+
 def test_detalhe_completa_a_ficha(abrir):
     detalhe = Detalhe(
         **{**vars(APOSENTADO)},

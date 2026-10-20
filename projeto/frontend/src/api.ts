@@ -1,5 +1,5 @@
 // Cliente de GET /api/servidores (docs/api.md): requisição, tempo limite e validação da resposta.
-import type { ApiError, Meta, Servidor, ServidoresResponse } from './types'
+import type { ApiError, Meta, Servidor, ServidorDetalhe, ServidoresResponse } from './types'
 
 export const SERVIDORES_URL = '/api/servidores'
 /**
@@ -104,6 +104,55 @@ function parseServidor(value: unknown): Servidor | null {
   return { id, nome, situacao, cargo, orgao, sigla_orgao, uf, valor }
 }
 
+function parseServidorDetalhe(value: unknown): ServidorDetalhe | null {
+  const servidor = parseServidor(value)
+  if (servidor === null || !isRecord(value)) return null
+  const {
+    codigo_carreira,
+    tipo_aposentadoria,
+    fundamento_legal,
+    portaria,
+    data_aposentadoria,
+    forma_ingresso,
+    data_ingresso,
+    referencia,
+  } = value
+  const textos = [
+    codigo_carreira,
+    tipo_aposentadoria,
+    fundamento_legal,
+    portaria,
+    data_aposentadoria,
+    forma_ingresso,
+    data_ingresso,
+    referencia,
+  ]
+  if (
+    !textos.every(isStringOrNull) ||
+    !isStringOrNull(codigo_carreira) ||
+    !isStringOrNull(tipo_aposentadoria) ||
+    !isStringOrNull(fundamento_legal) ||
+    !isStringOrNull(portaria) ||
+    !isStringOrNull(data_aposentadoria) ||
+    !isStringOrNull(forma_ingresso) ||
+    !isStringOrNull(data_ingresso) ||
+    !isStringOrNull(referencia)
+  ) {
+    return null
+  }
+  return {
+    ...servidor,
+    codigo_carreira,
+    tipo_aposentadoria,
+    fundamento_legal,
+    portaria,
+    data_aposentadoria,
+    forma_ingresso,
+    data_ingresso,
+    referencia,
+  }
+}
+
 function parseMeta(value: unknown): Meta | null {
   if (!isRecord(value)) return null
   const { total, total_exato, page, per_page, total_pages } = value
@@ -134,6 +183,12 @@ export function parseServidoresResponse(json: unknown): ServidoresResponse | nul
     data.push(servidor)
   }
   return { data, meta }
+}
+
+/** Confere a resposta de GET /api/servidores/<id> contra o contrato. */
+export function parseServidorDetalheResponse(json: unknown): ServidorDetalhe | null {
+  if (!isRecord(json)) return null
+  return parseServidorDetalhe(json.data)
 }
 
 /** {"error": {"code", "message"}} do contrato, ou null se o corpo for outra coisa. */
@@ -219,6 +274,8 @@ export interface ParametrosBusca {
   cargo?: string
   orgao?: string
   uf?: string
+  page?: number
+  per_page?: number
 }
 
 function montarQuery(busca: string | ParametrosBusca): string {
@@ -230,6 +287,8 @@ function montarQuery(busca: string | ParametrosBusca): string {
   if (parametros.cargo) query.set('cargo', parametros.cargo)
   if (parametros.orgao) query.set('orgao', parametros.orgao)
   if (parametros.uf) query.set('uf', parametros.uf)
+  if (parametros.page !== undefined) query.set('page', String(parametros.page))
+  if (parametros.per_page !== undefined) query.set('per_page', String(parametros.per_page))
   return query.toString()
 }
 
@@ -273,4 +332,52 @@ export async function buscarServidores(
   }
 
   return interpretarResposta(response, corpo)
+}
+
+export type DetailOutcome =
+  | { kind: 'ok'; servidor: ServidorDetalhe }
+  | { kind: 'error'; falha: Falha }
+
+/**
+ * Busca o detalhe de um vínculo por id. Como a busca, nunca rejeita por erro de
+ * rede, HTTP ou formato; só rejeita quando `signal` cancela.
+ */
+export async function buscarServidor(id: number, signal: AbortSignal): Promise<DetailOutcome> {
+  if (signal.aborted) throw new DOMException('Busca cancelada.', 'AbortError')
+
+  const controller = new AbortController()
+  const cancelar = () => controller.abort()
+  signal.addEventListener('abort', cancelar)
+  let expirou = false
+  const timer = setTimeout(() => {
+    expirou = true
+    controller.abort()
+  }, SEARCH_TIMEOUT_MS)
+
+  let response: Response
+  let corpo: string
+  try {
+    response = await fetch(`${SERVIDORES_URL}/${id}`, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    })
+    corpo = await response.text()
+  } catch (erro) {
+    if (signal.aborted) throw erro
+    return { kind: 'error', falha: expirou ? FALHA_TEMPO_LIMITE : FALHA_SEM_CONEXAO }
+  } finally {
+    clearTimeout(timer)
+    signal.removeEventListener('abort', cancelar)
+  }
+
+  const json = lerJson(corpo)
+  if (response.ok) {
+    if (json === NAO_JSON) return { kind: 'error', falha: FALHA_NAO_JSON }
+    const servidor = parseServidorDetalheResponse(json)
+    if (servidor === null) return { kind: 'error', falha: FALHA_FORMATO }
+    return { kind: 'ok', servidor }
+  }
+
+  const erro = parseApiError(json)
+  return { kind: 'error', falha: falhaHttp(response.status, erro, lerRetryAfter(response.headers)) }
 }

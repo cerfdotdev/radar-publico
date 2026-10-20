@@ -34,7 +34,11 @@ export function App() {
           {anunciar(state)}
         </output>
 
-        <SearchResults state={state} />
+        <SearchResults
+          state={state}
+          onPagina={(pagina) => buscar({ ...busca, pagina })}
+          onPorPagina={(porPagina) => buscar({ ...busca, pagina: 1, porPagina })}
+        />
 
         {/* Meses de referência dos arquivos carregados no banco (docs/dados.md). */}
         <footer className="nota-fonte">

@@ -15,6 +15,10 @@ export interface Busca {
   cargo: string
   orgao: string
   uf: string
+  /** Página da lista de resultados (a partir de 1). */
+  pagina: number
+  /** Itens por página, de 1 a 100. */
+  porPagina: number
 }
 
 export interface Servidor {
@@ -29,6 +33,18 @@ export interface Servidor {
   uf: string | null
   // O contrato diz número, mas a coluna aceita NULL e o backend repassa null.
   valor: number | null
+}
+
+/** GET /api/servidores/<id>: dados da lista mais os campos do vínculo. */
+export interface ServidorDetalhe extends Servidor {
+  codigo_carreira: string | null
+  tipo_aposentadoria: string | null
+  fundamento_legal: string | null
+  portaria: string | null
+  data_aposentadoria: string | null
+  forma_ingresso: string | null
+  data_ingresso: string | null
+  referencia: string | null
 }
 
 export interface Meta {

@@ -18,3 +18,19 @@ export function formatCurrency(value: number): string {
 export function formatInteger(value: number): string {
   return integerFormatter.format(value)
 }
+
+/** "1990-07-02" -> "02/07/1990". Fora do formato ISO, devolve como veio. */
+export function formatDate(value: string): string {
+  const partes = value.split('-')
+  if (partes.length !== 3 || partes.some((parte) => !/^\d+$/.test(parte))) return value
+  const [ano, mes, dia] = partes
+  return `${dia}/${mes}/${ano}`
+}
+
+/** "2026-05" -> "05/2026". Fora do formato, devolve como veio. */
+export function formatReference(value: string): string {
+  const partes = value.split('-')
+  if (partes.length !== 2 || partes.some((parte) => !/^\d+$/.test(parte))) return value
+  const [ano, mes] = partes
+  return `${mes}/${ano}`
+}

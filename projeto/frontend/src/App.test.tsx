@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { SEARCH_TIMEOUT_MS } from './api'
 import {
+  corpoDetalhe,
   corpoServidores,
   erroApi,
   fetchPendente,
@@ -165,6 +166,64 @@ describe('Tela de busca (issue #11)', () => {
     expect(await screen.findByText('Mostrando os 2 primeiros.')).toBeInTheDocument()
     expect(tituloResultados()).toHaveTextContent('2.345 resultados encontrados para “Maria”')
     expect(screen.queryByText('Refine a busca')).not.toBeInTheDocument()
+  })
+
+  it('resultado único mostra o detalhe do vínculo, sem tabela', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) =>
+      Promise.resolve(
+        String(input).startsWith('/api/servidores/')
+          ? respostaJson(200, corpoDetalhe())
+          : respostaJson(200, corpoServidores([SERVIDOR_ATIVO])),
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    abrirCom('/?nome=Maria')
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'MARIA DA SILVA' })).toBeInTheDocument()
+    expect(await screen.findByText('301005')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/servidores/1048213', expect.anything())
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.getByText('01/03/2010')).toBeInTheDocument()
+    expect(screen.getByText('Referência 05/2026')).toBeInTheDocument()
+    expect(screen.getByText(/CONCURSO PUBLICO/)).toBeInTheDocument()
+  })
+
+  it('vários resultados: página seguinte muda a URL e busca de novo', async () => {
+    const { pedidos } = fetchPendente()
+    abrirCom('/?nome=Maria')
+    await act(async () =>
+      pedidos[0].responder(
+        respostaJson(200, corpoServidores(undefined, { total: 45, total_pages: 3 })),
+      ),
+    )
+
+    fireEvent.click(screen.getByRole('link', { name: 'Próxima página' }))
+    expect(pedidos[1].url).toBe('/api/servidores?nome=Maria&page=2')
+    expect(window.location.search).toBe('?nome=Maria&page=2')
+
+    await act(async () =>
+      pedidos[1].responder(
+        respostaJson(200, corpoServidores(undefined, { total: 45, total_pages: 3, page: 2 })),
+      ),
+    )
+    expect(screen.getByRole('link', { name: '2' })).toHaveAttribute('aria-current', 'page')
+    expect(
+      within(screen.getByRole('navigation', { name: 'Paginação' })).getByText(/Mostrando 21–22 de 45/),
+    ).toBeInTheDocument()
+  })
+
+  it('trocar itens por página volta para a primeira página', async () => {
+    const { pedidos } = fetchPendente()
+    abrirCom('/?nome=Maria&page=2')
+    await act(async () =>
+      pedidos[0].responder(
+        respostaJson(200, corpoServidores(undefined, { total: 45, total_pages: 3, page: 2 })),
+      ),
+    )
+
+    fireEvent.change(screen.getByLabelText('Resultados por página'), { target: { value: '50' } })
+    expect(pedidos[1].url).toBe('/api/servidores?nome=Maria&per_page=50')
+    expect(window.location.search).toBe('?nome=Maria&per_page=50')
   })
 
   it('404 NAO_ENCONTRADO mostra o estado vazio, não um erro', async () => {

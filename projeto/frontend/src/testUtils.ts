@@ -1,6 +1,6 @@
 // Apoio aos testes: respostas no formato de docs/api.md e um fetch falso controlável.
 import { vi } from 'vitest'
-import type { Servidor, ServidoresResponse } from './types'
+import type { Servidor, ServidorDetalhe, ServidoresResponse } from './types'
 
 export const SERVIDOR_ATIVO: Servidor = {
   id: 1048213,
@@ -32,6 +32,22 @@ export function corpoServidores(
     data,
     meta: { total: data.length, total_exato: true, page: 1, per_page: 20, total_pages: 1, ...meta },
   }
+}
+
+export const SERVIDOR_DETALHE: ServidorDetalhe = {
+  ...SERVIDOR_ATIVO,
+  codigo_carreira: '301005',
+  tipo_aposentadoria: null,
+  fundamento_legal: null,
+  portaria: null,
+  data_aposentadoria: null,
+  forma_ingresso: 'CONCURSO PUBLICO',
+  data_ingresso: '2010-03-01',
+  referencia: '2026-05',
+}
+
+export function corpoDetalhe(data: ServidorDetalhe = SERVIDOR_DETALHE) {
+  return { data }
 }
 
 export function respostaJson(status: number, corpo: unknown, headers: Record<string, string> = {}): Response {

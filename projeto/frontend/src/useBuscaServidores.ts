@@ -16,8 +16,22 @@ export const LIMITE_PARAM = 'limit'
 export const CARGO_PARAM = 'cargo'
 export const ORGAO_PARAM = 'orgao'
 export const UF_PARAM = 'uf'
+export const PAGE_PARAM = 'page'
+export const PER_PAGE_PARAM = 'per_page'
 
-const PARAMETROS = [NOME_PARAM, SIMILAR_PARAM, LIMITE_PARAM, CARGO_PARAM, ORGAO_PARAM, UF_PARAM] as const
+export const PAGINA_PADRAO = 1
+export const POR_PAGINA_PADRAO = 20
+
+const PARAMETROS = [
+  NOME_PARAM,
+  SIMILAR_PARAM,
+  LIMITE_PARAM,
+  CARGO_PARAM,
+  ORGAO_PARAM,
+  UF_PARAM,
+  PAGE_PARAM,
+  PER_PAGE_PARAM,
+] as const
 
 export const BUSCA_VAZIA: Busca = {
   modo: 'exato',
@@ -26,6 +40,8 @@ export const BUSCA_VAZIA: Busca = {
   cargo: '',
   orgao: '',
   uf: '',
+  pagina: PAGINA_PADRAO,
+  porPagina: POR_PAGINA_PADRAO,
 }
 
 export type SearchState =
@@ -46,6 +62,13 @@ function lerLimite(valor: string | null): number {
   return /^\d+$/.test(valor) ? Number(valor) : Number.NaN
 }
 
+function lerInteiro(valor: string | null, padrao: number, minimo: number, maximo: number): number {
+  if (valor === null) return padrao
+  if (!/^\d+$/.test(valor)) return padrao
+  const numero = Number(valor)
+  return numero >= minimo && numero <= maximo ? numero : padrao
+}
+
 function lerBuscaDaUrl(): Busca | null {
   const params = new URLSearchParams(window.location.search)
   const modo: ModoBusca = params.has(SIMILAR_PARAM) ? 'similar' : 'exato'
@@ -56,6 +79,8 @@ function lerBuscaDaUrl(): Busca | null {
     cargo: limparTermo(params.get(CARGO_PARAM) ?? ''),
     orgao: limparTermo(params.get(ORGAO_PARAM) ?? ''),
     uf: (params.get(UF_PARAM) ?? '').trim().toUpperCase(),
+    pagina: lerInteiro(params.get(PAGE_PARAM), PAGINA_PADRAO, 1, 10_000),
+    porPagina: lerInteiro(params.get(PER_PAGE_PARAM), POR_PAGINA_PADRAO, 1, 100),
   }
   const vazia =
     busca.termo === '' && busca.cargo === '' && busca.orgao === '' && busca.uf === '' && busca.limite === LIMITE_PADRAO
@@ -96,6 +121,10 @@ function parametrosDaBusca(busca: Busca): ParametrosBusca {
   if (busca.cargo !== '') parametros.cargo = busca.cargo
   if (busca.orgao !== '') parametros.orgao = busca.orgao
   if (busca.uf !== '') parametros.uf = busca.uf
+  if (busca.modo !== 'similar') {
+    if (busca.pagina !== PAGINA_PADRAO) parametros.page = busca.pagina
+    if (busca.porPagina !== POR_PAGINA_PADRAO) parametros.per_page = busca.porPagina
+  }
   return parametros
 }
 
@@ -108,6 +137,8 @@ function queryDaUrl(busca: Busca): URLSearchParams {
   if (parametros.cargo !== undefined) query.set(CARGO_PARAM, parametros.cargo)
   if (parametros.orgao !== undefined) query.set(ORGAO_PARAM, parametros.orgao)
   if (parametros.uf !== undefined) query.set(UF_PARAM, parametros.uf)
+  if (parametros.page !== undefined) query.set(PAGE_PARAM, String(parametros.page))
+  if (parametros.per_page !== undefined) query.set(PER_PAGE_PARAM, String(parametros.per_page))
   return query
 }
 

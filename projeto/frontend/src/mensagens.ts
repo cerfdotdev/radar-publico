@@ -18,9 +18,14 @@ export function tituloResultados(termo: string, meta: Meta): string {
   return `${formatInteger(meta.total)} ${rotulo}${para}`
 }
 
-/** Quando a página não traz todos os resultados (a paginação é da issue #21). */
+/** Quando a página não traz todos os resultados. */
 export function textoParcial(quantidade: number, meta: Meta): string | null {
   if (meta.total <= quantidade) return null
+  if (meta.page > 1) {
+    const inicio = (meta.page - 1) * meta.per_page + 1
+    const fim = inicio + quantidade - 1
+    return `Mostrando ${formatInteger(inicio)}–${formatInteger(fim)} de ${formatInteger(meta.total)}.`
+  }
   return quantidade === 1
     ? 'Mostrando só o primeiro.'
     : `Mostrando os ${formatInteger(quantidade)} primeiros.`

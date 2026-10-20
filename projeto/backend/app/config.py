@@ -20,6 +20,9 @@ MIN_POOL_MAX = 1
 # Com o pool cheio, é melhor responder 503 rápido do que segurar a requisição.
 DEFAULT_POOL_TIMEOUT_S = 3
 DEFAULT_CONNECT_TIMEOUT_S = 5
+# Tempo máximo de cada consulta (statement_timeout). Fica abaixo dos 15 s do nginx
+# (proxy_read_timeout em projeto/frontend/nginx.conf), para a API responder 504 antes dele.
+DEFAULT_STATEMENT_TIMEOUT_S = 5
 MIN_SECONDS = 1
 
 # Limite por IP (app/rate_limit.py). A tela só busca ao enviar o formulário ou trocar de
@@ -61,6 +64,9 @@ def load_config() -> dict:
         "DB_POOL_MAX": pool_max,
         "DB_POOL_TIMEOUT_S": s.int_from_env(
             "DB_POOL_TIMEOUT_S", DEFAULT_POOL_TIMEOUT_S, MIN_SECONDS
+        ),
+        "DB_STATEMENT_TIMEOUT_S": s.int_from_env(
+            "DB_STATEMENT_TIMEOUT_S", DEFAULT_STATEMENT_TIMEOUT_S, MIN_SECONDS
         ),
         "DB_CONNECT_TIMEOUT_S": s.int_from_env(
             "DB_CONNECT_TIMEOUT_S", DEFAULT_CONNECT_TIMEOUT_S, MIN_SECONDS

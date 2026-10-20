@@ -8,6 +8,7 @@ compartilhados entre processos, inclusive com --preload.
 import atexit
 from collections.abc import Iterator
 from contextlib import contextmanager
+from functools import partial
 
 from flask import Flask, current_app
 from psycopg import Connection
@@ -15,10 +16,19 @@ from psycopg_pool import ConnectionPool
 
 EXTENSION_KEY = "db_pool"
 POOL_NAME = "radar-api"
+# set_config aceita parâmetro (SET não aceita); false: vale para a sessão, não só a transação.
+STATEMENT_TIMEOUT_SQL = "SELECT set_config('statement_timeout', %s, false)"
 
 
 class DatabaseNotConfiguredError(RuntimeError):
     """DATABASE_URL não foi definida."""
+
+
+def set_statement_timeout(connection: Connection, timeout_s: int) -> None:
+    """Limita o tempo de cada consulta da conexão; a que passar é cancelada (504)."""
+    connection.execute(STATEMENT_TIMEOUT_SQL, (f"{timeout_s}s",))
+    # O pool recusa conexão com transação aberta: fecha a que o SELECT abriu.
+    connection.commit()
 
 
 def init_db(app: Flask) -> None:
@@ -37,6 +47,9 @@ def init_db(app: Flask) -> None:
         # Descarta conexões quebradas (ex.: banco reiniciado) antes de entregá-las.
         check=ConnectionPool.check_connection,
         kwargs={"connect_timeout": app.config["DB_CONNECT_TIMEOUT_S"]},
+        # Toda conexão nova sai com o statement_timeout da aplicação, sem depender do usuário
+        # do banco (05-usuario-api.sh) e sem trocar as options que vierem na DATABASE_URL.
+        configure=partial(set_statement_timeout, timeout_s=app.config["DB_STATEMENT_TIMEOUT_S"]),
         name=POOL_NAME,
         open=False,
     )

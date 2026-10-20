@@ -13,7 +13,7 @@ O documento descreve a `main`. O que ainda depende de issue aberta aparece com o
 | `db-server` | PostgreSQL 16 + `pg_trgm` | 5432, só dentro da rede do compose | Banco carregado na primeira subida |
 | Desktop | PySide6 6.12, HTTP com `urllib` | — | Cliente da mesma API, fora do compose |
 
-Rotas da API na `main`: `GET /api/servidores` (busca, [`api.md`](api.md)) e `GET /api/health` (sem banco e fora do limite por IP). `GET /api/servidores/<id>` (issue #52) está no contrato e o site e o desktop já a chamam, mas hoje responde 404 `ROTA_INEXISTENTE`.
+Rotas da API ([`api.md`](api.md)): `GET /api/servidores` (busca), `GET /api/servidores/<id>` (detalhe de um vínculo, usado pelo site e pelo desktop) e `GET /api/health` (sem banco e fora do limite por IP).
 
 ## Contêineres e rede
 
@@ -114,13 +114,13 @@ sequenceDiagram
             F-->>N: 503 SERVIDOR_OCUPADO + Retry-After: 2
         end
         P-->>F: conexão com statement_timeout de 5 s
+        F->>D: ids de cargo e de órgão, se pedidos (contém, ou sigla)
+        opt nenhum id
+            F-->>N: 404 CARGO_NAO_ENCONTRADO ou ORGAO_NAO_ENCONTRADO
+        end
         alt similar
-            F->>D: similarity() com LIKE no índice trigram, LIMIT limit
-        else filtros
-            F->>D: ids de cargo e de órgão (contém, ou sigla)
-            opt nenhum id
-                F-->>N: 404 CARGO_NAO_ENCONTRADO ou ORGAO_NAO_ENCONTRADO
-            end
+            F->>D: similarity() com LIKE no índice trigram e os filtros, LIMIT limit
+        else nome exato, cargo, órgão, UF
             F->>D: count(*) de no máximo 10.001 linhas
             opt total 0 ou página além da última
                 F-->>N: 404 NAO_ENCONTRADO ou PAGINA_INEXISTENTE
@@ -162,7 +162,7 @@ O limite de cada etapa, com a variável que o controla:
 
 Os tempos ficam em ordem: 5 s no banco < 15 s do nginx < 20 s do frontend. O `GUNICORN_TIMEOUT` não corta requisição (ver [Limites conhecidos](#limites-conhecidos)). Uma busca com filtros faz até 4 consultas (cargo, órgão, contagem e página) e pode esperar 3 s pelo pool, então o pior caso passa dos 15 s e quem responde é o nginx.
 
-Com `similar`, a busca é uma consulta só, sem contagem nem paginação, ordenada pela semelhança; sem resultado, responde 404 `NAO_ENCONTRADO`. Na `main` ela ignora `cargo`, `orgao`, `uf` e `situacao` (issue #52).
+Com `similar`, a busca é uma consulta só, sem contagem nem paginação, ordenada pela semelhança e combinada com `cargo`, `orgao`, `uf` e `situacao`; `page` e `per_page` respondem 400. Sem resultado, 404 `NAO_ENCONTRADO`.
 
 ## Fluxo dos dados
 
@@ -306,13 +306,12 @@ flowchart LR
 - **`GUNICORN_TIMEOUT` não corta requisição lenta.** Com `gthread`, o laço principal do worker avisa o Gunicorn a cada segundo mesmo com as threads ocupadas (`gunicorn/workers/gthread.py`, versão 26.2). O timeout de 30 s só reinicia um worker travado; quem limita cada busca é o `statement_timeout` e, para o cliente, o nginx. Com `GUNICORN_THREADS=1` o worker vira `sync` e aí o timeout vale por requisição.
 - **503 é raro com os padrões.** Como o pool tem uma conexão por thread, a espera por conexão só estoura com o banco fora do ar ou lento para conectar, ou quando o teto de 45 deixa o pool menor que as threads (ex.: 12 workers × 4 threads dão pool de 3). O excesso de buscas espera na fila do Gunicorn, não no pool.
 - **Navegação até o 10.000º resultado.** Páginas além disso não existem, e as últimas ainda custam: `uf=DF` na página 5.000 levou 289 ms.
-- **`similar` sem paginação**, até 100 resultados, e na `main` sem os outros filtros (issue #52).
+- **`similar` sem paginação**, até 100 resultados.
 - **Dados fixos.** O banco reflete os arquivos da carga (ativos de 08/2026, aposentados de 05/2026). Atualizar exige recarregar do zero.
 - **Sem cache.** Toda busca vai ao PostgreSQL, mesmo repetida.
 - **Sem HTTPS.** O nginx serve HTTP na 8080; TLS ficaria num proxy na frente dele.
 
 ## Evolução prevista
 
-- **#52:** `GET /api/servidores/<id>` (o site e o desktop já chamam essa rota), `similar` combinado com os outros filtros e entrada com aspas e `%` cru.
 - **#54:** cache das buscas: `proxy_cache` no nginx, `Cache-Control` e `ETag` nas respostas e ids de cargo e órgão em memória em cada worker.
 - **#23:** executável do desktop com PyInstaller.

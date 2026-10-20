@@ -4,7 +4,7 @@ As tabelas entre os marcadores `<!-- historico:... -->` são geradas por `script
 
 <!-- historico:gerado -->
 
-Gerado em 20/10/2026 12:08 (horário de Brasília) a partir do `git log` de `origin/main` (commit [`ffb9b61`](https://github.com/cerfdotdev/radar-publico/commit/ffb9b6177fc03944e06cfcb36896246c340de952)), das issues e PRs de [cerfdotdev/radar-publico](https://github.com/cerfdotdev/radar-publico) e do [Project](https://github.com/users/cerfdotdev/projects/12). Para atualizar, rode `git fetch origin`, `python3 scripts/burndown.py` e `python3 scripts/historico_github.py` na raiz do repositório.
+Gerado em 20/10/2026 12:20 (horário de Brasília) a partir do `git log` de `origin/main` (commit [`30585e6`](https://github.com/cerfdotdev/radar-publico/commit/30585e63bbd142bd5e2654e30ccf7931aeec38a8)), das issues e PRs de [cerfdotdev/radar-publico](https://github.com/cerfdotdev/radar-publico) e do [Project](https://github.com/users/cerfdotdev/projects/12). Para atualizar, rode `git fetch origin`, `python3 scripts/burndown.py` e `python3 scripts/historico_github.py` na raiz do repositório.
 
 <!-- /historico:gerado -->
 
@@ -90,7 +90,7 @@ O responsável planejado de cada issue está em [`scripts/responsaveis.json`](..
 
 | Integrante | Issues pelo plano | Pontos pelo plano | Pontos atribuídos | Pontos concluídos | Concluídos dentro da sprint |
 |---|--:|--:|--:|--:|--:|
-| @cerfdotdev | 15 | 53 | 55 | 35 | 19 |
+| @cerfdotdev | 15 | 53 | 55 | 40 | 19 |
 | @joaoarenda | 9 | 32 | 32 | 32 | 0 |
 | @Alisson-dutra | 6 | 25 | 23 | 23 | 0 |
 
@@ -110,13 +110,13 @@ As issues aparecem com quem as planejou; quando a atribuição atual no Project 
 
 | Issue | Título | Pontos | Sprint | Fechada | Como fechou | PRs | Situação |
 |---|---|---|---|---|---|---|---|
-| [#1](https://github.com/cerfdotdev/radar-publico/issues/1) | Daily — Sprint 1 | 1 | Sprint 1 | em aberto | — | — | em aberto |
+| [#1](https://github.com/cerfdotdev/radar-publico/issues/1) | Daily — Sprint 1 | 1 | Sprint 1 | 20/10 12:19 | manual por @cerfdotdev | — | fechada sem conclusão (NOT_PLANNED) |
 | [#2](https://github.com/cerfdotdev/radar-publico/issues/2) | Analisar dicionário de dados (Aposentados e Carreiras/Cargos) | 3 | Sprint 1 | 18/10 23:05 | pelo commit [`336684a`](https://github.com/cerfdotdev/radar-publico/commit/336684a1f1122f9f9c0db89a22a0ea7f74e209e4) | [#30](https://github.com/cerfdotdev/radar-publico/pull/30) | no prazo |
 | [#3](https://github.com/cerfdotdev/radar-publico/issues/3) | Modelagem do schema PostgreSQL | 5 | Sprint 1 | 18/10 23:10 | pelo PR [#31](https://github.com/cerfdotdev/radar-publico/pull/31) | [#31](https://github.com/cerfdotdev/radar-publico/pull/31) | no prazo |
 | [#4](https://github.com/cerfdotdev/radar-publico/issues/4) | Carga e tratamento dos dados (ETL) | 8 | Sprint 1 | 18/10 23:10 | pelo PR [#31](https://github.com/cerfdotdev/radar-publico/pull/31) | [#31](https://github.com/cerfdotdev/radar-publico/pull/31) | no prazo |
 | [#5](https://github.com/cerfdotdev/radar-publico/issues/5) | Índices B-tree e pg_trgm para buscas | 3 | Sprint 1 | 18/10 23:10 | pelo commit [`b0c524e`](https://github.com/cerfdotdev/radar-publico/commit/b0c524eb2f5b0be3c71991345208904ac0e02398) | [#31](https://github.com/cerfdotdev/radar-publico/pull/31) | no prazo |
 | [#6](https://github.com/cerfdotdev/radar-publico/issues/6) | docker-compose com db-server, backend e frontend | 3 | Sprint 1 | 20/10 10:22 | pelo PR [#51](https://github.com/cerfdotdev/radar-publico/pull/51) | [#51](https://github.com/cerfdotdev/radar-publico/pull/51) | 1 d 10 h após o fim da sprint |
-| [#12](https://github.com/cerfdotdev/radar-publico/issues/12) | Daily — Sprint 2 | 1 | Sprint 2 | em aberto | — | — | em aberto |
+| [#12](https://github.com/cerfdotdev/radar-publico/issues/12) | Daily — Sprint 2 | 1 | Sprint 2 | 20/10 12:19 | manual por @cerfdotdev | — | fechada sem conclusão (NOT_PLANNED) |
 | [#19](https://github.com/cerfdotdev/radar-publico/issues/19) | Teste de carga paralela da API | 5 | Sprint 2 | em aberto | — | — | em aberto |
 | [#24](https://github.com/cerfdotdev/radar-publico/issues/24) | Script de burndown a partir das issues | 3 | Sprint 2 | 20/10 11:21 | pelo PR [#57](https://github.com/cerfdotdev/radar-publico/pull/57) | [#57](https://github.com/cerfdotdev/radar-publico/pull/57) | 11 h 21 min após o fim da sprint |
 | [#25](https://github.com/cerfdotdev/radar-publico/issues/25) | Relatório final | 5 | Sprint 2 | em aberto | — | — | em aberto |
@@ -124,7 +124,7 @@ As issues aparecem com quem as planejou; quando a atribuição atual no Project 
 | [#27](https://github.com/cerfdotdev/radar-publico/issues/27) | Entrega: teste limpo e .zip da pasta projeto | 2 | Sprint 2 | em aberto | — | — | em aberto |
 | [#52](https://github.com/cerfdotdev/radar-publico/issues/52) | Backend: completar o contrato da API (detalhe, similar com filtros) | 5 | Sprint 2 | 20/10 11:14 | pelo PR [#58](https://github.com/cerfdotdev/radar-publico/pull/58) | [#58](https://github.com/cerfdotdev/radar-publico/pull/58) | 11 h 14 min após o fim da sprint; adicionada após o planejamento |
 | [#53](https://github.com/cerfdotdev/radar-publico/issues/53) | Docs: arquitetura do sistema (system design) | 3 | Sprint 2 | 20/10 11:18 | pelo PR [#56](https://github.com/cerfdotdev/radar-publico/pull/56) | [#56](https://github.com/cerfdotdev/radar-publico/pull/56) | 11 h 18 min após o fim da sprint; adicionada após o planejamento |
-| [#54](https://github.com/cerfdotdev/radar-publico/issues/54) | Backend: cache das buscas | 5 | Sprint 2 | em aberto | — | — | em aberto; adicionada após o planejamento |
+| [#54](https://github.com/cerfdotdev/radar-publico/issues/54) | Backend: cache das buscas | 5 | Sprint 2 | 20/10 12:15 | pelo PR [#59](https://github.com/cerfdotdev/radar-publico/pull/59) | [#59](https://github.com/cerfdotdev/radar-publico/pull/59) | 12 h 15 min após o fim da sprint; adicionada após o planejamento |
 
 #### @joaoarenda: João Arenda (Backend)
 
@@ -163,11 +163,11 @@ Contagens por integrante e por dia, a partir do `git log` da `main` e da API do 
 
 | Integrante | Papel | Commits | Merges | PRs abertos | PRs mergeados | PRs que mergeou | Revisões | Issues fechadas | Pontos concluídos |
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|
-| @cerfdotdev | Líder técnico | 52 | 44 | 12 | 11 | 24 | 14 | 9 | 35 |
+| @cerfdotdev | Líder técnico | 58 | 46 | 14 | 12 | 25 | 14 | 12 | 40 |
 | @joaoarenda | Backend | 9 | 0 | 7 | 7 | 0 | 11 | 9 | 32 |
 | @Alisson-dutra | Frontend e desktop | 5 | 1 | 5 | 5 | 0 | 9 | 5 | 23 |
 | automação | — | 1 | 0 | 4 | 1 | 0 | 3 | 0 | 0 |
-| **Total** |  | **67** | **45** | **28** | **24** | **24** | **37** | **23** | **90** |
+| **Total** |  | **73** | **47** | **30** | **25** | **25** | **37** | **26** | **95** |
 
 Commits: na main, sem os merges, que ficam na coluna Merges. PRs mergeados: os do integrante; PRs que mergeou: quem apertou o merge. Revisões: enviadas em PRs de outra pessoa, em qualquer estado. Issues fechadas: atribuídas ao integrante, com os pontos do Project.
 
@@ -179,7 +179,7 @@ Commits: na main, sem os merges, que ficam na coluna Merges. PRs mergeados: os d
 
 | Integrante | 18/10 (Sprint 1) | 19/10 (Sprint 2) | 20/10 (após as sprints) | Total |
 |---|--:|--:|--:|--:|
-| @cerfdotdev | 13 | 10 | 29 | 52 |
+| @cerfdotdev | 13 | 10 | 35 | 58 |
 | @joaoarenda | 0 | 7 | 2 | 9 |
 | @Alisson-dutra | 0 | 3 | 2 | 5 |
 | automação | 0 | 1 | 0 | 1 |
@@ -198,8 +198,8 @@ Horário: da primeira à última atividade do integrante no dia (commit, PR, rev
 |---|---|---|--:|--:|--:|--:|--:|--:|--:|
 | 18/10 | Sprint 1 | 22:28–23:10 | 13 | 4 | 4 | 4 | 4 | 0 | 4 (19 pts) |
 | 19/10 | Sprint 2 | 00:01–22:11 | 10 | 15 | 3 | 2 | 9 | 8 | 0 |
-| 20/10 | após as sprints | 09:20–11:58 | 29 | 25 | 5 | 5 | 11 | 6 | 5 (16 pts) |
-| **Total** |  |  | **52** | **44** | **12** | **11** | **24** | **14** | **9 (35 pts)** |
+| 20/10 | após as sprints | 09:20–12:19 | 35 | 27 | 7 | 6 | 12 | 6 | 8 (21 pts) |
+| **Total** |  |  | **58** | **46** | **14** | **12** | **25** | **14** | **12 (40 pts)** |
 
 #### @joaoarenda: João Arenda (Backend)
 
@@ -265,17 +265,17 @@ A lista de cada um desses commits está em [`relatorio/historico.md`](relatorio/
 
 ## 6. Dailies
 
-O `CONTRIBUTING.md` previa que cada integrante comentasse na issue de daily da sprint o que fez, o que vai fazer e os impedimentos. As issues de daily existem, mas não têm comentários:
+O `CONTRIBUTING.md` previa que cada integrante comentasse na issue de daily da sprint o que fez, o que vai fazer e os impedimentos. Nenhum registro de daily foi feito; o único comentário em cada issue é a nota de fechamento de 20/10:
 
 <!-- historico:dailies -->
 
-- [#1](https://github.com/cerfdotdev/radar-publico/issues/1) Daily — Sprint 1: 0 comentários (aberta).
-- [#12](https://github.com/cerfdotdev/radar-publico/issues/12) Daily — Sprint 2: 0 comentários (aberta).
-- Nas 30 issues do repositório há 0 comentários no total.
+- [#1](https://github.com/cerfdotdev/radar-publico/issues/1) Daily — Sprint 1: 1 comentário (fechada em 20/10 12:19).
+- [#12](https://github.com/cerfdotdev/radar-publico/issues/12) Daily — Sprint 2: 1 comentário (fechada em 20/10 12:19).
+- Nas 30 issues do repositório há 2 comentários no total.
 
 <!-- /historico:dailies -->
 
-<!-- a preencher pelo líder: se as dailies aconteceram fora do GitHub (onde, quando e com quem) ou não aconteceram. -->
+As dailies não aconteceram: a equipe não fez as reuniões diárias, nem registradas aqui nem fora do GitHub. Em 20/10/2026 as issues #1 e #12 foram fechadas como não planejadas, sem contar como concluídas no burndown, e a falta das dailies entra nos pontos fracos e na retrospectiva (#26). O que cada integrante fez em cada dia está nos commits, PRs e revisões da seção 5.
 
 ## 7. Burndown
 
@@ -285,11 +285,11 @@ O `CONTRIBUTING.md` previa que cada integrante comentasse na issue de daily da s
 
 | Sprint | Período | Planejado | Adicionado depois | Concluído na sprint | Concluído após o fim | Em aberto |
 |---|---|--:|--:|--:|--:|--:|
-| Sprint 1 | 18/10 | 41 | 0 | 19 | 21 | 1 |
-| Sprint 2 | 19/10 | 56 | 13 | 0 | 50 | 19 |
-| **Total** |  | **97** | **13** | **19** | **71** | **20** |
+| Sprint 1 | 18/10 | 41 | 0 | 19 | 21 | 0 |
+| Sprint 2 | 19/10 | 56 | 13 | 0 | 55 | 13 |
+| **Total** |  | **97** | **13** | **19** | **76** | **13** |
 
-Escopo atual: 110 pts. Concluídos: 90. Restantes: 20. Em pontos (campo Pontos do Project).
+Escopo atual: 108 pts. Concluídos: 95. Restantes: 13. Em pontos (campo Pontos do Project).
 
 - Concluído = issue fechada (closedAt), não o merge do PR. Sprints: Sprint 1 em 18/10 e Sprint 2 em 19/10; fim planejado em 20/10 00:00.
 - Planejado: 97 pts em 27 issues criadas até o fim da Sprint 1 (cadastradas no Project em 18/10 22:30–22:33); a linha real começa nesse cadastro.
@@ -356,13 +356,10 @@ Sugestões (fatos verificáveis no repositório):
 
 <!-- historico:abertas -->
 
-- [#1](https://github.com/cerfdotdev/radar-publico/issues/1) Daily — Sprint 1: 1 pt, @cerfdotdev.
-- [#12](https://github.com/cerfdotdev/radar-publico/issues/12) Daily — Sprint 2: 1 pt, @cerfdotdev.
 - [#19](https://github.com/cerfdotdev/radar-publico/issues/19) Teste de carga paralela da API: 5 pts, @cerfdotdev.
 - [#25](https://github.com/cerfdotdev/radar-publico/issues/25) Relatório final: 5 pts, @cerfdotdev.
 - [#26](https://github.com/cerfdotdev/radar-publico/issues/26) Sprint review e retrospectiva: 1 pt, @cerfdotdev.
 - [#27](https://github.com/cerfdotdev/radar-publico/issues/27) Entrega: teste limpo e .zip da pasta projeto: 2 pts, @cerfdotdev.
-- [#54](https://github.com/cerfdotdev/radar-publico/issues/54) Backend: cache das buscas: 5 pts, @cerfdotdev.
 
 <!-- /historico:abertas -->
 

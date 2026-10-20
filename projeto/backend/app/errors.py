@@ -3,7 +3,7 @@
 from http import HTTPStatus
 
 from flask import Flask, Response, current_app, jsonify
-from psycopg import OperationalError
+from psycopg.errors import QueryCanceled
 from psycopg_pool import PoolTimeout, TooManyRequests
 from werkzeug.exceptions import HTTPException, MethodNotAllowed
 
@@ -12,6 +12,8 @@ SERVIDOR_OCUPADO = "SERVIDOR_OCUPADO"
 BUSY_MESSAGE = "O servidor está ocupado no momento. Tente de novo em instantes."
 # Sugestão ao cliente para tentar de novo (header Retry-After), em segundos.
 BUSY_RETRY_AFTER_S = 2
+TEMPO_ESGOTADO = "TEMPO_ESGOTADO"
+TIMEOUT_MESSAGE = "A busca demorou demais e foi cancelada. Tente refinar os filtros."
 
 # Erros HTTP gerados pelo próprio Flask/Werkzeug, antes de chegar a uma rota.
 HTTP_ERRORS: dict[int, tuple[str, str]] = {
@@ -65,19 +67,11 @@ def register_error_handlers(app: Flask) -> None:
         response.headers["Retry-After"] = str(BUSY_RETRY_AFTER_S)
         return response
 
-    @app.errorhandler(OperationalError)
-    def handle_db_timeout(error: OperationalError) -> Response:
-        # O PostgreSQL lança OperationalError quando o statement_timeout é atingido.
-        if "canceling statement due to statement timeout" in str(error).lower():
-            response, status = error_response(
-                "TEMPO_ESGOTADO",
-                "A busca demorou demais e foi cancelada. Tente refinar os filtros.",
-                HTTPStatus.GATEWAY_TIMEOUT,
-            )
-            response.status_code = status
-            return response
-        # Outros erros operacionais seguem para o handler genérico.
-        raise error
+    @app.errorhandler(QueryCanceled)
+    def handle_query_canceled(error: QueryCanceled) -> tuple[Response, int]:
+        # SQLSTATE 57014: o banco cancelou a consulta ao passar do statement_timeout.
+        current_app.logger.warning("Consulta cancelada pelo banco: %s", error)
+        return error_response(TEMPO_ESGOTADO, TIMEOUT_MESSAGE, HTTPStatus.GATEWAY_TIMEOUT)
 
     @app.errorhandler(Exception)
     def handle_unexpected(error: Exception) -> tuple[Response, int]:

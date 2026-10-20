@@ -23,7 +23,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     init_db(app)
 
     # Rate limiting por IP
-    limiter = Limiter(
+    Limiter(
         get_remote_address,
         app=app,
         default_limits=["200 per day", "50 per hour"],
@@ -38,4 +38,3 @@ def create_app(test_config: dict | None = None) -> Flask:
     register_error_handlers(app)
 
     return app
-

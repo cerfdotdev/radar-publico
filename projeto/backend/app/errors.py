@@ -3,8 +3,8 @@
 from http import HTTPStatus
 
 from flask import Flask, Response, current_app, jsonify
-from psycopg_pool import PoolTimeout, TooManyRequests
 from flask_limiter import RateLimitExceeded
+from psycopg_pool import PoolTimeout, TooManyRequests
 from werkzeug.exceptions import HTTPException, MethodNotAllowed
 
 ERRO_INTERNO = "ERRO_INTERNO"

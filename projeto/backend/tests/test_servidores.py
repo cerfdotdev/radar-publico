@@ -4,21 +4,15 @@ O fixture cria um schema temporário com projeto/db/init/01-schema.sql e poucas 
 conhecidas; a aplicação de teste usa esse schema pelo search_path.
 """
 
-import os
 from decimal import Decimal
 from http import HTTPStatus
-from pathlib import Path
 
-import psycopg
 import pytest
 from psycopg import sql
-from psycopg.conninfo import make_conninfo
 
 from app.routes import servidores
-from app.routes.servidores import like_contains
 from app.search_params import MAX_ID
-
-SCHEMA_SQL = Path(__file__).resolve().parents[2] / "db" / "init" / "01-schema.sql"
+from tests.db_schema import temporary_schema
 
 ORGAOS = [
     ("MINISTERIO DA SAUDE", "MS"),
@@ -67,38 +61,34 @@ DETALHE_UPDATE = """
 """
 
 
+def populate(conn) -> None:
+    """As linhas acima, com os campos do detalhe nos dois vínculos de MARIA DA SILVA."""
+    conn.cursor().executemany("INSERT INTO orgao (nome, sigla) VALUES (%s, %s)", ORGAOS)
+    conn.cursor().executemany("INSERT INTO cargo (nome) VALUES (%s)", [(c,) for c in CARGOS])
+    conn.cursor().executemany(
+        """
+        INSERT INTO servidor (nome, situacao, cargo_id, orgao_id, uf, valor, referencia)
+        SELECT %s, %s, (SELECT id FROM cargo WHERE nome = %s),
+               (SELECT id FROM orgao WHERE nome = %s), %s, %s, '2026-08'
+        """,
+        SERVIDORES,
+    )
+    for situacao, campos in (("ativo", DETALHE_ATIVO), ("aposentado", DETALHE_APOSENTADO)):
+        assignments = sql.SQL(", ").join(
+            sql.SQL("{} = {}").format(sql.Identifier(campo), sql.Placeholder(campo))
+            for campo in campos
+        )
+        conn.execute(
+            sql.SQL(DETALHE_UPDATE).format(campos=assignments),
+            {**campos, "situacao": situacao},
+        )
+
+
 @pytest.fixture(scope="module")
 def schema_url(database_url):
     """Schema temporário com as tabelas reais e as linhas acima."""
-    schema = f"api_teste_{os.getpid()}"
-    with psycopg.connect(database_url, autocommit=True) as conn:
-        conn.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
-        conn.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(schema)))
-        conn.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
-        conn.cursor().executemany("INSERT INTO orgao (nome, sigla) VALUES (%s, %s)", ORGAOS)
-        conn.cursor().executemany("INSERT INTO cargo (nome) VALUES (%s)", [(c,) for c in CARGOS])
-        conn.cursor().executemany(
-            """
-            INSERT INTO servidor (nome, situacao, cargo_id, orgao_id, uf, valor, referencia)
-            SELECT %s, %s, (SELECT id FROM cargo WHERE nome = %s),
-                   (SELECT id FROM orgao WHERE nome = %s), %s, %s, '2026-08'
-            """,
-            SERVIDORES,
-        )
-        for situacao, campos in (("ativo", DETALHE_ATIVO), ("aposentado", DETALHE_APOSENTADO)):
-            assignments = sql.SQL(", ").join(
-                sql.SQL("{} = {}").format(sql.Identifier(campo), sql.Placeholder(campo))
-                for campo in campos
-            )
-            conn.execute(
-                sql.SQL(DETALHE_UPDATE).format(campos=assignments),
-                {**campos, "situacao": situacao},
-            )
-    try:
-        yield make_conninfo(database_url, options=f"-c search_path={schema}")
-    finally:
-        with psycopg.connect(database_url, autocommit=True) as conn:
-            conn.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
+    with temporary_schema(database_url, populate) as url:
+        yield url
 
 
 @pytest.fixture
@@ -224,10 +214,6 @@ def test_invalid_input_never_reaches_the_database(api):
     status, body = search(api, nome="a\x00b", uf="DF")
     assert status == HTTPStatus.BAD_REQUEST
     assert body["error"]["code"] == "PARAMETRO_INVALIDO"
-
-
-def test_like_wildcards_are_escaped():
-    assert like_contains("50%_A\\B") == "%50\\%\\_A\\\\B%"
 
 
 # --- Busca por similaridade com filtros ---

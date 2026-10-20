@@ -1,5 +1,23 @@
 # Radar Público
 
+## Repositório e acompanhamento
+
+Todo o trabalho da equipe está no GitHub:
+
+| | |
+|---|---|
+| Repositório | <https://github.com/cerfdotdev/radar-publico> |
+| Histórico de commits | <https://github.com/cerfdotdev/radar-publico/commits/main> |
+| Pull requests e revisões | <https://github.com/cerfdotdev/radar-publico/pulls?q=is%3Apr> |
+| Issues (tarefas) | <https://github.com/cerfdotdev/radar-publico/issues?q=is%3Aissue> |
+| Quadro das sprints (Project) | <https://github.com/users/cerfdotdev/projects/12> |
+| CI (GitHub Actions) | <https://github.com/cerfdotdev/radar-publico/actions> |
+| Relatório final | [`docs/relatorio.md`](docs/relatorio.md) (também em PDF no .zip da entrega) |
+
+Equipe: [@cerfdotdev](https://github.com/cerfdotdev) (Carlos Rodrigues, líder técnico), [@joaoarenda](https://github.com/joaoarenda) (João Arenda, backend) e [@Alisson-dutra](https://github.com/Alisson-dutra) (Alisson Dutra, frontend e desktop).
+
+## Sobre
+
 Aplicação full stack para consulta de servidores ativos e aposentados do Poder Executivo Federal, usando os dados abertos do [dados.gov.br](https://dados.gov.br):
 
 - [Gestão de Pessoas do Executivo Federal — Aposentados](https://dados.gov.br/dados/conjuntos-dados/gestao-de-pessoas-executivo-federal--aposentados)

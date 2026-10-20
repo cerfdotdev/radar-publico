@@ -1,6 +1,6 @@
 # Burndown
 
-Gerado em 20/10/2026 12:20 (horário de Brasília) a partir do GitHub Project [Radar Público](https://github.com/users/cerfdotdev/projects/12). Para atualizar, rode `python3 scripts/burndown.py` na raiz do repositório.
+Gerado em 20/10/2026 12:39 (horário de Brasília) a partir do GitHub Project [Radar Público](https://github.com/users/cerfdotdev/projects/12). Para atualizar, rode `python3 scripts/burndown.py` na raiz do repositório.
 
 ![Burndown das sprints](burndown.svg)
 
@@ -9,8 +9,8 @@ Gerado em 20/10/2026 12:20 (horário de Brasília) a partir do GitHub Project [R
 | Sprint | Período | Planejado | Adicionado depois | Concluído na sprint | Concluído após o fim | Em aberto | Fechado sem conclusão |
 |---|---|--:|--:|--:|--:|--:|--:|
 | Sprint 1 | 18/10 | 41 | 0 | 19 | 21 | 0 | 1 |
-| Sprint 2 | 19/10 | 56 | 13 | 0 | 55 | 13 | 1 |
-| **Total** |  | **97** | **13** | **19** | **76** | **13** | **2** |
+| Sprint 2 | 19/10 | 56 | 13 | 0 | 68 | 0 | 1 |
+| **Total** |  | **97** | **13** | **19** | **89** | **0** | **2** |
 
 Planejado: issues criadas até o fim da primeira sprint. Concluído na sprint: fechada antes do fim dela; após o fim: fechada depois. Em pontos (campo Pontos).
 
@@ -18,7 +18,7 @@ Planejado: issues criadas até o fim da primeira sprint. Concluído na sprint: f
 
 | Responsável | Atribuídos | Concluídos | Concluídos dentro da sprint |
 |---|--:|--:|--:|
-| @cerfdotdev | 55 | 40 | 19 |
+| @cerfdotdev | 55 | 53 | 19 |
 | @joaoarenda | 32 | 32 | 0 |
 | @Alisson-dutra | 23 | 23 | 0 |
 
@@ -52,15 +52,15 @@ Planejado: issues criadas até o fim da primeira sprint. Concluído na sprint: f
 | #16 | Backend: proteção contra SQL injection | Sprint 2 | 2 | @joaoarenda | 18/10 22:31 | 20/10 09:53 | 9 h 53 min após o fim da sprint; PR #38 mergeado em 19/10 18:23 |
 | #17 | Backend: timeout de busca | Sprint 2 | 2 | @joaoarenda | 18/10 22:32 | 20/10 09:53 | 9 h 53 min após o fim da sprint |
 | #18 | Backend: rate limiting e limite de concorrência | Sprint 2 | 5 | @joaoarenda | 18/10 22:32 | 20/10 09:53 | 9 h 53 min após o fim da sprint |
-| #19 | Teste de carga paralela da API | Sprint 2 | 5 | @cerfdotdev | 18/10 22:32 | — | em aberto |
+| #19 | Teste de carga paralela da API | Sprint 2 | 5 | @cerfdotdev | 18/10 22:32 | 20/10 12:38 | 12 h 38 min após o fim da sprint |
 | #20 | Frontend: busca por similaridade e busca combinada | Sprint 2 | 5 | @Alisson-dutra | 18/10 22:32 | 20/10 09:53 | 9 h 53 min após o fim da sprint |
 | #21 | Frontend: paginação, detalhe e estados de erro | Sprint 2 | 5 | @Alisson-dutra | 18/10 22:32 | 20/10 09:54 | 9 h 54 min após o fim da sprint |
 | #22 | Desktop: app PySide6 consumindo a API | Sprint 2 | 5 | @Alisson-dutra | 18/10 22:32 | 20/10 10:03 | 10 h 03 min após o fim da sprint |
 | #23 | Desktop: compilar com PyInstaller | Sprint 2 | 2 | @cerfdotdev | 18/10 22:32 | 20/10 11:58 | 11 h 58 min após o fim da sprint |
 | #24 | Script de burndown a partir das issues | Sprint 2 | 3 | @cerfdotdev | 18/10 22:32 | 20/10 11:21 | 11 h 21 min após o fim da sprint |
-| #25 | Relatório final | Sprint 2 | 5 | @cerfdotdev | 18/10 22:32 | — | em aberto |
-| #26 | Sprint review e retrospectiva | Sprint 2 | 1 | @cerfdotdev | 18/10 22:32 | — | em aberto |
-| #27 | Entrega: teste limpo e .zip da pasta projeto | Sprint 2 | 2 | @cerfdotdev | 18/10 22:33 | — | em aberto |
+| #25 | Relatório final | Sprint 2 | 5 | @cerfdotdev | 18/10 22:32 | 20/10 12:27 | 12 h 27 min após o fim da sprint |
+| #26 | Sprint review e retrospectiva | Sprint 2 | 1 | @cerfdotdev | 18/10 22:32 | 20/10 12:27 | 12 h 27 min após o fim da sprint |
+| #27 | Entrega: teste limpo e .zip da pasta projeto | Sprint 2 | 2 | @cerfdotdev | 18/10 22:33 | 20/10 12:35 | 12 h 35 min após o fim da sprint |
 | #52 | Backend: completar o contrato da API (detalhe, similar com filtros) | Sprint 2 | 5 | @cerfdotdev | 20/10 10:26 | 20/10 11:14 | 11 h 14 min após o fim da sprint; adicionada após o planejamento |
 | #53 | Docs: arquitetura do sistema (system design) | Sprint 2 | 3 | @cerfdotdev | 20/10 10:30 | 20/10 11:18 | 11 h 18 min após o fim da sprint; adicionada após o planejamento |
 | #54 | Backend: cache das buscas | Sprint 2 | 5 | @cerfdotdev | 20/10 10:30 | 20/10 12:15 | 12 h 15 min após o fim da sprint; adicionada após o planejamento |

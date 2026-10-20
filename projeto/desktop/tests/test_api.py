@@ -126,6 +126,20 @@ def test_similar_envia_limit_e_nao_pagina():
     assert busca.parametros() == [("similar", "%MARIA%SILVA%"), ("limit", "50")]
 
 
+def test_similar_combina_com_os_filtros():
+    busca = Busca(
+        similar="%MARIA%", cargo="professor", orgao="INSS", uf="RJ", situacao=Situacao.ATIVO
+    )
+    assert busca.parametros() == [
+        ("similar", "%MARIA%"),
+        ("limit", "100"),
+        ("cargo", "professor"),
+        ("orgao", "INSS"),
+        ("uf", "RJ"),
+        ("situacao", "ativo"),
+    ]
+
+
 def test_limit_nunca_vai_sem_similar():
     assert all(nome != "limit" for nome, _ in Busca(nome="Maria", limite=10).parametros())
 

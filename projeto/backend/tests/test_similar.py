@@ -46,6 +46,11 @@ def test_similar_poucas_letras_retorna_erro():
     assert error_code(similar="MA%") == "PARAMETRO_INVALIDO"
 
 
+@pytest.mark.parametrize("padrao", ["", '""', "M", "%" * 101])
+def test_similar_vazio_curto_ou_longo_retorna_erro(padrao):
+    assert error_code(similar=padrao) == "PARAMETRO_INVALIDO"
+
+
 def test_similar_caractere_proibido_retorna_erro():
     assert error_code(similar="%MARIA;DROP%") == "PARAMETRO_INVALIDO"
 

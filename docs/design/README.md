@@ -40,7 +40,6 @@ Para cada issue, passe para a IA: este brief, `tokens.css`, `componentes.css`, o
 > - Valores com `Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2 })`, em fonte mono, alinhados à direita. Datas ISO da API viram `DD/MM/AAAA`.
 > - Texto vindo da fonte (nome, cargo, órgão) aparece como veio, em maiúsculas; não converta.
 > - `uf` nulo aparece como "—" com `aria-label="não informado"`.
-> - Autocompletar de cargo e órgão com `/api/cargos?q=` e `/api/orgaos?q=`, esperando 250 ms depois da última tecla.
 > - Botão Buscar desabilitado e com "Buscando…" enquanto a requisição roda; título dos resultados com `aria-live="polite"`.
 > - Respeite `prefers-reduced-motion`, foco visível e alvos de 44 px, como em `componentes.css`.
 

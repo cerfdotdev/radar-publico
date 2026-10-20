@@ -5,12 +5,15 @@ from flask import Flask
 from app.config import load_config
 from app.db import init_db
 from app.errors import register_error_handlers
+from app.query_string import ApiRequest
 from app.rate_limit import init_rate_limit
 
 
 def create_app(test_config: dict | None = None) -> Flask:
     """Cria e configura a instância do Flask."""
     app = Flask(__name__, static_folder=None)
+    # Aceita '%' digitado sem codificar, como em ?similar=%JOSE%DE%BARROS%.
+    app.request_class = ApiRequest
     # Mensagens com acento saem como "não", e não "não".
     app.json.ensure_ascii = False
 

@@ -1,13 +1,8 @@
-"""Ponto de entrada do app desktop."""
-
-from __future__ import annotations
+"""Ponto de entrada do app desktop: python main.py [--api-url URL]."""
 
 import sys
 
-try:
-    from radar_desktop.cli import main
-except ModuleNotFoundError:  # importado como projeto.desktop.main
-    from .radar_desktop.cli import main
+from radar_desktop.cli import main
 
 if __name__ == "__main__":
     sys.exit(main())

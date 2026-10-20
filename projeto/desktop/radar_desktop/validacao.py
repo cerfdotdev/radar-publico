@@ -1,97 +1,118 @@
-"""Validações dos filtros, com as mesmas regras do frontend web (docs/api.md)."""
+"""Validação da busca com as regras do backend (app/search_params.py), antes de chamar a API.
 
-from __future__ import annotations
+Os textos são conferidos depois da mesma normalização da API: maiúsculas, sem acento
+e com espaços simples.
+"""
 
+import math
 import re
 import unicodedata
 from dataclasses import dataclass
 
-from .api import Busca, LIMITE_MAX, LIMITE_MIN
+from .api import LIMITE_MAX, LIMITE_MIN, TOTAL_MAXIMO, Busca, Situacao
+
+TEXTO_MIN_CHARS = 2
+TEXTO_MAX_CHARS = 100
+SIMILAR_MIN_LETRAS = 3
+PAGINA_MIN = 1
+POR_PAGINA_MIN = 1
+POR_PAGINA_MAX = 100
+# Só existem as páginas até o resultado de número TOTAL_MAXIMO.
+PAGINA_MAX = math.ceil(TOTAL_MAXIMO / POR_PAGINA_MIN)
 
 UFS = (
-    "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT",
-    "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
-)
-NOME_MIN_CHARS = 2
-NOME_MAX_CHARS = 100
-PER_PAGINA_MAX = 100
+    "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA",
+    "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
+)  # fmt: skip
 
-_NOME_PERMITIDO = re.compile(r"^[A-Z .'-]+$")
-_SIMILAR_PERMITIDO = re.compile(r"^[A-Z .'%-]+$")
-_TEXTO_PERMITIDO = re.compile(r"^[A-Z0-9 /(),.'-]+$")
+NOME_PERMITIDO = re.compile(r"[A-Z .'-]+")
+SIMILAR_PERMITIDO = re.compile(r"[A-Z .'%-]+")
+CARGO_ORGAO_PERMITIDO = re.compile(r"[A-Z0-9 .'/(),-]+")
+SEQUENCIA_PROIBIDA = "--"
+LETRA = re.compile(r"[A-Z]")
+
+CARACTERES_NOME = "letras, espaços, apóstrofo ('), ponto (.) e hífen (-)"
+CARACTERES_SIMILAR = "letras, espaços, apóstrofo ('), ponto (.), hífen (-) e o curinga (%)"
+CARACTERES_CARGO_ORGAO = (
+    "letras, números, espaços, apóstrofo ('), ponto (.), hífen (-), barra (/), parênteses e vírgula"
+)
 
 
 @dataclass(frozen=True)
 class ErroBusca:
+    """Campo da tela que causou o erro e a mensagem para mostrar."""
+
     campo: str
     mensagem: str
 
 
 def limpar_termo(valor: str) -> str:
+    """'  Maria   da Silva ' -> 'Maria da Silva'."""
     return " ".join(valor.split())
 
 
-def normalizar_nome(valor: str) -> str:
-    sem_acento = "".join(
-        caractere
-        for caractere in unicodedata.normalize("NFKD", valor)
-        if not unicodedata.combining(caractere)
-    )
-    return limpar_termo(sem_acento).upper()
+def normalizar_texto(valor: str) -> str:
+    """'  José   d'Ávila ' -> "JOSE D'AVILA", como normalize_text do backend."""
+    decomposto = unicodedata.normalize("NFKD", valor)
+    sem_acento = "".join(c for c in decomposto if not unicodedata.combining(c))
+    return " ".join(sem_acento.split()).upper()
 
 
-def _validar_texto(valor: str, rotulo: str) -> str | None:
-    normalizado = normalizar_nome(valor)
-    if normalizado == "":
-        return None
-    if len(normalizado) < NOME_MIN_CHARS:
-        return f"O {rotulo} deve ter pelo menos {NOME_MIN_CHARS} caracteres."
-    if len(normalizado) > NOME_MAX_CHARS:
-        return f"O {rotulo} deve ter no máximo {NOME_MAX_CHARS} caracteres."
-    if not _TEXTO_PERMITIDO.fullmatch(normalizado):
-        return f"Use apenas letras, números e pontuação simples no {rotulo}."
-    if "--" in normalizado:
+def _validar_texto(valor: str, rotulo: str, padrao: re.Pattern[str], caracteres: str) -> str | None:
+    normalizado = normalizar_texto(valor)
+    if not TEXTO_MIN_CHARS <= len(normalizado) <= TEXTO_MAX_CHARS:
+        return f"O {rotulo} deve ter de {TEXTO_MIN_CHARS} a {TEXTO_MAX_CHARS} caracteres."
+    if not padrao.fullmatch(normalizado):
+        return f"Use só {caracteres} no {rotulo}."
+    if SEQUENCIA_PROIBIDA in normalizado:
         return "Não use dois hífens seguidos (--)."
     return None
 
 
 def validar_busca(busca: Busca) -> ErroBusca | None:
-    termo = busca.nome or busca.similar
-    if termo == "" and busca.cargo == "" and busca.orgao == "" and busca.uf == "":
-        return ErroBusca("termo", "Informe um nome ou ao menos um filtro para pesquisar.")
-
+    """Primeiro erro da busca, na ordem em que a API confere, ou None se pode enviar."""
     if busca.nome and busca.similar:
         return ErroBusca("termo", "Use nome exato ou nome parecido, não os dois.")
+    if not any((busca.nome, busca.similar, busca.cargo, busca.orgao, busca.uf)):
+        return ErroBusca("termo", "Informe um nome ou ao menos um filtro: cargo, órgão ou UF.")
 
-    if termo != "":
-        normalizado = normalizar_nome(termo)
-        if len(normalizado) < NOME_MIN_CHARS:
-            return ErroBusca("termo", f"O nome deve ter pelo menos {NOME_MIN_CHARS} caracteres.")
-        if len(normalizado) > NOME_MAX_CHARS:
-            return ErroBusca("termo", f"O nome deve ter no máximo {NOME_MAX_CHARS} caracteres.")
-        permitido = _SIMILAR_PERMITIDO if busca.similar else _NOME_PERMITIDO
-        if not permitido.fullmatch(normalizado):
-            return ErroBusca("termo", "Use apenas letras e pontuação simples no nome.")
-        if "--" in normalizado:
-            return ErroBusca("termo", "Não use dois hífens seguidos (--).")
-        if busca.similar and len(re.findall(r"[A-Z]", normalizado)) < 3:
-            return ErroBusca("termo", "Use pelo menos 3 letras fora dos %.")
-
-    if busca.similar and not LIMITE_MIN <= busca.limite <= LIMITE_MAX:
-        return ErroBusca("limite", f"O limite deve estar entre {LIMITE_MIN} e {LIMITE_MAX}.")
-
-    for rotulo, valor, campo in (
-        ("cargo", busca.cargo, "cargo"),
-        ("órgão", busca.orgao, "orgao"),
-    ):
-        mensagem = _validar_texto(valor, rotulo)
+    if busca.nome:
+        mensagem = _validar_texto(busca.nome, "nome", NOME_PERMITIDO, CARACTERES_NOME)
         if mensagem is not None:
-            return ErroBusca(campo, mensagem)
+            return ErroBusca("termo", mensagem)
 
-    if busca.uf != "" and busca.uf not in UFS:
+    if busca.similar:
+        mensagem = _validar_texto(
+            busca.similar, "nome parecido", SIMILAR_PERMITIDO, CARACTERES_SIMILAR
+        )
+        if mensagem is not None:
+            return ErroBusca("termo", mensagem)
+        if len(LETRA.findall(normalizar_texto(busca.similar))) < SIMILAR_MIN_LETRAS:
+            return ErroBusca("termo", f"Use pelo menos {SIMILAR_MIN_LETRAS} letras fora dos %.")
+        if not LIMITE_MIN <= busca.limite <= LIMITE_MAX:
+            return ErroBusca("limite", f"O limite deve estar entre {LIMITE_MIN} e {LIMITE_MAX}.")
+
+    for campo, rotulo, valor in (("cargo", "cargo", busca.cargo), ("orgao", "órgão", busca.orgao)):
+        if valor:
+            mensagem = _validar_texto(valor, rotulo, CARGO_ORGAO_PERMITIDO, CARACTERES_CARGO_ORGAO)
+            if mensagem is not None:
+                return ErroBusca(campo, mensagem)
+
+    if busca.uf and busca.uf not in UFS:
         return ErroBusca("uf", "Escolha uma UF válida.")
-    if busca.pagina < 1:
-        return ErroBusca("pagina", "A página deve ser maior que zero.")
-    if not 1 <= busca.por_pagina <= PER_PAGINA_MAX:
-        return ErroBusca("por_pagina", "Escolha de 1 a 100 resultados por página.")
+    if busca.uf and busca.situacao is Situacao.APOSENTADO:
+        # A API responde 404 para essa combinação: a fonte dos aposentados não traz UF.
+        return ErroBusca(
+            "uf",
+            "Aposentados não têm UF na fonte. Para filtrar por UF, escolha a situação "
+            "Ativo ou Todos.",
+        )
+
+    if not PAGINA_MIN <= busca.pagina <= PAGINA_MAX:
+        return ErroBusca("pagina", f"A página deve estar entre {PAGINA_MIN} e {PAGINA_MAX}.")
+    if not POR_PAGINA_MIN <= busca.por_pagina <= POR_PAGINA_MAX:
+        return ErroBusca(
+            "por_pagina",
+            f"Escolha de {POR_PAGINA_MIN} a {POR_PAGINA_MAX} resultados por página.",
+        )
     return None

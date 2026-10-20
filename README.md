@@ -22,6 +22,8 @@ cd projeto
 docker compose up --build
 ```
 
+O app desktop (PySide6) usa a mesma API: veja [`projeto/desktop/README.md`](projeto/desktop/README.md).
+
 ## Estrutura
 
 ```

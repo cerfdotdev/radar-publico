@@ -1,38 +1,79 @@
-from __future__ import annotations
+"""Validação local com as regras de app/search_params.py do backend."""
 
-import unittest
+import pytest
 
-from radar_desktop.api import Busca
-from radar_desktop.validacao import UFS, normalizar_nome, validar_busca
+from radar_desktop.api import Busca, Situacao
+from radar_desktop.validacao import UFS, normalizar_texto, validar_busca
 
-
-class ValidacaoTests(unittest.TestCase):
-    def test_exige_algum_filtro(self) -> None:
-        erro = validar_busca(Busca())
-        self.assertEqual(erro.campo if erro else None, "termo")
-
-    def test_nome_exato_com_filtros_combinados(self) -> None:
-        self.assertIsNone(validar_busca(Busca(nome="José D'Ávila", cargo="professor", uf="DF")))
-
-    def test_nome_parecido_precisa_de_tres_letras(self) -> None:
-        erro = validar_busca(Busca(similar="%%%"))
-        self.assertEqual(erro.campo if erro else None, "termo")
-
-    def test_nome_parecido_aceita_curinga(self) -> None:
-        self.assertIsNone(validar_busca(Busca(similar="%MARIA%SILVA%", limite=50)))
-
-    def test_limite_fora_da_faixa(self) -> None:
-        erro = validar_busca(Busca(similar="MARIA", limite=101))
-        self.assertEqual(erro.campo if erro else None, "limite")
-
-    def test_uf_invalida(self) -> None:
-        erro = validar_busca(Busca(uf="XX"))
-        self.assertEqual(erro.campo if erro else None, "uf")
-
-    def test_normalizacao(self) -> None:
-        self.assertEqual(normalizar_nome("  José   D'Ávila "), "JOSE D'AVILA")
-        self.assertIn("DF", UFS)
+TEXTO_LONGO = "A" * 101
 
 
-if __name__ == "__main__":
-    unittest.main()
+def campo_do_erro(busca: Busca) -> str | None:
+    erro = validar_busca(busca)
+    return erro.campo if erro is not None else None
+
+
+@pytest.mark.parametrize(
+    "busca",
+    [
+        Busca(nome="José D'Ávila"),
+        Busca(nome="Maria da Silva", cargo="professor", orgao="INSS", uf="DF"),
+        Busca(nome="Ana", situacao=Situacao.APOSENTADO),
+        Busca(similar="%MARIA%SILVA%", limite=50),
+        Busca(similar="JOSE%SILVA"),
+        Busca(cargo="PROFESSOR DO MAGISTERIO SUPERIOR (CLASSE A), 2/3"),
+        Busca(orgao="MS"),
+        Busca(uf="RJ", situacao=Situacao.ATIVO),
+        Busca(cargo="agente", pagina=10_000, por_pagina=1),
+    ],
+)
+def test_buscas_validas(busca):
+    assert validar_busca(busca) is None
+
+
+@pytest.mark.parametrize(
+    ("busca", "campo"),
+    [
+        (Busca(), "termo"),
+        # 'situacao' sozinha não é filtro (FILTRO_OBRIGATORIO).
+        (Busca(situacao=Situacao.ATIVO), "termo"),
+        (Busca(nome="Maria", similar="MARIA"), "termo"),
+        (Busca(nome="A"), "termo"),
+        (Busca(nome=TEXTO_LONGO), "termo"),
+        (Busca(nome="Maria 2"), "termo"),
+        (Busca(nome="Maria%"), "termo"),
+        (Busca(nome="Maria--Silva"), "termo"),
+        (Busca(similar="%%%"), "termo"),
+        (Busca(similar="MA%"), "termo"),
+        (Busca(similar="%MARIA;DROP%"), "termo"),
+        (Busca(similar="MARIA", limite=0), "limite"),
+        (Busca(similar="MARIA", limite=101), "limite"),
+        (Busca(cargo="A"), "cargo"),
+        (Busca(cargo="professor;"), "cargo"),
+        (Busca(orgao=TEXTO_LONGO), "orgao"),
+        (Busca(orgao="saude--"), "orgao"),
+        (Busca(uf="XX"), "uf"),
+        (Busca(uf="DF", situacao=Situacao.APOSENTADO), "uf"),
+        (Busca(cargo="agente", pagina=0), "pagina"),
+        (Busca(cargo="agente", pagina=10_001), "pagina"),
+        (Busca(cargo="agente", por_pagina=101), "por_pagina"),
+    ],
+)
+def test_buscas_invalidas(busca, campo):
+    assert campo_do_erro(busca) == campo
+
+
+def test_tres_letras_contam_depois_da_normalizacao():
+    assert validar_busca(Busca(similar="%Á%É%Í%")) is None
+
+
+def test_limite_so_conta_com_similar():
+    assert validar_busca(Busca(nome="Maria", limite=0)) is None
+
+
+def test_normalizacao_igual_a_do_backend():
+    assert normalizar_texto("  José   d'Ávila ") == "JOSE D'AVILA"
+
+
+def test_27_ufs():
+    assert len(UFS) == len(set(UFS)) == 27

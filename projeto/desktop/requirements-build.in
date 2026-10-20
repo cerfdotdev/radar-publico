@@ -1,0 +1,2 @@
+# Só para gerar o executável (build.py); o app em si usa requirements.txt.
+pyinstaller==6.22.3

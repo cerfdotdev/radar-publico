@@ -1,0 +1,7 @@
+# Gerado na subida do container pelo entrypoint da imagem do nginx (envsubst), em
+# /etc/nginx/conf.d/real-ip.conf. Atrás de outro proxy (o Traefik do Dokploy), o
+# $remote_addr seria o IP desse proxy para todo mundo e o limite por IP do backend viraria
+# um só. Requisições vindas de NGINX_PROXY_CONFIAVEL passam a valer pelo X-Forwarded-For.
+set_real_ip_from ${NGINX_PROXY_CONFIAVEL};
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;

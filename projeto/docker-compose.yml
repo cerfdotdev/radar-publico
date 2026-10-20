@@ -31,8 +31,9 @@ services:
     cap_add: [DAC_READ_SEARCH, FOWNER, SETGID, SETUID]
     # Sem read_only: na primeira subida, se projeto/db/data não aceita escrita (como num clone
     # do root no Dokploy), 02-dados.sh baixa os ~355 MB para /var/lib/postgresql/dados, que fica
-    # na camada do container (o volume é só .../data). E sem restart: uma carga que falha deixa
-    # o volume criado pela metade, e um restart pularia a carga e serviria um banco incompleto.
+    # na camada do container (o volume é só .../data). Com restart: uma carga que falha deixa o
+    # volume criado pela metade e um restart pularia a carga, mas o healthcheck abaixo só passa
+    # com a carga completa, então um banco incompleto nunca fica saudável nem recebe o backend.
     # Memória: shared_buffers (128 MB), as conexões do radar_api e os workers paralelos, e o
     # cache de páginas da tabela e dos índices (1,5 milhão de linhas). CPU: a busca paralela
     # usa mais de um núcleo. Processos: um por conexão (até 50 do radar_api), mais os workers
@@ -46,10 +47,13 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
       - ./db/data:/data          # arquivos de origem; downloads ficam salvos aqui
+    # Volta sozinho depois de um reboot do servidor (ver o healthcheck sobre carga incompleta).
+    restart: unless-stopped
     healthcheck:
-      # Via TCP: durante a carga inicial o Postgres só escuta no socket local,
-      # então o serviço só fica saudável depois que os dados estão carregados.
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # Via TCP: durante a carga inicial o Postgres só escuta no socket local. E o usuário
+      # radar_api só existe se o último script (05-usuario-api.sh) rodou, e os scripts param no
+      # primeiro erro: sem ele, a carga não terminou e o banco não fica saudável.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB} && psql -U $${POSTGRES_USER} -d $${POSTGRES_DB} -tAc \"SELECT 1 FROM pg_roles WHERE rolname = '$${POSTGRES_API_USER}'\" | grep -q 1"]
       interval: 10s
       timeout: 5s
       retries: 6

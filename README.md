@@ -32,6 +32,13 @@ cp .env.example .env
 
 O app desktop (PySide6) usa a mesma API: veja [`projeto/desktop/README.md`](projeto/desktop/README.md).
 
+## Documentação
+
+- [`docs/arquitetura.md`](docs/arquitetura.md): contêineres, fluxo de uma busca, carga dos dados, CI e decisões
+- [`docs/api.md`](docs/api.md): contrato da API
+- [`docs/banco.md`](docs/banco.md): modelo, carga, índices e pool de conexões
+- [`docs/dados.md`](docs/dados.md): arquivos de origem e formato
+
 ## Limites e ajuste por máquina
 
 O backend lê os limites de variáveis de ambiente (padrões em `projeto/backend/server_settings.py` e `projeto/backend/app/config.py`). O `docker-compose.yml` repassa ao backend as variáveis da tabela abaixo; para mudar uma, preencha no `projeto/.env` e suba de novo com `docker compose up -d`. Variável vazia ou ausente usa o padrão. Por exemplo:
@@ -48,7 +55,7 @@ RATE_LIMIT_REQUESTS=0   # desliga o limite por IP (ex.: teste de carga)
 | Conexões por worker | `DB_POOL_MAX` | = threads | Workers × `DB_POOL_MAX` fica em no máximo 45; se passar, o backend reduz o pool ([detalhes](docs/banco.md#pool-de-conexões-do-backend)) |
 | Espera por uma conexão | `DB_POOL_TIMEOUT_S` | 3 s | Depois disso, 503 `SERVIDOR_OCUPADO` com `Retry-After` |
 | Tempo de cada consulta | `DB_STATEMENT_TIMEOUT_S` ([detalhes](docs/banco.md#pool-de-conexões-do-backend)) | 5 s | A consulta é cancelada no banco e a API responde 504 `TEMPO_ESGOTADO`. Precisa ficar abaixo dos 15 s do nginx |
-| Espera do nginx pelo backend | `proxy_read_timeout` em `projeto/frontend/nginx.conf` | 15 s | O nginx responde 504 `TEMPO_ESGOTADO`. Fica abaixo dos 20 s do frontend (`SEARCH_TIMEOUT_MS`) e dos 30 s do Gunicorn (`GUNICORN_TIMEOUT`) |
+| Espera do nginx pelo backend | `proxy_read_timeout` em `projeto/frontend/nginx.conf` | 15 s | O nginx responde 504 `TEMPO_ESGOTADO`. Fica abaixo dos 20 s do frontend (`SEARCH_TIMEOUT_MS`). O `GUNICORN_TIMEOUT` (30 s) não corta requisição lenta: só reinicia worker travado ([detalhes](docs/arquitetura.md#limites-conhecidos)) |
 | Requisições por IP | `RATE_LIMIT_REQUESTS` a cada `RATE_LIMIT_WINDOW_S` | 60 a cada 60 s | Acima disso, 429 `MUITAS_REQUISICOES` com `Retry-After`. `0` desliga. `/api/health` nunca é limitado |
 | Proxies na frente do backend | `PROXY_HOPS` | 1 | Quantos proxies reescrevem o `X-Forwarded-For` (o nginx do frontend); `0` ignora o header |
 
@@ -82,3 +89,5 @@ scripts/            # utilitários da equipe (ex.: gerar burndown)
 ## Metodologia
 
 Scrum com 2 sprints de 1 dia (18/10/2026 e 19/10/2026), gerenciadas no GitHub Project **Radar Público**. Detalhes em [`CONTRIBUTING.md`](CONTRIBUTING.md) e [`docs/`](docs/).
+
+O burndown das tarefas fica em [`docs/burndown.md`](docs/burndown.md), gerado a partir das issues do Project com `python3 scripts/burndown.py`.

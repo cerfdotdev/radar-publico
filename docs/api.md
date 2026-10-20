@@ -164,11 +164,12 @@ Todo erro tem o formato:
 | 404 | `PAGINA_INEXISTENTE` | `page` maior que `total_pages` (inclusive além do 10.000º resultado) |
 | 404 | `ROTA_INEXISTENTE` | URL que não existe |
 | 405 | `METODO_NAO_PERMITIDO` | Método diferente de GET |
-| 429 | `MUITAS_REQUISICOES` | Limite de requisições por IP excedido: o geral (`RATE_LIMIT_REQUESTS`, padrão 60 a cada 60 s) ou o das buscas com `similar` (`RATE_LIMIT_SIMILAR_REQUESTS`, padrão 10 a cada 60 s), que contam nos dois. Os limites são por worker do Gunicorn (README, "Limites e ajuste por máquina"). Vem com o header `Retry-After`. Nunca vem do cache |
-| 503 | `SERVIDOR_OCUPADO` | O backend não conseguiu uma conexão com o banco em `DB_POOL_TIMEOUT_S` (padrão 3 s): banco fora do ar ou lento para aceitar conexões. Vem com `Retry-After`. Não é limite de buscas simultâneas: na configuração padrão o pool tem uma conexão por thread, e as buscas além das threads esperam na fila do Gunicorn (ver `docs/banco.md`) |
+| 429 | `MUITAS_REQUISICOES` | No nginx do frontend: mais de `NGINX_LIMITE_IP_POR_S` requisições por segundo (com rajada de `NGINX_LIMITE_IP_RAJADA`) ou mais de `NGINX_LIMITE_IP_SIMULTANEAS` ao mesmo tempo, por IP. No backend: limite de requisições por IP excedido, o geral (`RATE_LIMIT_REQUESTS`, padrão 60 a cada 60 s) ou o das buscas com `similar` (`RATE_LIMIT_SIMILAR_REQUESTS`, padrão 10 a cada 60 s), que contam nos dois. Os limites são por worker do Gunicorn (README, "Limites e ajuste por máquina"). Vem com o header `Retry-After`. Nunca vem do cache |
+| 503 | `SERVIDOR_OCUPADO` | Busca recusada na hora, com `Retry-After`: o nginx já tem `NGINX_LIMITE_BACKEND_SIMULTANEAS` buscas em andamento no backend (padrão 16; respostas do cache não contam), ou o backend não conseguiu uma conexão com o banco em `DB_POOL_TIMEOUT_S` (padrão 3 s) |
 | 504 | `TEMPO_ESGOTADO` | A busca passou do tempo limite no banco, ou o backend não respondeu ao nginx em 15 s |
 | 500 | `ERRO_INTERNO` | Erro inesperado (sem detalhes internos na mensagem) |
 | 502 | `SERVIDOR_INDISPONIVEL` | Gerado pelo nginx do frontend quando o backend está fora do ar |
+| 400, 413, 414, 431 | `PARAMETRO_INVALIDO` | Gerados pelo nginx: requisição malformada, com corpo, URL ou cabeçalho grande demais |
 
 Tentativas de SQL injection não têm código próprio: os valores nunca entram no SQL (consultas parametrizadas), e entradas com `;`, `--`, `/*` ou qualquer caractere fora da lista permitida já são recusadas com `PARAMETRO_INVALIDO`.
 

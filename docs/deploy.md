@@ -37,9 +37,11 @@ API_PORT=15000
 NGINX_PROXY_CONFIAVEL=10.0.0.0/8
 ```
 
-As demais variáveis (limites, cache) estão no [README](../README.md#limites-e-ajuste-por-máquina) e em [`.env.example`](../projeto/.env.example). Vazias, usam o padrão do código.
+As demais variáveis (limites do backend e da borda, cache, memória, CPU e processos de cada container, logs) estão no [README](../README.md#limites-e-ajuste-por-máquina) e em [`.env.example`](../projeto/.env.example). Vazias, usam o padrão, pensado para este servidor: nenhuma precisa ser definida no Dokploy.
 
-`WEB_PORT` e `API_PORT` só precisam ser portas livres no servidor. `NGINX_PROXY_CONFIAVEL` deve cobrir o IP com que o Traefik chega ao frontend; a rede `dokploy-network` do Dokploy usa a faixa `10.0.0.0/8` por padrão (confira com `docker network inspect dokploy-network`).
+`WEB_PORT` e `API_PORT` só precisam ser portas livres no servidor. `NGINX_PROXY_CONFIAVEL` deve cobrir o IP com que o Traefik chega ao frontend; a rede `dokploy-network` do Dokploy usa a faixa `10.0.0.0/8` por padrão (confira com `docker network inspect dokploy-network`). Ela vale também para os limites por IP da borda (10 requisições por segundo e 8 simultâneas por IP, no nginx): sem ela, todos os visitantes teriam o IP do Traefik e dividiriam esses limites.
+
+Os tetos de recursos (`*_MEM_LIMIT`, `*_CPUS`, `*_PIDS_LIMIT`) somam 2,6 GB de memória e 5 núcleos. Se o servidor tiver menos folga que isso para o Radar Público, reduza no Dokploy, começando pelo banco. Depois do primeiro deploy, confira o uso real com `docker stats` no servidor: o banco com os dados reais é o único que não foi medido aqui (o teste de sobrecarga usou a amostra).
 
 ## 3. Domínio
 
@@ -67,4 +69,11 @@ curl -s https://<host>/api/health
 curl -s "https://<host>/api/servidores?uf=DF&per_page=1"
 ```
 
-Para ver se o limite por IP enxerga o cliente certo, faça mais de `RATE_LIMIT_REQUESTS` buscas diferentes em um minuto a partir de uma máquina: ela recebe 429, e outra máquina continua buscando.
+Para ver se o limite por IP enxerga o cliente certo, faça mais de `RATE_LIMIT_REQUESTS` buscas diferentes em um minuto a partir de uma máquina: ela recebe 429, e outra máquina continua buscando. O limite da borda é mais rápido de conferir: 60 requisições de uma máquina, 20 de cada vez, passam da rajada de 20 e recebem algumas 429, enquanto outra máquina continua recebendo 200. Uma seguida da outra não serve: pela internet, cada uma leva perto de 0,1 s, e a borda aceita 10 por segundo.
+
+```bash
+seq 1 60 | xargs -P 20 -I{} curl -s -o /dev/null -w '%{http_code}\n' "https://<host>/api/servidores?uf=DF&per_page=1" | sort | uniq -c
+curl -sI https://<host>/ | grep -i -E 'strict-transport|content-security|cross-origin'
+```
+
+O segundo comando confere os cabeçalhos de segurança, inclusive o `Strict-Transport-Security` (1 ano, `includeSubDomains`), que só vale por HTTPS. O cache do nginx fica no volume `nginx-cache` do serviço e é esvaziado a cada deploy.

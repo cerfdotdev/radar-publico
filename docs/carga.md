@@ -19,7 +19,9 @@ Como o k6 roda na mesma máquina, ele divide a CPU com o Postgres. Os números s
 
 ```bash
 cd projeto
-# .env com os limites do cenário (ex.: RATE_LIMIT_REQUESTS=0 e API_CACHE_TTL_S=0)
+# .env com os limites do cenário (ex.: RATE_LIMIT_REQUESTS=0 e API_CACHE_TTL_S=0). Os VUs do k6
+# saem todos do mesmo IP: NGINX_LIMITE_IP=0 sempre, e NGINX_LIMITE_BACKEND=0 para repetir os
+# cenários 1 a 3 como foram medidos, antes do corte da borda (cenário 5).
 docker compose up -d --build --wait
 # ao trocar uma variável: recria o backend e o frontend (isso também esvazia o cache do nginx)
 docker compose up -d --force-recreate --wait backend frontend
@@ -134,6 +136,38 @@ A 71ª, e não a 61ª, porque o contador é por worker: as requisições se divi
 
 Os filtros entram no plano: o Postgres combina o índice trigram com os índices de UF ou cargo, e a busca fica mais rápida, não mais lenta. Isso responde à pendência do PR #58. Todos os padrões com pedaços de 3 letras ou mais ficam bem abaixo dos 5 s do `DB_STATEMENT_TIMEOUT_S`. A exceção eram os padrões cujos pedaços têm 1 ou 2 letras: eles não geram trigramas, e a busca lê a tabela inteira e calcula a `similarity()` de mais de 1 milhão de nomes. Pela API, sozinho e com a máquina parada, `%A%A%A%` levou 0,94 s (2,4 s em produção, contra 0,13 s de uma busca normal). Sob `EXPLAIN ANALYZE` e com a máquina carregada, 4,1 s: perto do corte de 5 s. Hoje a API recusa esses padrões com 400 (ver [Limitações encontradas](#limitações-encontradas)).
 
+## Cenário 5: sobrecarga com o corte na borda
+
+Depois deste teste, o nginx do frontend ganhou limites por IP e um corte de requisições simultâneas ao Gunicorn (`NGINX_LIMITE_BACKEND_SIMULTANEAS`, 16 = 2 × workers × threads; [README](../README.md#limites-da-borda)), e cada worker do Gunicorn passou a aceitar uma conexão por thread. O cenário 2 foi repetido antes e depois dessa mudança, na mesma máquina, em 20/10/2026:
+
+- **Dados e lentidão.** Só a amostra sintética (`projeto/db/amostra`, 450 vínculos), em que toda busca leva milissegundos. Para ter um backend lento como o dos dados reais, um atraso de 250 ms na rede do container do banco (`tc netem`, abaixo) faz cada busca levar de 1,0 a 1,25 s, como as pesadas do cenário 2. O mesmo atraso nas duas execuções.
+- **Configuração.** Cache e limites do backend desligados (`API_CACHE_TTL_S=0`, `RATE_LIMIT_REQUESTS=0`, `RATE_LIMIT_SIMILAR_REQUESTS=0`) e, depois da mudança, `NGINX_LIMITE_IP=0`, porque os 300 VUs saem do mesmo IP. O corte do backend ligado, no padrão.
+- **Consultas.** As de `sobrecarga.js`, com os padrões pesados trocados por padrões que a API aceita (`%MARIA%`, `%SILVA%`, `%SANTOS%`...): desde o #68, `%A%A%A%` e afins são 400 antes do banco.
+- **Antes:** a `main` em 83b7629 (com o #68). **Depois:** esta mudança. Resumos em [`sobrecarga-borda-antes.json`](carga/sobrecarga-borda-antes.json) e [`sobrecarga-borda-depois.json`](carga/sobrecarga-borda-depois.json), com os logs das sondas e o monitor do banco ao lado.
+
+```bash
+# atraso de 250 ms em tudo que o banco manda pela rede (o healthcheck dele usa o loopback)
+docker run --rm --network container:<projeto>-db-server-1 --cap-add NET_ADMIN \
+  --entrypoint sh postgres:16-alpine -c 'apk add -q iproute2-tc && tc qdisc add dev eth0 root netem delay 250ms'
+PROJETO_COMPOSE=<projeto> scripts/carga/rodar.sh sobrecarga sobrecarga-borda-depois VUS=300 DURACAO_S=60
+```
+
+| | Antes | Depois |
+|---|---|---|
+| Buscas pesadas respondidas (200 ou 404) | 142 | **573** (4 vezes mais) |
+| 504 do nginx aos 15 s | 1.087 das 1.229 pesadas | **0** |
+| 503 `SERVIDOR_OCUPADO` | 0 | 318.238, p50 de 76 ms |
+| `/api/health` durante a carga | 504 aos 15 s em 76 de 111 sondas | **200 em todas** (251), p50 de 1,0 s e máximo de 1,8 s |
+| Busca simples (sonda) durante a carga | p50 de 15 s (504) | p50 de 75 ms (503, ou 200/404 em até 1,6 s) |
+| Backend `unhealthy` | sim | não |
+| Recuperação depois do fim da carga | ~120 s até o `/api/health` responder em milissegundos | **imediata**: a primeira sonda depois do fim já respondeu como antes da carga |
+| Memória máxima (backend, frontend, banco) | 107, 21 e 96 MB | 98, 18 e 98 MB |
+
+- **O corte devolve trabalho útil.** Antes, o Gunicorn tinha centenas de buscas na fila e executava as que o nginx já tinha abandonado aos 15 s. Depois, ele só recebe 16 por vez, todas com alguém esperando: a mesma capacidade (8 threads de ~1 s) respondeu 4 vezes mais buscas.
+- **O excesso recebe resposta na hora.** Os 300 VUs do k6 não esperam entre uma requisição e outra, então cada 503 rápido virou outra requisição: daí os 319 mil pedidos. O site espera o `Retry-After` (2 s) antes de tentar de novo.
+- **Health e recuperação.** O health tem uma fila própria no corte e espera, no Gunicorn, no máximo as buscas de uma rodada (~1 s aqui). Sem fila acumulada, nada sobra para drenar no fim da carga. A recuperação do `rodar.sh` (sondas abaixo de 500 ms) não serve com o atraso, em que uma busca normal leva 1 s: ela foi calculada comparando as sondas de depois com as de antes da carga.
+- **CPU da borda.** No corte, o frontend chegou ao teto de 1 núcleo (`FRONTEND_CPUS`) respondendo 2.500 req/s. Na mistura do cenário 1 com cache e a amostra, 50 VUs por 30 s, ele respondeu 13 mil req/s com 1 núcleo e 22 mil sem o teto ([`mistura-cpu-1.json`](carga/mistura-cpu-1.json), [`mistura-cpu-4.json`](carga/mistura-cpu-4.json)).
+
 ## Mecanismos de segurança observados
 
 | Mecanismo | O que se viu |
@@ -144,14 +178,15 @@ Os filtros entram no plano: o Postgres combina o índice trigram com os índices
 | `statement_timeout` (5 s) | Nenhuma consulta isolada chegou perto, a não ser `%A%A%A%` sob carga. Na sobrecarga, o limite que agiu foi o do nginx |
 | Limite por IP | 429 a partir da 71ª requisição de um mesmo IP, com `Retry-After`. O health nunca é limitado, e o cache continua respondendo. Depois desta medição, a busca `similar` ganhou um limite próprio, menor (`RATE_LIMIT_SIMILAR_REQUESTS`) |
 | Cache e `proxy_cache_lock` | 150 vezes mais vazão na mistura (19.278 contra 128 req/s), com 99,3% de `HIT` e p99 de 8 ms |
+| Corte da borda (cenário 5) | 503 em milissegundos em vez de 504 aos 15 s, 4 vezes mais buscas respondidas, health respondendo e recuperação imediata |
 
 ## Limitações encontradas
 
 - **Vazão sem cache.** 128 req/s com 50 clientes simultâneos e p95 de 0,9 s. Quase todo o tempo é fila: com 2 × 4 threads, só 8 buscas rodam ao mesmo tempo.
-- **Colapso de vazão na sobrecarga.** Com 300 clientes em buscas caras e sem cache, só 11% das buscas pesadas (135 de 1.237) foram respondidas com 200. O resto levou 504 do nginx aos 15 s. A API não travou nem caiu, mas fica inútil enquanto durar a carga.
-- **Trabalho desperdiçado e recuperação lenta.** O Gunicorn executa as buscas que o nginx ou o cliente já abandonaram. Depois do fim da carga, um dos workers ainda dava 504 ao `/api/health` e às buscas 45 s depois. A fila não tem limite de tamanho nem descarte por tempo de espera.
-- **`/api/health` na mesma fila.** Durante a sobrecarga, o health esperou 15 s, e o container ficou `unhealthy` em 48 de 131 s, sem reiniciar. Isso confirma o que [arquitetura](arquitetura.md#limites-conhecidos) já descreve.
-- **Fila por worker.** Cada worker tem a própria fila. Depois da carga, as requisições que caíam no worker livre respondiam em 5 ms, e as do outro esperavam 15 s.
+- **Colapso de vazão na sobrecarga (mitigado).** Com 300 clientes em buscas caras e sem cache, só 11% das buscas pesadas (135 de 1.237) foram respondidas com 200. O resto levou 504 do nginx aos 15 s. A API não travou nem caiu, mas fica inútil enquanto durar a carga. Com o corte da borda, o excesso leva 503 na hora, e o backend responde 4 vezes mais buscas ([cenário 5](#cenário-5-sobrecarga-com-o-corte-na-borda)).
+- **Trabalho desperdiçado e recuperação lenta (mitigado).** O Gunicorn executa as buscas que o nginx ou o cliente já abandonaram. Depois do fim da carga, um dos workers ainda dava 504 ao `/api/health` e às buscas 45 s depois. A fila não tinha limite de tamanho nem descarte por tempo de espera. Com o corte da borda, ela tem no máximo uma busca por thread, e a recuperação foi imediata ([cenário 5](#cenário-5-sobrecarga-com-o-corte-na-borda)). Uma busca abandonada pelo navegador ainda roda até o fim no Gunicorn.
+- **`/api/health` na mesma fila (mitigado).** Durante a sobrecarga, o health esperou 15 s, e o container ficou `unhealthy` em 48 de 131 s, sem reiniciar. Com o corte, ele espera no máximo uma rodada de buscas: 1,8 s no pior caso do cenário 5, sem `unhealthy`.
+- **Fila por worker (mitigado).** Cada worker tinha a própria fila. Depois da carga, as requisições que caíam no worker livre respondiam em 5 ms, e as do outro esperavam 15 s. Agora cada worker aceita uma conexão por thread (`GUNICORN_WORKER_CONNECTIONS`), e quem espera fica na fila do kernel, comum aos dois.
 - **`similar` sem trigramas (mitigado).** Padrões só com pedaços de 1 ou 2 letras (`%A%A%A%`) liam a tabela inteira: 0,9 s sozinho, 2,4 s em produção e 4,1 s sob carga, contra os 5 s do `statement_timeout`. Com 8 deles ao mesmo tempo, a fila enchia em segundos, e um IP só, dentro do limite geral (60 por minuto em cada um dos 2 workers), ocupava a maior parte das 8 threads. Agora a validação exige um trecho entre os `%` com 3 letras seguidas (`MIN_TRIGRAM_LETTERS`) e responde 400 `PARAMETRO_INVALIDO` antes do banco para `%A%A%A%`, `%AB%CD%` e `A%B%C`. E a busca `similar` ganhou um limite próprio por IP, além do geral: `RATE_LIMIT_SIMILAR_REQUESTS`, 10 a cada 60 s por worker. Continua cara uma busca válida com um trigrama muito comum (`%MARIA%`, 0,8 s): é ela que o limite próprio segura.
 - **Cache só ajuda URLs repetidas.** Os 19 mil req/s dependem de 99% de `HIT`. Uma carga de URLs sempre novas tem o desempenho da coluna sem cache.
 - **Medição curta.** Execuções de 60 s, a uma concorrência só, com o k6 na mesma máquina da stack. Não foram medidas a porta 5000 direta, 100 VUs nem a sobrecarga com cache ligado.

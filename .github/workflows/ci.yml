@@ -256,6 +256,31 @@ jobs:
           done
           echo "::error::A busca repetida não veio do cache do nginx"
           exit 1
+      # Por último: a rajada do limite por IP deixa este IP sem vaga por alguns segundos.
+      - name: Borda do nginx (cabeçalhos, erros em JSON e limite por IP)
+        if: needs.detect.outputs.stack == 'true'
+        run: |
+          base=http://localhost:8080
+          falha() { echo "::error::$1"; exit 1; }
+          curl -fsS -o /dev/null -D cabecalhos.txt "$base/"
+          grep -iq '^strict-transport-security: max-age=31536000; includeSubDomains' cabecalhos.txt || falha "o site não manda o HSTS"
+          grep -iq "^content-security-policy: .*frame-ancestors 'none'" cabecalhos.txt || falha "o site não manda a CSP"
+          # URL longa demais: 414 em JSON no formato do contrato, nem o HTML do nginx nem o do Gunicorn.
+          longa=$(head -c 5000 /dev/zero | tr '\0' A)
+          resposta=$(curl -s -o corpo.json -w '%{http_code} %{content_type}' "$base/api/servidores?nome=$longa")
+          test "$resposta" = "414 application/json; charset=utf-8" || falha "URL longa: $resposta"
+          grep -q '"code":"PARAMETRO_INVALIDO"' corpo.json || falha "414 sem PARAMETRO_INVALIDO"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/api/servidores")" = 405 || falha "POST não deu 405"
+          # Rajada acima do limite por IP da borda: 429 em JSON com Retry-After, e o health fora do limite.
+          busca="$base/api/servidores?cargo=CARGO%20QUE%20NAO%20EXISTE"
+          for _ in $(seq 1 60); do
+            codigo=$(curl -s -D cabecalhos429.txt -o corpo429.json -w '%{http_code}' "$busca")
+            [ "$codigo" = 429 ] && break
+          done
+          test "$codigo" = 429 || falha "60 buscas seguidas sem 429 da borda"
+          grep -iq '^retry-after: [0-9]' cabecalhos429.txt || falha "429 sem Retry-After"
+          grep -q '"code":"MUITAS_REQUISICOES"' corpo429.json || falha "429 sem MUITAS_REQUISICOES"
+          curl -fsS -o /dev/null "$base/api/health" || falha "o /api/health levou o limite por IP"
       - name: Logs em caso de falha
         if: failure() && needs.detect.outputs.stack == 'true'
         run: docker compose -f projeto/docker-compose.yml logs --tail 200

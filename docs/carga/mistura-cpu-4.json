@@ -1,0 +1,130 @@
+{
+  "cenario": "mistura-cpu-4",
+  "alvo": "http://127.0.0.1:8612/api",
+  "duracao_s": 30,
+  "vus_max": 50,
+  "total": {
+    "requisicoes": 659945,
+    "rps": 21997.9,
+    "media_ms": 1.7,
+    "p50_ms": 1.6,
+    "p95_ms": 3.1,
+    "p99_ms": 4.8,
+    "max_ms": 503.5
+  },
+  "por_tipo": [
+    {
+      "tipo": "cargo",
+      "requisicoes": 132700,
+      "rps": 4423.3,
+      "media_ms": 1.7,
+      "p50_ms": 1.6,
+      "p95_ms": 3,
+      "p99_ms": 4.5,
+      "max_ms": 11.9,
+      "status": {
+        "200": 24379,
+        "404": 108321
+      }
+    },
+    {
+      "tipo": "uf",
+      "requisicoes": 98500,
+      "rps": 3283.3,
+      "media_ms": 1.7,
+      "p50_ms": 1.6,
+      "p95_ms": 3,
+      "p99_ms": 4.4,
+      "max_ms": 17.3,
+      "status": {
+        "200": 29501,
+        "404": 68999
+      }
+    },
+    {
+      "tipo": "orgao",
+      "requisicoes": 98968,
+      "rps": 3298.9,
+      "media_ms": 1.7,
+      "p50_ms": 1.6,
+      "p95_ms": 3,
+      "p99_ms": 4.4,
+      "max_ms": 12.9,
+      "status": {
+        "200": 41532,
+        "404": 57436
+      }
+    },
+    {
+      "tipo": "nome_cargo_uf",
+      "requisicoes": 66022,
+      "rps": 2200.7,
+      "media_ms": 1.7,
+      "p50_ms": 1.6,
+      "p95_ms": 3,
+      "p99_ms": 4.4,
+      "max_ms": 500.2,
+      "status": {
+        "200": 1106,
+        "404": 64916
+      }
+    },
+    {
+      "tipo": "similar",
+      "requisicoes": 98654,
+      "rps": 3288.4,
+      "media_ms": 1.7,
+      "p50_ms": 1.6,
+      "p95_ms": 3.1,
+      "p99_ms": 4.5,
+      "max_ms": 12.4,
+      "status": {
+        "200": 98654
+      }
+    },
+    {
+      "tipo": "similar_filtro",
+      "requisicoes": 65841,
+      "rps": 2194.7,
+      "media_ms": 1.7,
+      "p50_ms": 1.6,
+      "p95_ms": 3.1,
+      "p99_ms": 4.6,
+      "max_ms": 500.9,
+      "status": {
+        "200": 21797,
+        "404": 44044
+      }
+    },
+    {
+      "tipo": "pagina_funda",
+      "requisicoes": 66186,
+      "rps": 2206.2,
+      "media_ms": 1.9,
+      "p50_ms": 1.7,
+      "p95_ms": 3.9,
+      "p99_ms": 9.3,
+      "max_ms": 503.5,
+      "status": {
+        "404": 66186
+      }
+    },
+    {
+      "tipo": "detalhe",
+      "requisicoes": 33074,
+      "rps": 1102.5,
+      "media_ms": 1.7,
+      "p50_ms": 1.6,
+      "p95_ms": 3.1,
+      "p99_ms": 5.1,
+      "max_ms": 17.6,
+      "status": {
+        "200": 33074
+      }
+    }
+  ],
+  "cache": {
+    "HIT": 656066,
+    "MISS": 3879
+  }
+}

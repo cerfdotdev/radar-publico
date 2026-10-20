@@ -1,0 +1,33 @@
+# Gerado na subida do container pelo entrypoint da imagem do nginx (envsubst), em
+# /etc/nginx/conf.d/limites-borda.conf. Os valores vêm do ambiente, com os padrões e a validação
+# de limites-borda.envsh (README, "Limites e ajuste por máquina"). As diretivas que usam estas
+# zonas ficam em nginx.conf.
+
+# Limites por IP em /api/ (menos /api/health), contados na borda: antes do cache e antes do
+# Gunicorn. A chave é o IP do cliente; atrás do Traefik, o que o real_ip tirou do
+# X-Forwarded-For (real-ip.conf). NGINX_LIMITE_IP=0 deixa a chave vazia, e o nginx não conta
+# requisição com chave vazia.
+map "${NGINX_LIMITE_IP}" $limite_ip_chave {
+    "0"     "";
+    default $binary_remote_addr;
+}
+
+# Taxa média por IP; a rajada (burst, em nginx.conf) passa na hora e depois volta à taxa. 10 MB
+# guardam cerca de 160 mil IPs; cheia, a zona esquece os que estão parados há mais tempo.
+limit_req_zone $limite_ip_chave zone=api_ip_taxa:10m rate=${NGINX_LIMITE_IP_POR_S}r/s;
+
+# Requisições em andamento por IP. Uma zona cheia recusaria todo mundo; 10 MB guardam cerca de
+# 160 mil IPs com requisição em andamento ao mesmo tempo.
+limit_conn_zone $limite_ip_chave zone=api_ip_simultaneas:10m;
+
+# Requisições ao mesmo tempo no Gunicorn, contadas na camada de admissão (nginx.conf), por onde
+# só passa o que o cache não respondeu. Chave constante: um contador só, para todos os clientes.
+# NGINX_LIMITE_BACKEND=0 deixa a chave vazia e desliga também a fila do /api/health.
+map "${NGINX_LIMITE_BACKEND}" $limite_backend_chave {
+    "0"     "";
+    default "backend";
+}
+
+# Uma chave só em cada zona: 64 KB, o mínimo que o nginx aceita com folga.
+limit_conn_zone $limite_backend_chave zone=api_backend:64k;
+limit_conn_zone $limite_backend_chave zone=api_health:64k;

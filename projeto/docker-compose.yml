@@ -1,3 +1,14 @@
+# Limites de recursos e logs: o servidor de produção é dividido com outros serviços, então
+# nenhum container pode tomar toda a memória, a CPU, os processos ou o disco dele. Padrões e
+# como ajustar no README, "Limites e ajuste por máquina".
+x-logs: &logs
+  # Logs do Docker com rotação: sem ela, o log de acesso do nginx numa enxurrada de
+  # requisições enche o disco do servidor. 3 arquivos de 10 MB por container.
+  driver: json-file
+  options:
+    max-size: ${LOG_MAX_SIZE:-10m}
+    max-file: "${LOG_MAX_FILE:-3}"
+
 services:
   db-server:
     image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
@@ -10,14 +21,39 @@ services:
       # Só vale na criação do banco; vazio usa o padrão de db/init/05-usuario-api.sh.
       POSTGRES_API_STATEMENT_TIMEOUT: ${POSTGRES_API_STATEMENT_TIMEOUT:-}
     security_opt: ["no-new-privileges:true"]
+    # O entrypoint do Postgres roda como root só para conferir o volume e trocar para o usuário
+    # postgres; depois disso nenhum processo tem capability. Testado (carga da amostra e
+    # restart): ler o volume, que é do postgres com modo 700 (DAC_READ_SEARCH), deixá-lo em 700
+    # (FOWNER) e trocar de usuário (SETGID, SETUID). CHOWN e DAC_OVERRIDE, do padrão do Docker,
+    # ficam de fora: o volume já nasce do postgres. Para restaurar arquivos copiados como root
+    # para o volume, acrescente CHOWN.
+    cap_drop: [ALL]
+    cap_add: [DAC_READ_SEARCH, FOWNER, SETGID, SETUID]
+    # Sem read_only: na primeira subida, se projeto/db/data não aceita escrita (como num clone
+    # do root no Dokploy), 02-dados.sh baixa os ~355 MB para /var/lib/postgresql/dados, que fica
+    # na camada do container (o volume é só .../data). Com restart: uma carga que falha deixa o
+    # volume criado pela metade e um restart pularia a carga, mas o healthcheck abaixo só passa
+    # com a carga completa, então um banco incompleto nunca fica saudável nem recebe o backend.
+    # Memória: shared_buffers (128 MB), as conexões do radar_api e os workers paralelos, e o
+    # cache de páginas da tabela e dos índices (1,5 milhão de linhas). CPU: a busca paralela
+    # usa mais de um núcleo. Processos: um por conexão (até 50 do radar_api), mais os workers
+    # paralelos e os de manutenção.
+    mem_limit: ${DB_SERVER_MEM_LIMIT:-2g}
+    cpus: ${DB_SERVER_CPUS:-2}
+    pids_limit: ${DB_SERVER_PIDS_LIMIT:-128}
+    logging: *logs
+    networks: [banco]
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
       - ./db/data:/data          # arquivos de origem; downloads ficam salvos aqui
+    # Volta sozinho depois de um reboot do servidor (ver o healthcheck sobre carga incompleta).
+    restart: unless-stopped
     healthcheck:
-      # Via TCP: durante a carga inicial o Postgres só escuta no socket local,
-      # então o serviço só fica saudável depois que os dados estão carregados.
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # Via TCP: durante a carga inicial o Postgres só escuta no socket local. E o usuário
+      # radar_api só existe se o último script (05-usuario-api.sh) rodou, e os scripts param no
+      # primeiro erro: sem ele, a carga não terminou e o banco não fica saudável.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB} && psql -U $${POSTGRES_USER} -d $${POSTGRES_DB} -tAc \"SELECT 1 FROM pg_roles WHERE rolname = '$${POSTGRES_API_USER}'\" | grep -q 1"]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -26,6 +62,24 @@ services:
   backend:
     build: ./backend
     security_opt: ["no-new-privileges:true"]
+    # Gunicorn como appuser na porta 5000: não precisa de capability nenhuma.
+    cap_drop: [ALL]
+    # O código não escreve em disco (PYTHONDONTWRITEBYTECODE, heartbeat em /dev/shm); o /tmp
+    # fica para alguma biblioteca que precise de arquivo temporário.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    # Sem estado: se cair (inclusive por falta de memória), volta sozinho.
+    restart: unless-stopped
+    # 2 workers chegaram a ~110 MB no teste de sobrecarga; 512 MB cabem 4 workers, um por núcleo.
+    # CPU: um núcleo por worker. Processos: threads + 5 por worker (as do Gunicorn e as do pool),
+    # o mestre e o healthcheck, ~20 no padrão; 64 cabem 4 workers × 8 threads.
+    mem_limit: ${BACKEND_MEM_LIMIT:-512m}
+    cpus: ${BACKEND_CPUS:-2}
+    pids_limit: ${BACKEND_PIDS_LIMIT:-64}
+    logging: *logs
+    # Na rede do frontend e na do banco: é o único que fala com os dois.
+    networks: [default, banco]
     environment:
       DATABASE_URL: postgresql://${POSTGRES_API_USER:-radar_api}:${POSTGRES_API_PASSWORD:-radar_api}@db-server:5432/${POSTGRES_DB:-radar}
       # Limites lidos do .env; vazio usa o padrão do código (README, "Limites e ajuste por máquina").
@@ -36,6 +90,7 @@ services:
       DB_POOL_TIMEOUT_S: ${DB_POOL_TIMEOUT_S:-}
       DB_STATEMENT_TIMEOUT_S: ${DB_STATEMENT_TIMEOUT_S:-}
       RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-}
+      RATE_LIMIT_SIMILAR_REQUESTS: ${RATE_LIMIT_SIMILAR_REQUESTS:-}
       RATE_LIMIT_WINDOW_S: ${RATE_LIMIT_WINDOW_S:-}
       PROXY_HOPS: ${PROXY_HOPS:-}
       API_CACHE_TTL_S: ${API_CACHE_TTL_S:-}
@@ -50,17 +105,53 @@ services:
   frontend:
     build: ./frontend
     security_opt: ["no-new-privileges:true"]
+    # nginx-unprivileged como nginx na porta 8080: não precisa de capability nenhuma.
+    cap_drop: [ALL]
+    # Sistema de arquivos só leitura: nem o nginx consegue trocar a própria configuração ou o
+    # site. Escreve só no volume do cache e nestes tmpfs do usuário nginx (uid 101), que somem
+    # a cada restart:
+    read_only: true
+    tmpfs:
+      # PID e arquivos temporários do proxy (nginx.conf da imagem).
+      - /tmp:size=16m,mode=1777
+      # Configuração gerada dos templates na subida (Dockerfile).
+      - /etc/nginx/conf.d:size=1m,uid=101,gid=101,mode=0755
+    volumes:
+      # Cache da API (64 MB, nginx.conf), em disco e esvaziado a cada subida (limpar-cache.sh).
+      - nginx-cache:/var/cache/nginx
+    restart: unless-stopped
+    # O nginx usou ~20 MB no teste de sobrecarga; 128 MB cobrem as zonas de memória
+    # compartilhada (limites e chaves do cache) e o /tmp. CPU: 1 núcleo (worker_processes 2 no
+    # Dockerfile). Processos: o mestre, 2 workers, os 2 do cache e o healthcheck.
+    mem_limit: ${FRONTEND_MEM_LIMIT:-128m}
+    cpus: ${FRONTEND_CPUS:-1}
+    pids_limit: ${FRONTEND_PIDS_LIMIT:-32}
+    logging: *logs
     environment:
       # O mesmo valor do backend: 0 desliga também o cache do nginx (README, "Cache").
       API_CACHE_TTL_S: ${API_CACHE_TTL_S:-}
       # Proxy na frente do nginx cujo X-Forwarded-For vale como IP do cliente (ex.: o
       # Traefik do Dokploy, docs/deploy.md). O padrão só confia na própria máquina.
       NGINX_PROXY_CONFIAVEL: ${NGINX_PROXY_CONFIAVEL:-127.0.0.1/32}
+      # Limites da borda; vazio usa o padrão de frontend/limites-borda.envsh (README).
+      NGINX_LIMITE_IP: ${NGINX_LIMITE_IP:-}
+      NGINX_LIMITE_IP_POR_S: ${NGINX_LIMITE_IP_POR_S:-}
+      NGINX_LIMITE_IP_RAJADA: ${NGINX_LIMITE_IP_RAJADA:-}
+      NGINX_LIMITE_IP_SIMULTANEAS: ${NGINX_LIMITE_IP_SIMULTANEAS:-}
+      NGINX_LIMITE_BACKEND: ${NGINX_LIMITE_BACKEND:-}
+      NGINX_LIMITE_BACKEND_SIMULTANEAS: ${NGINX_LIMITE_BACKEND_SIMULTANEAS:-}
     depends_on:
       - backend
     ports:
       # Num servidor com outro serviço na 8080, troque a porta ou publique só em 127.0.0.1.
       - "${WEB_BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-8080}:8080"
 
+networks:
+  # Frontend e backend. O frontend não alcança o banco.
+  default:
+  # Backend e banco. Não é interna: o db-server baixa os dados do dados.gov.br na primeira subida.
+  banco:
+
 volumes:
   pgdata:
+  nginx-cache:

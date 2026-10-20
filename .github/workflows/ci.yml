@@ -127,7 +127,7 @@ jobs:
       - name: Testes (pytest)
         run: python -m pytest -rs
 
-  # Scripts da equipe (burndown): só biblioteca padrão, então não há dependências para auditar.
+  # Scripts da equipe (burndown e histórico): só biblioteca padrão, sem dependências para auditar.
   scripts:
     needs: detect
     if: needs.detect.outputs.scripts == 'true'
@@ -147,11 +147,13 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Instalar ferramentas de CI (com hash verificado)
         run: pip install --require-hashes --no-deps -r ../.github/ci/requirements.txt
-      # Só os arquivos do burndown: os scripts mais antigos não passavam pelo ruff.
+      # Só o burndown e o histórico: os scripts mais antigos não passavam pelo ruff.
       - name: Lint (ruff)
-        run: ruff check burndown.py tests && ruff format --check burndown.py tests
+        run: |
+          ruff check burndown.py historico_github.py tests
+          ruff format --check burndown.py historico_github.py tests
       - name: Análise de segurança (bandit)
-        run: bandit burndown.py -ll
+        run: bandit burndown.py historico_github.py -ll
       - name: Testes (pytest)
         run: python -m pytest
 

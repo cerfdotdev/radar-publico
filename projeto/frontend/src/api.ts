@@ -34,6 +34,8 @@ export type SearchOutcome =
   | { kind: 'empty' }
   /** 400, ou cargo e órgão sem correspondente: a mensagem aparece no próprio campo. */
   | { kind: 'invalid'; campo: CampoBusca; message: string }
+  /** 404 PAGINA_INEXISTENTE: link velho; `ultimaPagina` vem da mensagem da API, se ela disser. */
+  | { kind: 'no-page'; ultimaPagina: number | null }
   | { kind: 'error'; falha: Falha }
 
 const TENTE_DE_NOVO = 'Tente de novo em instantes.'
@@ -111,53 +113,28 @@ function parseServidor(value: unknown): Servidor | null {
   return similaridade === undefined ? servidor : { ...servidor, similaridade }
 }
 
+// Campos que só o detalhe traz; todos texto ou null (datas em AAAA-MM-DD).
+const CAMPOS_DETALHE = [
+  'codigo_carreira',
+  'tipo_aposentadoria',
+  'fundamento_legal',
+  'portaria',
+  'data_aposentadoria',
+  'forma_ingresso',
+  'data_ingresso',
+  'referencia',
+] as const satisfies readonly (keyof ServidorDetalhe)[]
+
 function parseServidorDetalhe(value: unknown): ServidorDetalhe | null {
   const servidor = parseServidor(value)
   if (servidor === null || !isRecord(value)) return null
-  const {
-    codigo_carreira,
-    tipo_aposentadoria,
-    fundamento_legal,
-    portaria,
-    data_aposentadoria,
-    forma_ingresso,
-    data_ingresso,
-    referencia,
-  } = value
-  const textos = [
-    codigo_carreira,
-    tipo_aposentadoria,
-    fundamento_legal,
-    portaria,
-    data_aposentadoria,
-    forma_ingresso,
-    data_ingresso,
-    referencia,
-  ]
-  if (
-    !textos.every(isStringOrNull) ||
-    !isStringOrNull(codigo_carreira) ||
-    !isStringOrNull(tipo_aposentadoria) ||
-    !isStringOrNull(fundamento_legal) ||
-    !isStringOrNull(portaria) ||
-    !isStringOrNull(data_aposentadoria) ||
-    !isStringOrNull(forma_ingresso) ||
-    !isStringOrNull(data_ingresso) ||
-    !isStringOrNull(referencia)
-  ) {
-    return null
+  const detalhe: Partial<ServidorDetalhe> = {}
+  for (const campo of CAMPOS_DETALHE) {
+    const valor = value[campo]
+    if (!isStringOrNull(valor)) return null
+    detalhe[campo] = valor
   }
-  return {
-    ...servidor,
-    codigo_carreira,
-    tipo_aposentadoria,
-    fundamento_legal,
-    portaria,
-    data_aposentadoria,
-    forma_ingresso,
-    data_ingresso,
-    referencia,
-  }
+  return { ...servidor, ...(detalhe as Pick<ServidorDetalhe, (typeof CAMPOS_DETALHE)[number]>) }
 }
 
 function parseMeta(value: unknown): Meta | null {
@@ -232,7 +209,13 @@ function falhaHttp(status: number, erro: ApiError | null, retryAfter: number | n
     case 'SERVIDOR_INDISPONIVEL':
       return { tom: 'erro', titulo: 'A API está fora do ar', texto: TENTE_DE_NOVO }
     case 'TEMPO_ESGOTADO':
-      return { tom: 'erro', titulo: 'A busca demorou demais e foi interrompida', texto: TENTE_DE_NOVO }
+      // docs/design/estados.html: o 504 explica a causa provável e o que fazer.
+      return {
+        tom: 'erro',
+        titulo: 'A busca demorou demais e foi interrompida',
+        texto:
+          'Buscas muito amplas, como um padrão curto (%SILVA%) ou só uma UF, comparam centenas de milhares de vínculos. Acrescente outra parte do nome ou outro filtro e tente de novo.',
+      }
     case 'ERRO_INTERNO':
       return { tom: 'erro', titulo: 'Algo deu errado do nosso lado', texto: TENTE_DE_NOVO }
     default:
@@ -264,6 +247,7 @@ const CAMPO_DO_PARAMETRO = new Map<string, CampoBusca>([
   ['uf', 'uf'],
 ])
 const PARAMETRO_DA_MENSAGEM = /^'([a-z_]+)'/
+const TOTAL_DE_PAGINAS_NA_MENSAGEM = /tem (\d+) página/
 
 /** Erro que é de um campo do formulário (docs/design/estados.html, "Entrada inválida"), ou null. */
 function erroDeCampo(
@@ -307,6 +291,11 @@ function interpretarResposta(response: Response, corpo: string, parametros: Para
 
   const erro = parseApiError(json)
   if (erro?.code === 'NAO_ENCONTRADO') return { kind: 'empty' }
+  if (erro?.code === 'PAGINA_INEXISTENTE') {
+    // "A página 40 não existe; esta busca tem 3 página(s)."
+    const total = TOTAL_DE_PAGINAS_NA_MENSAGEM.exec(erro.message)?.[1]
+    return { kind: 'no-page', ultimaPagina: total === undefined ? null : Number(total) }
+  }
   const invalido = erro === null ? null : erroDeCampo(response.status, erro, parametros)
   if (invalido !== null) return invalido
   return { kind: 'error', falha: falhaHttp(response.status, erro, lerRetryAfter(response.headers)) }
@@ -337,17 +326,14 @@ function montarQuery(parametros: ParametrosBusca): string {
   return query.toString()
 }
 
+type Pedido = { kind: 'resposta'; response: Response; corpo: string } | { kind: 'falha'; falha: Falha }
+
 /**
- * Busca servidores pelo nome exato ou por filtros combinados. Nunca rejeita por erro
- * de rede, HTTP ou formato: tudo vira um SearchOutcome. Só rejeita (AbortError)
- * quando `signal` cancela a busca.
+ * GET em JSON com tempo limite. Falha de rede e tempo esgotado viram uma Falha para a
+ * tela; só rejeita (AbortError) quando `signal` cancela o pedido.
  */
-export async function buscarServidores(
-  busca: string | ParametrosBusca,
-  signal: AbortSignal,
-): Promise<SearchOutcome> {
+async function pedir(url: string, signal: AbortSignal): Promise<Pedido> {
   if (signal.aborted) throw new DOMException('Busca cancelada.', 'AbortError')
-  const parametros: ParametrosBusca = typeof busca === 'string' ? { nome: busca } : busca
 
   // Controller próprio para os dois motivos de parar: o tempo limite (vira erro na tela)
   // e o cancelamento por quem chamou (busca nova ou tela fechada, que é ignorado).
@@ -360,24 +346,34 @@ export async function buscarServidores(
     controller.abort()
   }, SEARCH_TIMEOUT_MS)
 
-  let response: Response
-  let corpo: string
   try {
-    const query = montarQuery(parametros)
-    response = await fetch(`${SERVIDORES_URL}?${query}`, {
+    const response = await fetch(url, {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
     })
-    corpo = await response.text()
+    return { kind: 'resposta', response, corpo: await response.text() }
   } catch (erro) {
     if (signal.aborted) throw erro
-    return { kind: 'error', falha: expirou ? FALHA_TEMPO_LIMITE : FALHA_SEM_CONEXAO }
+    return { kind: 'falha', falha: expirou ? FALHA_TEMPO_LIMITE : FALHA_SEM_CONEXAO }
   } finally {
     clearTimeout(timer)
     signal.removeEventListener('abort', cancelar)
   }
+}
 
-  return interpretarResposta(response, corpo, parametros)
+/**
+ * Busca servidores pelo nome exato ou por filtros combinados. Nunca rejeita por erro
+ * de rede, HTTP ou formato: tudo vira um SearchOutcome. Só rejeita (AbortError)
+ * quando `signal` cancela a busca.
+ */
+export async function buscarServidores(
+  busca: string | ParametrosBusca,
+  signal: AbortSignal,
+): Promise<SearchOutcome> {
+  const parametros: ParametrosBusca = typeof busca === 'string' ? { nome: busca } : busca
+  const pedido = await pedir(`${SERVIDORES_URL}?${montarQuery(parametros)}`, signal)
+  if (pedido.kind === 'falha') return { kind: 'error', falha: pedido.falha }
+  return interpretarResposta(pedido.response, pedido.corpo, parametros)
 }
 
 export type DetailOutcome =
@@ -385,36 +381,13 @@ export type DetailOutcome =
   | { kind: 'error'; falha: Falha }
 
 /**
- * Busca o detalhe de um vínculo por id. Como a busca, nunca rejeita por erro de
- * rede, HTTP ou formato; só rejeita quando `signal` cancela.
+ * Detalhe de um vínculo (GET /api/servidores/<id>). Como a busca, nunca rejeita por
+ * erro de rede, HTTP ou formato; só rejeita quando `signal` cancela.
  */
 export async function buscarServidor(id: number, signal: AbortSignal): Promise<DetailOutcome> {
-  if (signal.aborted) throw new DOMException('Busca cancelada.', 'AbortError')
-
-  const controller = new AbortController()
-  const cancelar = () => controller.abort()
-  signal.addEventListener('abort', cancelar)
-  let expirou = false
-  const timer = setTimeout(() => {
-    expirou = true
-    controller.abort()
-  }, SEARCH_TIMEOUT_MS)
-
-  let response: Response
-  let corpo: string
-  try {
-    response = await fetch(`${SERVIDORES_URL}/${id}`, {
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
-    })
-    corpo = await response.text()
-  } catch (erro) {
-    if (signal.aborted) throw erro
-    return { kind: 'error', falha: expirou ? FALHA_TEMPO_LIMITE : FALHA_SEM_CONEXAO }
-  } finally {
-    clearTimeout(timer)
-    signal.removeEventListener('abort', cancelar)
-  }
+  const pedido = await pedir(`${SERVIDORES_URL}/${id}`, signal)
+  if (pedido.kind === 'falha') return { kind: 'error', falha: pedido.falha }
+  const { response, corpo } = pedido
 
   const json = lerJson(corpo)
   if (response.ok) {

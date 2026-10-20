@@ -60,6 +60,21 @@ export function validarSimilar(termo: string): string | null {
   return null
 }
 
+// Partes do nome que o padrão parecido sugerido deixa de fora (docs/design/estados.html).
+const CONECTIVOS = new Set(['DA', 'DAS', 'DE', 'DO', 'DOS', 'E'])
+
+/**
+ * Nome exato sem resultado como padrão parecido: "João da Silva" -> "%JOAO%SILVA%".
+ * Null quando o padrão não passaria na validação (ex.: menos de 3 letras).
+ */
+export function padraoParecido(nome: string): string | null {
+  const partes = normalizarNome(nome)
+    .split(' ')
+    .filter((parte) => parte !== '' && !CONECTIVOS.has(parte))
+  const padrao = `%${partes.join('%')}%`
+  return validarSimilar(padrao) === null ? padrao : null
+}
+
 /** Cargo e órgão: texto opcional, com as mesmas regras de tamanho do nome. */
 export function validarTexto(valor: string, rotulo: string): string | null {
   const normalizado = normalizarNome(valor)

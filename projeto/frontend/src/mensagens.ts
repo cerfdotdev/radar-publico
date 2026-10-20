@@ -39,7 +39,7 @@ export function tituloResultados(busca: Busca, meta: Meta): string {
   return `${formatInteger(meta.total)} ${rotulo}${descreverBusca(busca)}`
 }
 
-/** Quando a página não traz todos os resultados. */
+/** Quantos resultados estão na tela, para a região viva; a barra de paginação mostra o mesmo. */
 export function textoParcial(quantidade: number, meta: Meta): string | null {
   if (meta.total <= quantidade) return null
   if (meta.page > 1) {
@@ -50,6 +50,10 @@ export function textoParcial(quantidade: number, meta: Meta): string | null {
   return quantidade === 1
     ? 'Mostrando só o primeiro.'
     : `Mostrando os ${formatInteger(quantidade)} primeiros.`
+}
+
+export function tituloPaginaInexistente(pagina: number): string {
+  return `A página ${formatInteger(pagina)} não existe nesta busca`
 }
 
 export function tituloVazio(busca: Busca): string {
@@ -73,6 +77,8 @@ export function anunciar(state: SearchState): string {
     }
     case 'empty':
       return `${tituloVazio(state.busca)}.`
+    case 'no-page':
+      return `${tituloPaginaInexistente(state.busca.pagina)}.`
     case 'error':
       return state.falha.tom === 'info' ? `${state.falha.titulo}. ${state.falha.texto}` : ''
     default:

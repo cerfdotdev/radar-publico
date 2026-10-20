@@ -1,8 +1,8 @@
 /* Componentes do Radar Público. Usa apenas variáveis de tokens.css. */
 
-h1, h2, h3 { margin: 0; font-weight: 600; text-wrap: balance; }
+h1, h2, h3, h4 { margin: 0; font-weight: 600; text-wrap: balance; }
 p { margin: 0; text-wrap: pretty; }
-:is(h1, h2, h3) + p { margin-top: 6px; }
+:is(h1, h2, h3, h4) + p { margin-top: 6px; }
 a { color: var(--primary-text); }
 a:hover { color: var(--primary-hover); }
 .mono { font-family: var(--mono); }
@@ -102,6 +102,10 @@ a:hover { color: var(--primary-hover); }
 .paginacao a[aria-current="page"] { border-color: var(--ink); background: var(--ink); color: var(--bg); font-weight: 600; }
 .paginacao a[aria-disabled="true"] { color: var(--line-strong); pointer-events: none; }
 .paginacao__reticencias { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; color: var(--ink-2); }
+.paginacao__celular { display: none; }
+
+/* Falha com "Tentar de novo" (docs/design/estados.html) */
+.falha { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
 
 /* Detalhe do vínculo (resultado único) */
 .detalhe { display: flex; flex-direction: column; gap: var(--s-5); }
@@ -160,6 +164,7 @@ a:hover { color: var(--primary-hover); }
 .aviso--erro { background: var(--err-bg); border-color: var(--err-line); color: var(--err-fg); }
 .estado-vazio { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); padding: 28px; border: 1px solid var(--line); border-radius: var(--r-painel); background: var(--surface); }
 .estado-vazio p { max-width: 60ch; color: var(--ink-2); }
+.estado-vazio .btn { padding-block: var(--s-2); overflow-wrap: anywhere; } /* texto longo quebra dentro do botão */
 
 /* Esqueleto de carregamento */
 .esqueleto { border: 1px solid var(--line); border-radius: var(--r-painel); overflow: hidden; }
@@ -199,6 +204,9 @@ a:hover { color: var(--primary-hover); }
   .busca__filtros:not(.busca__filtros--aberto) { display: none; }
   .busca__linha .btn { width: 100%; order: 3; }
   .cabecalho-vinculo__valor { align-items: flex-start; }
+  .por-pagina, .paginacao__paginas, .paginacao > span { display: none; }
+  .paginacao__celular { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--s-2); width: 100%; }
+  .paginacao__celular a { min-height: 48px; }
   .tabela-caixa { display: none; }
   .lista { display: block; }
 }

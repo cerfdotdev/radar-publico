@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { buscarServidores, FALHA_INESPERADA, type ParametrosBusca, type SearchOutcome } from './api'
+import { buscarServidores, FALHA_INESPERADA, TOTAL_CAP, type ParametrosBusca, type SearchOutcome } from './api'
 import { aceitaFiltros, LIMITE_PADRAO, validarBusca } from './filtros'
 import { limparNome } from './nome'
 import type { Busca, ModoBusca } from './types'
@@ -14,8 +14,15 @@ export const UF_PARAM = 'uf'
 export const PAGE_PARAM = 'page'
 export const PER_PAGE_PARAM = 'per_page'
 
-export const PAGINA_PADRAO = 1
+/** `page` e `per_page` de docs/api.md. Só existem páginas até o 10.000º resultado. */
+export const PAGINA_MIN = 1
+export const PAGINA_PADRAO = PAGINA_MIN
+export const PAGINA_MAX = TOTAL_CAP
+export const POR_PAGINA_MIN = 1
+export const POR_PAGINA_MAX = 100
 export const POR_PAGINA_PADRAO = 20
+/** Opções do seletor "Por página" (docs/design/busca.html). */
+export const POR_PAGINA_OPCOES = [20, 50, 100] as const
 
 const PARAMETROS = [
   NOME_PARAM,
@@ -56,9 +63,9 @@ function lerLimite(valor: string | null): number {
   return /^\d+$/.test(valor.trim()) ? Number(valor) : Number.NaN
 }
 
+/** Página e itens por página da URL; fora da faixa da API, vale o padrão (link velho ou digitado). */
 function lerInteiro(valor: string | null, padrao: number, minimo: number, maximo: number): number {
-  if (valor === null) return padrao
-  if (!/^\d+$/.test(valor)) return padrao
+  if (valor === null || !/^\d+$/.test(valor.trim())) return padrao
   const numero = Number(valor)
   return numero >= minimo && numero <= maximo ? numero : padrao
 }
@@ -74,15 +81,18 @@ function lerBuscaDaUrl(): Busca | null {
     cargo: ler(CARGO_PARAM),
     orgao: ler(ORGAO_PARAM),
     uf: ler(UF_PARAM).toUpperCase(),
-    pagina: lerInteiro(params.get(PAGE_PARAM), PAGINA_PADRAO, 1, 10_000),
-    porPagina: lerInteiro(params.get(PER_PAGE_PARAM), POR_PAGINA_PADRAO, 1, 100),
+    pagina: lerInteiro(params.get(PAGE_PARAM), PAGINA_PADRAO, PAGINA_MIN, PAGINA_MAX),
+    porPagina: lerInteiro(params.get(PER_PAGE_PARAM), POR_PAGINA_PADRAO, POR_PAGINA_MIN, POR_PAGINA_MAX),
   }
   const vazia =
     busca.termo === '' && busca.cargo === '' && busca.orgao === '' && busca.uf === '' && busca.limite === LIMITE_PADRAO
   return vazia ? null : busca
 }
 
-/** O que vai para a API e para a URL: só os filtros preenchidos que o modo aceita. */
+/**
+ * O que vai para a API e para a URL: só os filtros preenchidos que o modo aceita.
+ * A busca parecida também não pagina: a API devolve tudo de uma vez, até o limite.
+ */
 function parametrosDaBusca(busca: Busca): ParametrosBusca {
   if (!aceitaFiltros(busca.modo)) return { similar: busca.termo, limit: busca.limite }
   const parametros: ParametrosBusca = {}
@@ -93,6 +103,22 @@ function parametrosDaBusca(busca: Busca): ParametrosBusca {
   if (busca.pagina !== PAGINA_PADRAO) parametros.page = busca.pagina
   if (busca.porPagina !== POR_PAGINA_PADRAO) parametros.per_page = busca.porPagina
   return parametros
+}
+
+function montarUrl(busca: Busca): URL {
+  const url = new URL(window.location.href)
+  for (const parametro of PARAMETROS) url.searchParams.delete(parametro)
+  for (const [parametro, valor] of Object.entries(parametrosDaBusca(busca))) {
+    url.searchParams.set(parametro, String(valor))
+  }
+  if (url.searchParams.toString() === '') url.search = ''
+  return url
+}
+
+/** Link da busca (paginação, "ir para a página"): abre igual em outra aba. */
+export function hrefDaBusca(busca: Busca): string {
+  const url = montarUrl(busca)
+  return `${url.pathname}${url.search}`
 }
 
 function estadoAtual(busca: Busca | null, resposta: Resposta | null): SearchState {
@@ -136,13 +162,7 @@ export function useBuscaServidores() {
   }, [busca])
 
   const buscar = useCallback((novaBusca: Busca) => {
-    const url = new URL(window.location.href)
-    for (const parametro of PARAMETROS) url.searchParams.delete(parametro)
-    for (const [parametro, valor] of Object.entries(parametrosDaBusca(novaBusca))) {
-      url.searchParams.set(parametro, String(valor))
-    }
-    if (url.searchParams.toString() === '') url.search = ''
-
+    const url = montarUrl(novaBusca)
     // Repetir a busca atual não empilha outra entrada igual no histórico.
     if (url.search === window.location.search) {
       window.history.replaceState(null, '', url)

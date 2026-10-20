@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCurrency } from './format'
+import { formatCurrency, formatDate, formatReference, formatSimilaridade } from './format'
 import { limparNome, NOME_MAX_CHARS, normalizarNome, validarNome } from './nome'
 
 describe('nome', () => {
@@ -37,5 +37,23 @@ describe('formatCurrency', () => {
   it('nunca mostra NaN', () => {
     expect(formatCurrency(Number.NaN)).toBe('—')
     expect(formatCurrency(Number.POSITIVE_INFINITY)).toBe('—')
+  })
+})
+
+describe('datas e semelhança', () => {
+  it('datas ISO da API viram DD/MM/AAAA e o mês de referência MM/AAAA', () => {
+    expect(formatDate('1990-07-02')).toBe('02/07/1990')
+    expect(formatReference('2026-05')).toBe('05/2026')
+  })
+
+  it('fora do formato, devolvem o texto como veio', () => {
+    expect(formatDate('02/07/1990')).toBe('02/07/1990')
+    expect(formatDate('1990-7-2')).toBe('1990-7-2')
+    expect(formatReference('maio de 2026')).toBe('maio de 2026')
+  })
+
+  it('semelhança com duas casas, em pt-BR', () => {
+    expect(formatSimilaridade(0.8571)).toBe('0,86')
+    expect(formatSimilaridade(1)).toBe('1,00')
   })
 })

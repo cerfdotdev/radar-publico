@@ -1,46 +1,93 @@
+import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import { TOTAL_CAP, type Falha } from './api'
-import type { MouseEvent } from 'react'
 import { DetalheServidor } from './DetalheServidor'
+import { LIMITE_PADRAO, padraoParecido } from './filtros'
 import { formatInteger } from './format'
-import { temFiltros, textoParcial, tituloResultados, tituloVazio, totalLimitado } from './mensagens'
+import { temFiltros, tituloPaginaInexistente, tituloResultados, tituloVazio, totalLimitado } from './mensagens'
+import { Paginacao } from './Paginacao'
 import { ResultsList } from './ResultsList'
 import { ResultsTable } from './ResultsTable'
 import type { Busca, Meta, Servidor } from './types'
-import { PAGE_PARAM, type SearchState } from './useBuscaServidores'
+import { hrefDaBusca, PAGINA_PADRAO, POR_PAGINA_OPCOES, type SearchState } from './useBuscaServidores'
 
 interface SearchResultsProps {
   state: SearchState
-  onPagina?: (pagina: number) => void
-  onPorPagina?: (porPagina: number) => void
+  /**
+   * Ação vinda da própria área de resultados (página, itens por página, tentar de novo):
+   * o elemento clicado some durante o carregamento, então o foco vai para o título do
+   * que aparecer em seguida (`focarTitulo`).
+   */
+  onNavegar: (busca: Busca) => void
+  focarTitulo: boolean
 }
 
 /** Área abaixo do formulário: um componente por estado da busca (docs/design/estados.html). */
-export function SearchResults({
-  state,
-  onPagina = () => undefined,
-  onPorPagina = () => undefined,
-}: SearchResultsProps) {
+export function SearchResults({ state, onNavegar, focarTitulo }: SearchResultsProps) {
   switch (state.kind) {
     case 'loading':
       return <Esqueleto />
     case 'empty':
-      return <EstadoVazio busca={state.busca} />
+      return <EstadoVazio busca={state.busca} focarTitulo={focarTitulo} onNavegar={onNavegar} />
+    case 'no-page':
+      return (
+        <PaginaInexistente
+          busca={state.busca}
+          ultimaPagina={state.ultimaPagina}
+          focarTitulo={focarTitulo}
+          onNavegar={onNavegar}
+        />
+      )
     case 'error':
-      return <AvisoFalha falha={state.falha} />
+      return <AvisoFalha falha={state.falha} onTentarDeNovo={() => onNavegar({ ...state.busca })} />
     case 'ok':
       return (
         <Resultados
           busca={state.busca}
           servidores={state.servidores}
           meta={state.meta}
-          onPagina={onPagina}
-          onPorPagina={onPorPagina}
+          focarTitulo={focarTitulo}
+          onNavegar={onNavegar}
         />
       )
     default:
       // Ocioso, ou erro de validação, que aparece no próprio campo.
       return null
   }
+}
+
+/** Título que recebe o foco ao aparecer, quando a busca veio de um clique nos resultados. */
+function useFocoNoTitulo(focar: boolean) {
+  const ref = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (focar) ref.current?.focus()
+  }, [focar])
+  return ref
+}
+
+/** Link para outra busca que abre igual em outra aba; o clique comum busca sem recarregar. */
+function LinkDeBusca({
+  busca,
+  onNavegar,
+  className,
+  children,
+}: {
+  busca: Busca
+  onNavegar: (busca: Busca) => void
+  className: string
+  children: ReactNode
+}) {
+  return (
+    <a
+      className={className}
+      href={hrefDaBusca(busca)}
+      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+        event.preventDefault()
+        onNavegar(busca)
+      }}
+    >
+      {children}
+    </a>
+  )
 }
 
 function Esqueleto() {
@@ -67,13 +114,34 @@ function Esqueleto() {
   )
 }
 
-function EstadoVazio({ busca }: { busca: Busca }) {
+interface EstadoProps {
+  busca: Busca
+  focarTitulo: boolean
+  onNavegar: (busca: Busca) => void
+}
+
+function EstadoVazio({ busca, focarTitulo, onNavegar }: EstadoProps) {
+  const tituloRef = useFocoNoTitulo(focarTitulo)
+  // Nome exato sem filtros: oferece a busca parecida já montada (docs/design/estados.html).
+  const padrao = busca.modo === 'exato' && !temFiltros(busca) ? padraoParecido(busca.termo) : null
   return (
     <section className="estado-vazio" aria-labelledby="vazio-titulo">
-      <h2 className="subtitulo" id="vazio-titulo">
+      <h2 className="subtitulo" id="vazio-titulo" ref={tituloRef} tabIndex={-1}>
         {tituloVazio(busca)}
       </h2>
       <p>{explicacaoVazio(busca)}</p>
+      {padrao !== null && (
+        <LinkDeBusca
+          className="btn btn--secundario"
+          busca={{ ...busca, modo: 'similar', termo: padrao, limite: LIMITE_PADRAO, pagina: PAGINA_PADRAO }}
+          onNavegar={onNavegar}
+        >
+          {/* Um só bloco de texto: no celular, quebra como frase, não em colunas do flex. */}
+          <span>
+            Buscar nomes parecidos: <span className="mono">{padrao}</span>
+          </span>
+        </LinkDeBusca>
+      )}
     </section>
   )
 }
@@ -88,7 +156,28 @@ function explicacaoVazio(busca: Busca): string {
   return 'A busca por nome exato só encontra o nome completo, escrito como no registro. Nomes do meio abreviados ou trocados não aparecem.'
 }
 
-function AvisoFalha({ falha }: { falha: Falha }) {
+/** 404 PAGINA_INEXISTENTE: link antigo ou página digitada na URL; leva à última página válida. */
+function PaginaInexistente({ busca, ultimaPagina, focarTitulo, onNavegar }: EstadoProps & { ultimaPagina: number | null }) {
+  const tituloRef = useFocoNoTitulo(focarTitulo)
+  const destino = ultimaPagina ?? PAGINA_PADRAO
+  const paginas = ultimaPagina === 1 ? '1 página' : `${formatInteger(destino)} páginas`
+  return (
+    <section className="estado-vazio" aria-labelledby="pagina-titulo">
+      <h2 className="subtitulo" id="pagina-titulo" ref={tituloRef} tabIndex={-1}>
+        {tituloPaginaInexistente(busca.pagina)}
+      </h2>
+      <p>
+        {ultimaPagina === null ? '' : `Esta busca tem ${paginas}. `}O link pode ser de uma busca anterior, com outros
+        resultados.
+      </p>
+      <LinkDeBusca className="btn btn--primario" busca={{ ...busca, pagina: destino }} onNavegar={onNavegar}>
+        {ultimaPagina === null ? 'Ir para a primeira página' : `Ir para a página ${formatInteger(destino)}`}
+      </LinkDeBusca>
+    </section>
+  )
+}
+
+function AvisoFalha({ falha, onTentarDeNovo }: { falha: Falha; onTentarDeNovo: () => void }) {
   if (falha.tom === 'info') {
     // Limite de uso: tom informativo, anunciado pela região viva da página.
     return (
@@ -105,16 +194,21 @@ function AvisoFalha({ falha }: { falha: Falha }) {
     )
   }
   return (
-    <div className="aviso aviso--erro" role="alert">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-      <div>
-        <strong>{falha.titulo}</strong>
-        <span>{falha.texto}</span>
+    <div className="falha">
+      <div className="aviso aviso--erro" role="alert">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
+        </svg>
+        <div>
+          <strong>{falha.titulo}</strong>
+          <span>{falha.texto}</span>
+        </div>
       </div>
+      <button className="btn btn--secundario" type="button" onClick={onTentarDeNovo}>
+        Tentar de novo
+      </button>
     </div>
   )
 }
@@ -123,40 +217,42 @@ interface ResultadosProps {
   busca: Busca
   servidores: Servidor[]
   meta: Meta
-  onPagina: (pagina: number) => void
-  onPorPagina: (porPagina: number) => void
+  focarTitulo: boolean
+  onNavegar: (busca: Busca) => void
 }
 
-function Resultados({ busca, servidores, meta, onPagina, onPorPagina }: ResultadosProps) {
-  const parcial = textoParcial(servidores.length, meta)
+function Resultados({ busca, servidores, meta, focarTitulo, onNavegar }: ResultadosProps) {
+  const tituloRef = useFocoNoTitulo(focarTitulo)
   const similar = busca.modo === 'similar'
   const unico = meta.total === 1 && servidores.length === 1
+  // A busca parecida vem inteira, até o limite, sem páginas; o resultado único vira o detalhe.
+  const paginada = !similar && !unico
+  const opcoesPorPagina: number[] = [...POR_PAGINA_OPCOES]
+  if (!opcoesPorPagina.includes(meta.per_page)) opcoesPorPagina.push(meta.per_page)
 
   return (
     <section className="resultados" aria-labelledby="res-titulo">
       <div className="resultados__topo">
         <div>
-          <h2 className="titulo-secao" id="res-titulo">
+          <h2 className="titulo-secao" id="res-titulo" ref={tituloRef} tabIndex={-1}>
             {tituloResultados(busca, meta)}
           </h2>
-          {parcial !== null && <p className="aux">{parcial}</p>}
         </div>
-        {!unico && (
+        {paginada && (
           <label className="por-pagina">
             Por página
             <select
               value={meta.per_page}
-              onChange={(event) => onPorPagina(Number(event.target.value))}
+              onChange={(event) =>
+                onNavegar({ ...busca, pagina: PAGINA_PADRAO, porPagina: Number(event.target.value) })
+              }
               aria-label="Resultados por página"
             >
-              {[20, 50, 100].map((quantidade) => (
+              {opcoesPorPagina.map((quantidade) => (
                 <option key={quantidade} value={quantidade}>
                   {quantidade}
                 </option>
               ))}
-              {![20, 50, 100].includes(meta.per_page) && (
-                <option value={meta.per_page}>{meta.per_page}</option>
-              )}
             </select>
           </label>
         )}
@@ -171,116 +267,22 @@ function Resultados({ busca, servidores, meta, onPagina, onPorPagina }: Resultad
           <div>
             <strong>Refine a busca</strong>
             <span>
-              A contagem para em {formatInteger(TOTAL_CAP)} resultados. Acrescente o nome completo ou outro filtro
-              para chegar a quem você procura.
+              A contagem para em {formatInteger(TOTAL_CAP)} resultados e só eles têm páginas. Acrescente o nome completo
+              ou outro filtro para chegar a quem você procura.
             </span>
           </div>
         </div>
       )}
 
       {unico ? (
-        <DetalheServidor resumo={servidores[0]} />
+        <DetalheServidor key={servidores[0].id} resumo={servidores[0]} />
       ) : (
         <>
           <ResultsTable servidores={servidores} similar={similar} />
           <ResultsList servidores={servidores} similar={similar} />
-          <Paginacao
-            meta={meta}
-            quantidade={servidores.length}
-            onPagina={onPagina}
-          />
+          {paginada && <Paginacao busca={busca} meta={meta} quantidade={servidores.length} onNavegar={onNavegar} />}
         </>
       )}
     </section>
-  )
-}
-
-function paginasVisiveis(atual: number, total: number): (number | null)[] {
-  if (total <= 7) return Array.from({ length: total }, (_, indice) => indice + 1)
-  const paginas = [...new Set([1, atual - 1, atual, atual + 1, total])]
-    .filter((pagina) => pagina >= 1 && pagina <= total)
-    .sort((a, b) => a - b)
-  const resultado: (number | null)[] = []
-  for (const pagina of paginas) {
-    const anterior = resultado[resultado.length - 1]
-    if (typeof anterior === 'number' && pagina - anterior > 1) resultado.push(null)
-    resultado.push(pagina)
-  }
-  return resultado
-}
-
-function Paginacao({
-  meta,
-  quantidade,
-  onPagina,
-}: {
-  meta: Meta
-  quantidade: number
-  onPagina: (pagina: number) => void
-}) {
-  if (meta.total_pages <= 1) return null
-  const inicio = (meta.page - 1) * meta.per_page + 1
-  const fim = inicio + quantidade - 1
-
-  const hrefPagina = (pagina: number) => {
-    const params = new URLSearchParams(window.location.search)
-    if (pagina <= 1) params.delete(PAGE_PARAM)
-    else params.set(PAGE_PARAM, String(pagina))
-    const query = params.toString()
-    return `${window.location.pathname}${query === '' ? '' : `?${query}`}`
-  }
-
-  const navegar = (event: MouseEvent<HTMLAnchorElement>, pagina: number) => {
-    event.preventDefault()
-    if (pagina >= 1 && pagina <= meta.total_pages && pagina !== meta.page) onPagina(pagina)
-  }
-
-  return (
-    <nav className="paginacao" aria-label="Paginação">
-      <span className="aux">
-        Mostrando {formatInteger(inicio)}–{formatInteger(fim)} de {formatInteger(meta.total)} · página {meta.page} de{' '}
-        {meta.total_pages}
-      </span>
-      <div className="paginacao__paginas">
-        <a
-          href={hrefPagina(meta.page - 1)}
-          aria-label="Página anterior"
-          aria-disabled={meta.page <= 1}
-          tabIndex={meta.page <= 1 ? -1 : undefined}
-          onClick={(event) => navegar(event, meta.page - 1)}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </a>
-        {paginasVisiveis(meta.page, meta.total_pages).map((pagina, indice) =>
-          pagina === null ? (
-            <span className="paginacao__reticencias" key={`intervalo-${indice}`} aria-hidden="true">
-              …
-            </span>
-          ) : (
-            <a
-              key={pagina}
-              href={hrefPagina(pagina)}
-              aria-current={pagina === meta.page ? 'page' : undefined}
-              onClick={(event) => navegar(event, pagina)}
-            >
-              {pagina}
-            </a>
-          ),
-        )}
-        <a
-          href={hrefPagina(meta.page + 1)}
-          aria-label="Próxima página"
-          aria-disabled={meta.page >= meta.total_pages}
-          tabIndex={meta.page >= meta.total_pages ? -1 : undefined}
-          onClick={(event) => navegar(event, meta.page + 1)}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </a>
-      </div>
-    </nav>
   )
 }

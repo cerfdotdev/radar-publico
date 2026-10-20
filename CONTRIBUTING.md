@@ -43,7 +43,7 @@ Todo PR roda o workflow **CI**. O merge só é liberado com o check `ci-ok` verd
 | Backend | `ruff`, `bandit`, `pip-audit`, `pytest` com cobertura mínima de 70% e Postgres real | `pip install -r .github/ci/requirements.txt` e os mesmos comandos dentro de `projeto/backend` |
 | Frontend | `npm ci --ignore-scripts`, `npm audit signatures`, `npm audit`, lint, testes, build | `npm ci && npm run lint && npm test` |
 | Docker | `docker compose config`, `hadolint`, build, scan de vulnerabilidades (Grype), smoke test com `docker compose up` | `docker compose up --build` |
-| Scripts | `ruff`, `bandit` e `pytest` do burndown (`scripts/burndown.py`) | os mesmos comandos dentro de `scripts/` |
+| Scripts | `ruff`, `bandit` e `pytest` do burndown e do histórico (`scripts/burndown.py` e `scripts/historico_github.py`) | os mesmos comandos dentro de `scripts/` |
 | Geral | CodeQL, revisão de dependências do PR, auditoria dos workflows (zizmor) | — |
 
 O backend espera os testes em `projeto/backend/tests/` e lê o banco de `DATABASE_URL`.

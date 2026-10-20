@@ -6,7 +6,8 @@ export const NOME_MAX_CHARS = 100
 
 // Depois da normalização, como no backend: só letras sem acento, espaço, ' . e -.
 const NOME_PERMITIDO = /^[A-Z .'-]+$/
-const SEQUENCIA_PROIBIDA = '--'
+/** Recusada em todos os textos da busca (docs/api.md). */
+export const SEQUENCIA_PROIBIDA = '--'
 
 /** "  Maria   da Silva " -> "Maria da Silva". Mantém acentos e maiúsculas como digitados. */
 export function limparNome(nome: string): string {

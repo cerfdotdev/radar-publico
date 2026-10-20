@@ -17,6 +17,9 @@ export interface Busca {
   uf: string
 }
 
+/** Campo do formulário que recebe um erro de validação, local ou da API. */
+export type CampoBusca = 'termo' | 'limite' | 'cargo' | 'orgao' | 'uf'
+
 export interface Servidor {
   id: number
   nome: string
@@ -29,6 +32,8 @@ export interface Servidor {
   uf: string | null
   // O contrato diz número, mas a coluna aceita NULL e o backend repassa null.
   valor: number | null
+  /** Só na busca por `similar`: semelhança com o padrão, de 0 a 1. */
+  similaridade?: number
 }
 
 export interface Meta {

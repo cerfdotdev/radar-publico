@@ -1,5 +1,5 @@
 // Cliente de GET /api/servidores (docs/api.md): requisição, tempo limite e validação da resposta.
-import type { ApiError, Meta, Servidor, ServidoresResponse } from './types'
+import type { ApiError, CampoBusca, Meta, Servidor, ServidoresResponse } from './types'
 
 export const SERVIDORES_URL = '/api/servidores'
 /**
@@ -13,6 +13,7 @@ const MS_PER_SECOND = 1000
 
 const HttpStatus = {
   BAD_REQUEST: 400,
+  NOT_FOUND: 404,
   TOO_MANY_REQUESTS: 429,
   INTERNAL_SERVER_ERROR: 500,
   BAD_GATEWAY: 502,
@@ -31,8 +32,8 @@ export interface Falha {
 export type SearchOutcome =
   | { kind: 'ok'; servidores: Servidor[]; meta: Meta }
   | { kind: 'empty' }
-  /** 400: a mensagem da API aparece no próprio campo. */
-  | { kind: 'invalid'; message: string }
+  /** 400, ou cargo e órgão sem correspondente: a mensagem aparece no próprio campo. */
+  | { kind: 'invalid'; campo: CampoBusca; message: string }
   | { kind: 'error'; falha: Falha }
 
 const TENTE_DE_NOVO = 'Tente de novo em instantes.'
@@ -85,9 +86,13 @@ function isCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
 }
 
+function isSimilaridade(value: unknown): value is number {
+  return typeof value === 'number' && value >= 0 && value <= 1
+}
+
 function parseServidor(value: unknown): Servidor | null {
   if (!isRecord(value)) return null
-  const { id, nome, situacao, cargo, orgao, sigla_orgao, uf, valor } = value
+  const { id, nome, situacao, cargo, orgao, sigla_orgao, uf, valor, similaridade } = value
   if (
     typeof id !== 'number' ||
     !Number.isSafeInteger(id) ||
@@ -97,11 +102,13 @@ function parseServidor(value: unknown): Servidor | null {
     typeof orgao !== 'string' ||
     !isStringOrNull(sigla_orgao) ||
     !isStringOrNull(uf) ||
-    !(valor === null || (typeof valor === 'number' && Number.isFinite(valor)))
+    !(valor === null || (typeof valor === 'number' && Number.isFinite(valor))) ||
+    !(similaridade === undefined || isSimilaridade(similaridade))
   ) {
     return null
   }
-  return { id, nome, situacao, cargo, orgao, sigla_orgao, uf, valor }
+  const servidor: Servidor = { id, nome, situacao, cargo, orgao, sigla_orgao, uf, valor }
+  return similaridade === undefined ? servidor : { ...servidor, similaridade }
 }
 
 function parseMeta(value: unknown): Meta | null {
@@ -191,7 +198,47 @@ function lerJson(corpo: string): unknown {
   }
 }
 
-function interpretarResposta(response: Response, corpo: string): SearchOutcome {
+// Parâmetro da query -> campo do formulário. As mensagens de 400 da API começam pelo
+// parâmetro entre aspas ("'limit' deve estar entre 1 e 100."); sem ele, vale o nome.
+const CAMPO_DO_PARAMETRO = new Map<string, CampoBusca>([
+  ['nome', 'termo'],
+  ['similar', 'termo'],
+  ['limit', 'limite'],
+  ['cargo', 'cargo'],
+  ['orgao', 'orgao'],
+  ['uf', 'uf'],
+])
+const PARAMETRO_DA_MENSAGEM = /^'([a-z_]+)'/
+
+/** Erro que é de um campo do formulário (docs/design/estados.html, "Entrada inválida"), ou null. */
+function erroDeCampo(
+  status: number,
+  erro: ApiError,
+  parametros: ParametrosBusca,
+): Extract<SearchOutcome, { kind: 'invalid' }> | null {
+  if (status === HttpStatus.NOT_FOUND && erro.code === 'CARGO_NAO_ENCONTRADO') {
+    const texto = parametros.cargo ?? ''
+    return {
+      kind: 'invalid',
+      campo: 'cargo',
+      message: `Nenhum cargo contém “${texto}”. Confira a grafia ou use só uma parte do nome do cargo.`,
+    }
+  }
+  if (status === HttpStatus.NOT_FOUND && erro.code === 'ORGAO_NAO_ENCONTRADO') {
+    const texto = parametros.orgao ?? ''
+    return {
+      kind: 'invalid',
+      campo: 'orgao',
+      message: `Nenhum órgão tem “${texto}” no nome ou na sigla. Confira a grafia ou use a sigla, como INSS.`,
+    }
+  }
+  if (status !== HttpStatus.BAD_REQUEST) return null
+  if (erro.code === 'UF_INVALIDA') return { kind: 'invalid', campo: 'uf', message: erro.message }
+  const parametro = PARAMETRO_DA_MENSAGEM.exec(erro.message)?.[1] ?? ''
+  return { kind: 'invalid', campo: CAMPO_DO_PARAMETRO.get(parametro) ?? 'termo', message: erro.message }
+}
+
+function interpretarResposta(response: Response, corpo: string, parametros: ParametrosBusca): SearchOutcome {
   const json = lerJson(corpo)
   if (response.ok) {
     if (json === NAO_JSON) return { kind: 'error', falha: FALHA_NAO_JSON }
@@ -205,9 +252,8 @@ function interpretarResposta(response: Response, corpo: string): SearchOutcome {
 
   const erro = parseApiError(json)
   if (erro?.code === 'NAO_ENCONTRADO') return { kind: 'empty' }
-  if (erro !== null && response.status === HttpStatus.BAD_REQUEST) {
-    return { kind: 'invalid', message: erro.message }
-  }
+  const invalido = erro === null ? null : erroDeCampo(response.status, erro, parametros)
+  if (invalido !== null) return invalido
   return { kind: 'error', falha: falhaHttp(response.status, erro, lerRetryAfter(response.headers)) }
 }
 
@@ -221,8 +267,7 @@ export interface ParametrosBusca {
   uf?: string
 }
 
-function montarQuery(busca: string | ParametrosBusca): string {
-  const parametros: ParametrosBusca = typeof busca === 'string' ? { nome: busca } : busca
+function montarQuery(parametros: ParametrosBusca): string {
   const query = new URLSearchParams()
   if (parametros.nome) query.set('nome', parametros.nome)
   if (parametros.similar) query.set('similar', parametros.similar)
@@ -243,6 +288,7 @@ export async function buscarServidores(
   signal: AbortSignal,
 ): Promise<SearchOutcome> {
   if (signal.aborted) throw new DOMException('Busca cancelada.', 'AbortError')
+  const parametros: ParametrosBusca = typeof busca === 'string' ? { nome: busca } : busca
 
   // Controller próprio para os dois motivos de parar: o tempo limite (vira erro na tela)
   // e o cancelamento por quem chamou (busca nova ou tela fechada, que é ignorado).
@@ -258,7 +304,7 @@ export async function buscarServidores(
   let response: Response
   let corpo: string
   try {
-    const query = montarQuery(busca)
+    const query = montarQuery(parametros)
     response = await fetch(`${SERVIDORES_URL}?${query}`, {
       signal: controller.signal,
       headers: { Accept: 'application/json' },
@@ -272,5 +318,5 @@ export async function buscarServidores(
     signal.removeEventListener('abort', cancelar)
   }
 
-  return interpretarResposta(response, corpo)
+  return interpretarResposta(response, corpo, parametros)
 }

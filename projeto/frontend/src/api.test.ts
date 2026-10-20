@@ -60,9 +60,60 @@ describe('buscarServidores', () => {
     expect(falha).toMatchObject({ tom: 'erro', texto: 'Rota não encontrada.' })
   })
 
+  it('monta a query da busca parecida e dos filtros combinados, sem parâmetros vazios', async () => {
+    const fetchMock = fetchRespondendo(() => respostaJson(200, corpoServidores()))
+    await buscarServidores({ similar: '%MARIA%SILVA%', limit: 50 }, new AbortController().signal)
+    await buscarServidores({ nome: 'Maria', cargo: 'professor', orgao: 'INSS', uf: 'RJ' }, new AbortController().signal)
+    await buscarServidores({ cargo: 'professor', orgao: '' }, new AbortController().signal)
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/servidores?similar=%25MARIA%25SILVA%25&limit=50', expect.anything())
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/servidores?nome=Maria&cargo=professor&orgao=INSS&uf=RJ',
+      expect.anything(),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(3, '/api/servidores?cargo=professor', expect.anything())
+  })
+
+  it.each([
+    [
+      '404 CARGO_NAO_ENCONTRADO',
+      erroApi(404, 'CARGO_NAO_ENCONTRADO', 'Nenhum cargo corresponde à busca.'),
+      { campo: 'cargo', message: 'Nenhum cargo contém “pofessor”. Confira a grafia ou use só uma parte do nome do cargo.' },
+    ],
+    [
+      '404 ORGAO_NAO_ENCONTRADO',
+      erroApi(404, 'ORGAO_NAO_ENCONTRADO', 'Nenhum órgão corresponde à busca.'),
+      { campo: 'orgao', message: 'Nenhum órgão tem “XYZ” no nome ou na sigla. Confira a grafia ou use a sigla, como INSS.' },
+    ],
+    [
+      '400 UF_INVALIDA',
+      erroApi(400, 'UF_INVALIDA', "UF 'XX' não existe. Use uma das 27 siglas."),
+      { campo: 'uf', message: "UF 'XX' não existe. Use uma das 27 siglas." },
+    ],
+    [
+      "400 citando 'limit'",
+      erroApi(400, 'PARAMETRO_INVALIDO', "'limit' deve estar entre 1 e 100."),
+      { campo: 'limite', message: "'limit' deve estar entre 1 e 100." },
+    ],
+    [
+      "400 citando 'similar'",
+      erroApi(400, 'PARAMETRO_INVALIDO', "'similar' precisa de pelo menos 3 letras fora dos '%'."),
+      { campo: 'termo', message: "'similar' precisa de pelo menos 3 letras fora dos '%'." },
+    ],
+    [
+      '400 sem parâmetro na mensagem',
+      erroApi(400, 'PARAMETRO_INVALIDO', "Os parâmetros 'nome' e 'similar' não podem ser usados juntos."),
+      { campo: 'termo', message: "Os parâmetros 'nome' e 'similar' não podem ser usados juntos." },
+    ],
+  ])('%s vira erro no campo certo', async (_caso, resposta, esperado) => {
+    fetchRespondendo(() => resposta)
+    const resultado = await buscarServidores({ cargo: 'pofessor', orgao: 'XYZ' }, new AbortController().signal)
+    expect(resultado).toEqual({ kind: 'invalid', ...esperado })
+  })
+
   it('400 vira erro de campo com a mensagem da API', async () => {
     const resultado = await buscarCom(erroApi(400, 'PARAMETRO_INVALIDO', "'nome' contém caracteres não permitidos."))
-    expect(resultado).toEqual({ kind: 'invalid', message: "'nome' contém caracteres não permitidos." })
+    expect(resultado).toEqual({ kind: 'invalid', campo: 'termo', message: "'nome' contém caracteres não permitidos." })
   })
 
   it('429 e 503 têm tom informativo e repetem os segundos do Retry-After', async () => {
@@ -146,9 +197,14 @@ describe('buscarServidores', () => {
 
 describe('parseServidoresResponse', () => {
   it('aceita campos null do contrato, valor null e ignora campos a mais', () => {
-    const item = { ...SERVIDOR_APOSENTADO, valor: null, similaridade: 0.82 }
+    const item = { ...SERVIDOR_APOSENTADO, valor: null, campo_novo: 'x' }
     const resultado = parseServidoresResponse(corpoServidores([item as typeof SERVIDOR_APOSENTADO]))
-    expect(resultado?.data[0]).toEqual({ ...SERVIDOR_APOSENTADO, valor: null })
+    expect(resultado?.data[0]).toStrictEqual({ ...SERVIDOR_APOSENTADO, valor: null })
+  })
+
+  it('mantém a similaridade da busca parecida', () => {
+    const resultado = parseServidoresResponse(corpoServidores([{ ...SERVIDOR_ATIVO, similaridade: 0.82 }]))
+    expect(resultado?.data[0]).toEqual({ ...SERVIDOR_ATIVO, similaridade: 0.82 })
   })
 
   it.each([
@@ -159,6 +215,8 @@ describe('parseServidoresResponse', () => {
     ['valor em texto', corpoServidores([{ ...SERVIDOR_ATIVO, valor: '19090,67' as unknown as number }])],
     ['situação desconhecida', corpoServidores([{ ...SERVIDOR_ATIVO, situacao: 'pensionista' as 'ativo' }])],
     ['uf ausente', corpoServidores([{ ...SERVIDOR_ATIVO, uf: undefined as unknown as null }])],
+    ['similaridade acima de 1', corpoServidores([{ ...SERVIDOR_ATIVO, similaridade: 1.5 }])],
+    ['similaridade em texto', corpoServidores([{ ...SERVIDOR_ATIVO, similaridade: '0,82' as unknown as number }])],
   ])('recusa %s', (_caso, corpo) => {
     expect(parseServidoresResponse(JSON.parse(JSON.stringify(corpo)))).toBeNull()
   })

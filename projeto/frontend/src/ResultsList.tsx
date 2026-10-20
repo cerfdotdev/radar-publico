@@ -1,10 +1,10 @@
-import { formatCurrency } from './format'
+import { formatCurrency, formatSimilaridade } from './format'
 import { NaoInformado } from './NaoInformado'
 import { SituacaoPill } from './SituacaoPill'
 import type { Servidor } from './types'
 
 /** Resultados em lista (até 640 px), no lugar da tabela. */
-export function ResultsList({ servidores }: { servidores: Servidor[] }) {
+export function ResultsList({ servidores, similar }: { servidores: Servidor[]; similar: boolean }) {
   return (
     <ul className="lista" aria-label="Servidores encontrados">
       {servidores.map((servidor) => {
@@ -25,6 +25,9 @@ export function ResultsList({ servidores }: { servidores: Servidor[] }) {
               <div className="lista__meta">
                 <SituacaoPill situacao={servidor.situacao} />
                 <span>UF {servidor.uf ?? <NaoInformado />}</span>
+                {similar && servidor.similaridade !== undefined && (
+                  <span className="mono">semelhança {formatSimilaridade(servidor.similaridade)}</span>
+                )}
               </div>
             </div>
           </li>

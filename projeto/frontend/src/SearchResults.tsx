@@ -1,9 +1,9 @@
 import { TOTAL_CAP, type Falha } from './api'
 import { formatInteger } from './format'
-import { textoParcial, tituloResultados, tituloVazio, totalLimitado } from './mensagens'
+import { temFiltros, textoParcial, tituloResultados, tituloVazio, totalLimitado } from './mensagens'
 import { ResultsList } from './ResultsList'
 import { ResultsTable } from './ResultsTable'
-import type { Meta, ModoBusca, Servidor } from './types'
+import type { Busca, Meta, Servidor } from './types'
 import type { SearchState } from './useBuscaServidores'
 
 /** Área abaixo do formulário: um componente por estado da busca (docs/design/estados.html). */
@@ -12,11 +12,11 @@ export function SearchResults({ state }: { state: SearchState }) {
     case 'loading':
       return <Esqueleto />
     case 'empty':
-      return <EstadoVazio termo={state.termo} modo={state.modo} />
+      return <EstadoVazio busca={state.busca} />
     case 'error':
       return <AvisoFalha falha={state.falha} />
     case 'ok':
-      return <Resultados termo={state.termo} servidores={state.servidores} meta={state.meta} />
+      return <Resultados busca={state.busca} servidores={state.servidores} meta={state.meta} />
     default:
       // Ocioso, ou erro de validação, que aparece no próprio campo.
       return null
@@ -47,22 +47,25 @@ function Esqueleto() {
   )
 }
 
-function EstadoVazio({ termo, modo }: { termo: string; modo: ModoBusca }) {
+function EstadoVazio({ busca }: { busca: Busca }) {
   return (
     <section className="estado-vazio" aria-labelledby="vazio-titulo">
       <h2 className="subtitulo" id="vazio-titulo">
-        {tituloVazio(termo)}
+        {tituloVazio(busca)}
       </h2>
-      {modo === 'similar' ? (
-        <p>Nenhum nome parecido o bastante com o padrão informado. Tente menos partes ou outros filtros.</p>
-      ) : (
-        <p>
-          A busca por nome exato só encontra o nome completo, escrito como no registro. Nomes do meio abreviados ou
-          trocados não aparecem.
-        </p>
-      )}
+      <p>{explicacaoVazio(busca)}</p>
     </section>
   )
+}
+
+function explicacaoVazio(busca: Busca): string {
+  if (busca.modo === 'similar') {
+    return 'O padrão vale para o nome inteiro: use % no lugar das partes que você não sabe, como em %MARIA%SILVA%, ou confira a grafia.'
+  }
+  if (temFiltros(busca)) {
+    return 'Nenhum vínculo atende a todos os filtros ao mesmo tempo. Tire um filtro ou confira a grafia.'
+  }
+  return 'A busca por nome exato só encontra o nome completo, escrito como no registro. Nomes do meio abreviados ou trocados não aparecem.'
 }
 
 function AvisoFalha({ falha }: { falha: Falha }) {
@@ -96,14 +99,15 @@ function AvisoFalha({ falha }: { falha: Falha }) {
   )
 }
 
-function Resultados({ termo, servidores, meta }: { termo: string; servidores: Servidor[]; meta: Meta }) {
+function Resultados({ busca, servidores, meta }: { busca: Busca; servidores: Servidor[]; meta: Meta }) {
   const parcial = textoParcial(servidores.length, meta)
+  const similar = busca.modo === 'similar'
   return (
     <section className="resultados" aria-labelledby="res-titulo">
       <div className="resultados__topo">
         <div>
           <h2 className="titulo-secao" id="res-titulo">
-            {tituloResultados(termo, meta)}
+            {tituloResultados(busca, meta)}
           </h2>
           {parcial !== null && <p className="aux">{parcial}</p>}
         </div>
@@ -118,15 +122,15 @@ function Resultados({ termo, servidores, meta }: { termo: string; servidores: Se
           <div>
             <strong>Refine a busca</strong>
             <span>
-              A contagem para em {formatInteger(TOTAL_CAP)} resultados. Confira se digitou o nome completo, como no
-              registro.
+              A contagem para em {formatInteger(TOTAL_CAP)} resultados. Acrescente o nome completo ou outro filtro
+              para chegar a quem você procura.
             </span>
           </div>
         </div>
       )}
 
-      <ResultsTable servidores={servidores} />
-      <ResultsList servidores={servidores} />
+      <ResultsTable servidores={servidores} similar={similar} />
+      <ResultsList servidores={servidores} similar={similar} />
     </section>
   )
 }

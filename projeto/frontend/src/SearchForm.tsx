@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useLayoutEffect, useState, type FormEvent } from 'react'
 import {
   aceitaFiltros,
   LIMITE_MAX,
@@ -51,10 +51,11 @@ export function SearchForm({ busca, ocupado, erroExterno, onBuscar }: SearchForm
   }
 
   // Erro devolvido pela API ou filtro inválido na URL: o foco vai para o campo com erro.
-  // Depende só do campo e do texto, não do objeto, que é novo a cada render.
+  // Depende só do campo e do texto, não do objeto, que é novo a cada render. useLayoutEffect
+  // move o foco junto com a mensagem de erro, antes da pintura, e não um instante depois.
   const campoExterno = erroExterno?.campo ?? null
   const mensagemExterna = erroExterno?.mensagem ?? null
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (campoExterno !== null) focarCampo(campoExterno)
   }, [campoExterno, mensagemExterna])
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import { TOTAL_CAP, type Falha } from './api'
 import { DetalheServidor } from './DetalheServidor'
 import { LIMITE_PADRAO, padraoParecido } from './filtros'
@@ -55,10 +55,13 @@ export function SearchResults({ state, onNavegar, focarTitulo }: SearchResultsPr
   }
 }
 
-/** Título que recebe o foco ao aparecer, quando a busca veio de um clique nos resultados. */
+/**
+ * Título que recebe o foco ao aparecer, quando a busca veio de um clique nos resultados.
+ * useLayoutEffect: o foco chega junto com o título, antes da pintura.
+ */
 function useFocoNoTitulo(focar: boolean) {
   const ref = useRef<HTMLHeadingElement>(null)
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (focar) ref.current?.focus()
   }, [focar])
   return ref

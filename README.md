@@ -22,6 +22,8 @@ cd projeto
 docker compose up --build
 ```
 
+O app desktop (PySide6) usa a mesma API: veja [`projeto/desktop/README.md`](projeto/desktop/README.md).
+
 ## Limites e ajuste por máquina
 
 O backend lê os limites de variáveis de ambiente (padrões em `projeto/backend/server_settings.py` e `projeto/backend/app/config.py`). O `docker-compose.yml` só passa a `DATABASE_URL`; para mudar outro valor, crie `projeto/docker-compose.override.yml`, que o Compose lê sozinho:
@@ -55,6 +57,7 @@ services:
 projeto/            # pasta entregue no .zip
 ├── backend/        # API Flask + Gunicorn (Dockerfile)
 ├── frontend/       # aplicação web (Dockerfile)
+├── desktop/        # app PySide6 que consome a API
 ├── db/             # scripts de schema, índices e carga dos dados
 │   ├── init/       # executados pelo Postgres na primeira inicialização
 │   └── data/       # CSVs baixados (não versionados)

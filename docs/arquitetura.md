@@ -160,7 +160,7 @@ O limite de cada etapa, com a variável que o controla:
 
 `DB_POOL_MIN`, `DB_CONNECT_TIMEOUT_S` e as outras `GUNICORN_*` (`GUNICORN_MAX_REQUESTS`, `GUNICORN_KEEPALIVE`...) são lidas pelo código, mas o compose não as repassa ao container; as da tabela do README, sim.
 
-Os tempos ficam em ordem: 5 s no banco < 15 s do nginx < 20 s do frontend < 30 s do Gunicorn. Uma busca com filtros faz até 4 consultas (cargo, órgão, contagem e página) e pode esperar 3 s pelo pool, então o pior caso passa dos 15 s e quem responde é o nginx.
+Os tempos ficam em ordem: 5 s no banco < 15 s do nginx < 20 s do frontend. O `GUNICORN_TIMEOUT` não corta requisição (ver [Limites conhecidos](#limites-conhecidos)). Uma busca com filtros faz até 4 consultas (cargo, órgão, contagem e página) e pode esperar 3 s pelo pool, então o pior caso passa dos 15 s e quem responde é o nginx.
 
 Com `similar`, a busca é uma consulta só, sem contagem nem paginação, ordenada pela semelhança; sem resultado, responde 404 `NAO_ENCONTRADO`. Na `main` ela ignora `cargo`, `orgao`, `uf` e `situacao` (issue #52).
 

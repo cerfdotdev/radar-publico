@@ -18,7 +18,7 @@ git config user.email "email-cadastrado-no-github@exemplo.com"
    - `fix(db): corrige índice trigram do nome`
    - `docs: daily de 18/10`
 4. Abra um Pull Request com `Closes #<numero>` na descrição e mova a issue para **In Review**.
-5. Outro integrante revisa e aprova. Depois do merge, a issue fecha sozinha e vai para **Done**.
+5. Outro integrante revisa. Desde 20/10/2026 a aprovação não é obrigatória (só o líder tinha tarefas abertas), mas o CI continua. Depois do merge, a issue fecha sozinha e vai para **Done**.
 
 Ninguém faz push direto na `main`.
 
@@ -36,7 +36,7 @@ Fibonacci: 1, 2, 3, 5, 8. Issues acima de 8 devem ser quebradas.
 
 ## CI e segurança
 
-Todo PR roda o workflow **CI**. O merge só é liberado com o check `ci-ok` verde, aprovação de um code owner e todas as conversas resolvidas.
+Todo PR roda o workflow **CI**. O merge só é liberado com o check `ci-ok` verde, a branch atualizada com a `main` e todas as conversas resolvidas. Até 20/10/2026 também exigia a aprovação de um code owner.
 
 | Área | O que o CI verifica | Rodar localmente |
 |---|---|---|

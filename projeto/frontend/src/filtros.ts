@@ -6,8 +6,11 @@ import type { Busca, CampoBusca } from './types'
 export const LIMITE_MIN = 1
 export const LIMITE_MAX = 100
 export const LIMITE_PADRAO = 100
-/** O padrão de `similar` precisa de pelo menos 3 letras fora dos `%`. */
-export const SIMILAR_MIN_LETRAS = 3
+/**
+ * O padrão de `similar` precisa de um trecho entre os `%` com pelo menos 3 letras seguidas:
+ * sem isso o índice trigram não filtra e a API lê a tabela inteira (docs/api.md).
+ */
+export const SIMILAR_MIN_LETRAS_SEGUIDAS = 3
 
 /** As 27 UFs aceitas pela API. */
 export const UFS = [
@@ -24,7 +27,8 @@ export interface ErroBusca {
 // cargo e órgão, dígitos, barra, parênteses e vírgula.
 const SIMILAR_PERMITIDO = /^[A-Z .'%-]+$/
 const TEXTO_PERMITIDO = /^[A-Z0-9 /(),.'-]+$/
-const LETRA = /[A-Z]/g
+// O espaço separa as letras (JO SE não serve), e o % nunca está no meio de uma sequência.
+const LETRAS_SEGUIDAS = new RegExp(`[A-Z]{${SIMILAR_MIN_LETRAS_SEGUIDAS},}`)
 
 /** Mensagem do erro do padrão de similaridade, ou null se pode ser enviado. */
 export function validarSimilar(termo: string): string | null {
@@ -44,8 +48,8 @@ export function validarSimilar(termo: string): string | null {
   if (normalizado.includes(SEQUENCIA_PROIBIDA)) {
     return 'Não use dois hífens seguidos (--).'
   }
-  if ((normalizado.match(LETRA)?.length ?? 0) < SIMILAR_MIN_LETRAS) {
-    return `Digite pelo menos ${SIMILAR_MIN_LETRAS} letras além dos %.`
+  if (!LETRAS_SEGUIDAS.test(normalizado)) {
+    return `Use pelo menos um trecho com ${SIMILAR_MIN_LETRAS_SEGUIDAS} letras seguidas entre os %.`
   }
   return null
 }
@@ -55,7 +59,7 @@ const CONECTIVOS = new Set(['DA', 'DAS', 'DE', 'DO', 'DOS', 'E'])
 
 /**
  * Nome exato sem resultado como padrão parecido: "João da Silva" -> "%JOAO%SILVA%".
- * Null quando o padrão não passaria na validação (ex.: menos de 3 letras).
+ * Null quando o padrão não passaria na validação (ex.: nenhuma parte com 3 letras seguidas).
  */
 export function padraoParecido(nome: string): string | null {
   const partes = normalizarNome(nome)

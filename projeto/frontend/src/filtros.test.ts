@@ -7,9 +7,20 @@ import { BUSCA_VAZIA } from './useBuscaServidores'
 const busca = (campos: Partial<Busca>): Busca => ({ ...BUSCA_VAZIA, ...campos })
 
 describe('validarSimilar (regras de similar em docs/api.md)', () => {
-  it.each(['%MARIA%SILVA%', 'maria silva%', '%José%', "%D'AVILA%", 'ANA%'])('aceita %j', (padrao) => {
-    expect(validarSimilar(padrao)).toBeNull()
-  })
+  it.each(['%MARIA%SILVA%', 'maria silva%', '%José%', "%D'AVILA%", 'ANA%', '%JOSE%SILVA%', 'MARIA%', '%ANA%', '%A%B%SILVA%'])(
+    'aceita %j',
+    (padrao) => {
+      expect(validarSimilar(padrao)).toBeNull()
+    },
+  )
+
+  // Sem um trecho com 3 letras seguidas, o índice trigram não filtra (docs/api.md).
+  it.each(['%A%A%A%', '%AB%CD%', 'A%B%C', '%JO SE%', '%A B%', '%Á%É%Í%', "%D'A%", '%AB%', '%%%%'])(
+    'recusa %j sem trecho de 3 letras seguidas',
+    (padrao) => {
+      expect(validarSimilar(padrao)).toBe('Use pelo menos um trecho com 3 letras seguidas entre os %.')
+    },
+  )
 
   it.each([
     ['', 'Informe um nome parecido para pesquisar.'],
@@ -18,8 +29,6 @@ describe('validarSimilar (regras de similar em docs/api.md)', () => {
     ['%MARIA1%', "Use só letras, espaços, apóstrofo ('), ponto (.), hífen (-) e o curinga (%)."],
     ['%MARIA_%', "Use só letras, espaços, apóstrofo ('), ponto (.), hífen (-) e o curinga (%)."],
     ['%ANA--MARIA%', 'Não use dois hífens seguidos (--).'],
-    ['%AB%', 'Digite pelo menos 3 letras além dos %.'],
-    ['%%%%', 'Digite pelo menos 3 letras além dos %.'],
   ])('recusa %j', (padrao, mensagem) => {
     expect(validarSimilar(padrao)).toBe(mensagem)
   })
@@ -84,5 +93,6 @@ describe('padraoParecido (sugestão do estado vazio)', () => {
   it('não sugere padrão que a API recusaria', () => {
     expect(padraoParecido('Da Do')).toBeNull()
     expect(padraoParecido('Al')).toBeNull()
+    expect(padraoParecido('Lu Xi')).toBeNull()
   })
 })

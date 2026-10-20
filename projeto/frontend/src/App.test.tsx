@@ -421,7 +421,7 @@ describe('Nome parecido e filtros combinados (issue #20)', () => {
     fireEvent.click(botaoModo('Nome parecido'))
 
     digitarEBuscar('%AB%')
-    expect(campoNome()).toHaveAccessibleDescription('Digite pelo menos 3 letras além dos %.')
+    expect(campoNome()).toHaveAccessibleDescription('Use pelo menos um trecho com 3 letras seguidas entre os %.')
     expect(campoNome()).toHaveFocus()
 
     fireEvent.change(campoNome(), { target: { value: '%MARIA%' } })

@@ -13,7 +13,9 @@ from .api import LIMITE_MAX, LIMITE_MIN, TOTAL_MAXIMO, Busca, Situacao
 
 TEXTO_MIN_CHARS = 2
 TEXTO_MAX_CHARS = 100
-SIMILAR_MIN_LETRAS = 3
+# Um trecho entre os % com 3 letras seguidas: sem isso o índice trigram não filtra e a API
+# lê a tabela inteira (MIN_TRIGRAM_LETTERS do backend).
+SIMILAR_MIN_LETRAS_SEGUIDAS = 3
 PAGINA_MIN = 1
 POR_PAGINA_MIN = 1
 POR_PAGINA_MAX = 100
@@ -29,7 +31,11 @@ NOME_PERMITIDO = re.compile(r"[A-Z .'-]+")
 SIMILAR_PERMITIDO = re.compile(r"[A-Z .'%-]+")
 CARGO_ORGAO_PERMITIDO = re.compile(r"[A-Z0-9 .'/(),-]+")
 SEQUENCIA_PROIBIDA = "--"
-LETRA = re.compile(r"[A-Z]")
+# O espaço separa as letras (JO SE não serve), e o % nunca está no meio de uma sequência.
+LETRAS_SEGUIDAS = re.compile(rf"[A-Z]{{{SIMILAR_MIN_LETRAS_SEGUIDAS},}}")
+MENSAGEM_LETRAS_SEGUIDAS = (
+    f"Use pelo menos um trecho com {SIMILAR_MIN_LETRAS_SEGUIDAS} letras seguidas entre os %."
+)
 
 CARACTERES_NOME = "letras, espaços, apóstrofo ('), ponto (.) e hífen (-)"
 CARACTERES_SIMILAR = "letras, espaços, apóstrofo ('), ponto (.), hífen (-) e o curinga (%)"
@@ -87,8 +93,8 @@ def validar_busca(busca: Busca) -> ErroBusca | None:
         )
         if mensagem is not None:
             return ErroBusca("termo", mensagem)
-        if len(LETRA.findall(normalizar_texto(busca.similar))) < SIMILAR_MIN_LETRAS:
-            return ErroBusca("termo", f"Use pelo menos {SIMILAR_MIN_LETRAS} letras fora dos %.")
+        if LETRAS_SEGUIDAS.search(normalizar_texto(busca.similar)) is None:
+            return ErroBusca("termo", MENSAGEM_LETRAS_SEGUIDAS)
         if not LIMITE_MIN <= busca.limite <= LIMITE_MAX:
             return ErroBusca("limite", f"O limite deve estar entre {LIMITE_MIN} e {LIMITE_MAX}.")
 

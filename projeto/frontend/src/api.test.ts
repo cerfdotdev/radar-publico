@@ -99,8 +99,13 @@ describe('buscarServidores', () => {
     ],
     [
       "400 citando 'similar'",
-      erroApi(400, 'PARAMETRO_INVALIDO', "'similar' precisa de pelo menos 3 letras fora dos '%'."),
-      { campo: 'termo', message: "'similar' precisa de pelo menos 3 letras fora dos '%'." },
+      erroApi(400, 'PARAMETRO_INVALIDO', "'similar' contém caracteres não permitidos."),
+      { campo: 'termo', message: "'similar' contém caracteres não permitidos." },
+    ],
+    [
+      '400 do padrão parecido sem trecho de 3 letras seguidas',
+      erroApi(400, 'PARAMETRO_INVALIDO', 'Use pelo menos um trecho com 3 letras seguidas entre os %.'),
+      { campo: 'termo', message: 'Use pelo menos um trecho com 3 letras seguidas entre os %.' },
     ],
     [
       '400 sem parâmetro na mensagem',

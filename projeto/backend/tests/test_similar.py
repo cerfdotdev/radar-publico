@@ -7,7 +7,7 @@ import pytest
 from werkzeug.datastructures import MultiDict
 
 from app.errors import ApiError
-from app.search_params import parse_search_params
+from app.search_params import TRIGRAM_MESSAGE, parse_search_params
 
 # --- Validação de parâmetros (sem banco) ---
 
@@ -44,6 +44,42 @@ def test_limit_sem_similar_retorna_erro():
 
 def test_similar_poucas_letras_retorna_erro():
     assert error_code(similar="MA%") == "PARAMETRO_INVALIDO"
+
+
+# Sem 3 letras seguidas num trecho entre os '%', o pg_trgm não tem trigrama para usar o índice
+# e o Postgres lê a tabela inteira (docs/carga.md). Espaço separa as letras: %JO SE% e %A B%
+# ficam de fora; os acentos saem antes da contagem.
+@pytest.mark.parametrize(
+    "padrao", ["%A%A%A%", "%AB%CD%", "A%B%C", "%JO SE%", "%A B%", "%Á%É%Í%", "%D'A%", "AB%CD"]
+)
+def test_similar_sem_trigrama_retorna_erro(padrao):
+    with pytest.raises(ApiError) as caught:
+        parse(similar=padrao)
+    assert (caught.value.code, caught.value.status) == (
+        "PARAMETRO_INVALIDO",
+        HTTPStatus.BAD_REQUEST,
+    )
+    assert (
+        caught.value.message
+        == TRIGRAM_MESSAGE
+        == ("Use pelo menos um trecho com 3 letras seguidas entre os %.")
+    )
+
+
+@pytest.mark.parametrize(
+    ("padrao", "normalizado"),
+    [
+        ("%JOSE%SILVA%", "%JOSE%SILVA%"),
+        ("MARIA%", "MARIA%"),
+        ("%ANA%", "%ANA%"),
+        ("%jose silva%", "%JOSE SILVA%"),
+        ("%A%B%SILVA%", "%A%B%SILVA%"),
+        ("%D'ÁVILA%", "%D'AVILA%"),
+        ("%JOSÉ%", "%JOSE%"),
+    ],
+)
+def test_similar_com_trecho_de_3_letras_seguidas(padrao, normalizado):
+    assert parse(similar=padrao).similar == normalizado
 
 
 @pytest.mark.parametrize("padrao", ["", '""', "M", "%" * 101])

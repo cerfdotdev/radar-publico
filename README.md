@@ -43,7 +43,7 @@ services:
 | Tempo de cada consulta | `statement_timeout` ([detalhes](docs/banco.md#usuário-da-api)) | 5 s | A consulta é cancelada no banco e a API responde 504 `TEMPO_ESGOTADO`. Precisa ficar abaixo dos 15 s do nginx |
 | Espera do nginx pelo backend | `proxy_read_timeout` em `projeto/frontend/nginx.conf` | 15 s | O nginx responde 504 `TEMPO_ESGOTADO`. Fica abaixo dos 20 s do frontend (`SEARCH_TIMEOUT_MS`) e dos 30 s do Gunicorn (`GUNICORN_TIMEOUT`) |
 | Requisições por IP | `RATE_LIMIT_REQUESTS` a cada `RATE_LIMIT_WINDOW_S` | 60 a cada 60 s | Acima disso, 429 `MUITAS_REQUISICOES` com `Retry-After`. `0` desliga. `/api/health` nunca é limitado |
-| Proxies na frente do backend | `TRUSTED_PROXY_HOPS` | 1 | Quantos proxies reescrevem o `X-Forwarded-For` (o nginx do frontend); `0` ignora o header |
+| Proxies na frente do backend | `PROXY_HOPS` | 1 | Quantos proxies reescrevem o `X-Forwarded-For` (o nginx do frontend); `0` ignora o header |
 
 **Limite por IP.** A tela só busca ao enviar o formulário ou trocar de página, então uma pessoa fica bem abaixo de uma busca por segundo, e um script em laço leva 429 em segundos. O contador fica na memória de cada worker (não há Redis): com 2 workers, um IP consegue de 60 a 120 requisições por minuto, conforme o Gunicorn distribui as conexões. A janela é fixa, então na virada dela passam até 2× o limite em sequência. Atrás do nginx, o IP vem do `X-Forwarded-For` que ele reescreve; quem chama a porta 5000 direto pode mandar esse header com qualquer valor e escapar do limite.
 

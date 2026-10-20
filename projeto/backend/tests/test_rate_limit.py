@@ -18,7 +18,7 @@ NO_DB_PATH = "/api/servidores"
 NGINX_ADDR = "192.0.2.10"
 CLIENT_A = "203.0.113.1"
 CLIENT_B = "203.0.113.2"
-RATE_LIMIT_ENV = ["RATE_LIMIT_REQUESTS", "RATE_LIMIT_WINDOW_S", "TRUSTED_PROXY_HOPS"]
+RATE_LIMIT_ENV = ["RATE_LIMIT_REQUESTS", "RATE_LIMIT_WINDOW_S", "PROXY_HOPS"]
 
 
 class FakeClock:
@@ -123,8 +123,8 @@ def test_direct_clients_are_limited_by_their_address(limited):
     assert direct(limited, CLIENT_B).status_code == HTTPStatus.BAD_REQUEST
 
 
-def test_forwarded_for_is_ignored_without_trusted_proxy(make_app):
-    client = make_app(RATE_LIMIT_REQUESTS=LIMIT, TRUSTED_PROXY_HOPS=0).test_client()
+def test_forwarded_for_is_ignored_without_proxy_hops(make_app):
+    client = make_app(RATE_LIMIT_REQUESTS=LIMIT, PROXY_HOPS=0).test_client()
     use_up_limit(via_nginx, client, CLIENT_A)
     # Todos chegam do mesmo endereço (o do nginx) e dividem o limite.
     assert via_nginx(client, CLIENT_B).status_code == HTTPStatus.TOO_MANY_REQUESTS
@@ -142,17 +142,17 @@ def test_defaults(env):
     config = c.load_config()
     assert config["RATE_LIMIT_REQUESTS"] == c.DEFAULT_RATE_LIMIT_REQUESTS
     assert config["RATE_LIMIT_WINDOW_S"] == c.DEFAULT_RATE_LIMIT_WINDOW_S
-    assert config["TRUSTED_PROXY_HOPS"] == c.DEFAULT_TRUSTED_PROXY_HOPS
+    assert config["PROXY_HOPS"] == c.DEFAULT_PROXY_HOPS
 
 
 def test_values_come_from_environment(env, make_app):
     env.setenv("RATE_LIMIT_REQUESTS", "5")
     env.setenv("RATE_LIMIT_WINDOW_S", "30")
-    env.setenv("TRUSTED_PROXY_HOPS", "0")
+    env.setenv("PROXY_HOPS", "0")
     application = make_app()
     limiter = application.extensions[EXTENSION_KEY]
     assert (limiter.limit, limiter.window_s) == (5, 30)
-    assert application.config["TRUSTED_PROXY_HOPS"] == 0
+    assert application.config["PROXY_HOPS"] == 0
 
 
 @pytest.mark.parametrize("raw", ["abc", "-1"])
@@ -162,4 +162,4 @@ def test_invalid_values_fall_back_to_defaults(env, raw):
     config = c.load_config()
     assert config["RATE_LIMIT_REQUESTS"] == c.DEFAULT_RATE_LIMIT_REQUESTS
     assert config["RATE_LIMIT_WINDOW_S"] == c.DEFAULT_RATE_LIMIT_WINDOW_S
-    assert config["TRUSTED_PROXY_HOPS"] == c.DEFAULT_TRUSTED_PROXY_HOPS
+    assert config["PROXY_HOPS"] == c.DEFAULT_PROXY_HOPS

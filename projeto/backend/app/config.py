@@ -27,7 +27,7 @@ MIN_SECONDS = 1
 DEFAULT_RATE_LIMIT_REQUESTS = 60
 DEFAULT_RATE_LIMIT_WINDOW_S = 60
 # Proxies na frente do backend que trocam o X-Forwarded-For: o nginx do frontend.
-DEFAULT_TRUSTED_PROXY_HOPS = 1
+DEFAULT_PROXY_HOPS = 1
 
 
 def pool_max_for(workers: int, requested: int) -> int:
@@ -72,7 +72,5 @@ def load_config() -> dict:
         "RATE_LIMIT_WINDOW_S": s.int_from_env(
             "RATE_LIMIT_WINDOW_S", DEFAULT_RATE_LIMIT_WINDOW_S, MIN_SECONDS
         ),
-        "TRUSTED_PROXY_HOPS": s.int_from_env(
-            "TRUSTED_PROXY_HOPS", DEFAULT_TRUSTED_PROXY_HOPS, s.MIN_COUNT_OFF
-        ),
+        "PROXY_HOPS": s.int_from_env("PROXY_HOPS", DEFAULT_PROXY_HOPS, s.MIN_COUNT_OFF),
     }

@@ -53,7 +53,7 @@ class FixedWindowLimiter:
 
 def init_rate_limit(app: Flask) -> None:
     """Liga o limite por IP (RATE_LIMIT_REQUESTS=0 desliga) e acha o IP real atrás do nginx."""
-    hops = app.config["TRUSTED_PROXY_HOPS"]
+    hops = app.config["PROXY_HOPS"]
     if hops:
         # O nginx do frontend troca o X-Forwarded-For pelo IP de quem conectou nele. Sem
         # isso, todo usuário da web teria o IP do nginx e dividiria o mesmo limite.

@@ -81,3 +81,12 @@ def test_invalid_utf8_byte_is_400_not_500(client):
     response = client.get(SEARCH_PATH, environ_overrides={"QUERY_STRING": "similar=%MARIA\xff%"})
     assert response.status_code == HTTPStatus.BAD_REQUEST
     assert response.get_json()["error"]["code"] == "PARAMETRO_INVALIDO"
+
+
+def test_invalid_utf8_byte_in_detail_id_is_400_not_500(client):
+    # O id vem do caminho, que o Werkzeug decodifica com U+FFFD no lugar do byte inválido.
+    response = client.get(
+        f"{SEARCH_PATH}/1", environ_overrides={"PATH_INFO": f"{SEARCH_PATH}/1\xff"}
+    )
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.get_json()["error"]["message"].startswith("'id'")

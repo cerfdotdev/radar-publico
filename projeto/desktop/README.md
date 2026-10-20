@@ -70,9 +70,11 @@ O executável não roda sozinho: para levar a outra máquina, copie a pasta `dis
 inteira (no macOS, o `RadarPublico.app`). `dist/` e `build/` ficam fora do Git.
 
 - **Linux**: o Qt usa bibliotecas gráficas do sistema, presentes em qualquer desktop. Num servidor
-  ou container Debian/Ubuntu, instale `libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0
-  libfontconfig1 libdbus-1-3`. O executável roda em distribuições com glibc igual ou mais nova que
-  a da máquina do build.
+  ou container Debian/Ubuntu, instale antes do build `libegl1 libgl1 libxkbcommon0
+  libxkbcommon-x11-0 libfontconfig1 libdbus-1-3` e, para o PyInstaller copiar o que o plugin xcb
+  (X11) usa, `libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0
+  libxcb-shape0 libxcb-util1`. O executável roda em distribuições com glibc igual ou mais nova
+  que a da máquina do build.
 - **Windows** e **Linux** são gerados e testados pelo CI (abaixo); o **macOS** segue os mesmos
   passos, mas não passa pelo CI.
 

@@ -52,12 +52,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       # O runner não traz as bibliotecas gráficas que o Qt carrega (libEGL, xkbcommon...).
+      # As libxcb-* do plugin xcb precisam estar aqui para o PyInstaller copiá-las: sem elas,
+      # o executável só abriria no X11 de quem já as tem instaladas. Xvfb: X11 sem tela.
       - name: Bibliotecas do sistema para o Qt (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3
+            libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 \
+            libxcb-shape0 libxcb-util1 xvfb
       - name: Instalar ferramentas de CI (com hash verificado)
         run: pip install --require-hashes --no-deps -r ../../.github/ci/requirements.txt
       - name: Instalar dependências do desktop
@@ -71,7 +75,10 @@ jobs:
       - name: Verificar o executável (Linux)
         if: runner.os == 'Linux'
         timeout-minutes: 5
-        run: ./dist/RadarPublico/RadarPublico --verificar
+        run: |
+          ./dist/RadarPublico/RadarPublico --verificar
+          # De novo num servidor X11 de verdade: confere o plugin xcb copiado para o executável.
+          QT_QPA_PLATFORM=xcb xvfb-run -a ./dist/RadarPublico/RadarPublico --verificar
       # É um programa de janela: sem -Wait, o shell voltaria na hora com código 0.
       - name: Verificar o executável (Windows)
         if: runner.os == 'Windows'
@@ -81,7 +88,8 @@ jobs:
           $p = Start-Process -FilePath dist\RadarPublico\RadarPublico.exe `
             -ArgumentList '--verificar' -Wait -PassThru -NoNewWindow `
             -RedirectStandardOutput verificar.out -RedirectStandardError verificar.err
-          Get-Content verificar.out, verificar.err
+          # Saída redirecionada do Python no Windows vem na página de código ANSI.
+          Get-Content -Encoding ansi verificar.out, verificar.err
           if ($null -eq $p.ExitCode) { exit 1 }
           exit $p.ExitCode
       - name: Tamanho do executável

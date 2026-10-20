@@ -89,3 +89,5 @@ scripts/            # utilitários da equipe (ex.: gerar burndown)
 ## Metodologia
 
 Scrum com 2 sprints de 1 dia (18/10/2026 e 19/10/2026), gerenciadas no GitHub Project **Radar Público**. Detalhes em [`CONTRIBUTING.md`](CONTRIBUTING.md) e [`docs/`](docs/).
+
+O burndown das tarefas fica em [`docs/burndown.md`](docs/burndown.md), gerado a partir das issues do Project com `python3 scripts/burndown.py`.

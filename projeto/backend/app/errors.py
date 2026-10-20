@@ -3,6 +3,7 @@
 from http import HTTPStatus
 
 from flask import Flask, Response, current_app, jsonify
+from psycopg import OperationalError
 from psycopg_pool import PoolTimeout, TooManyRequests
 from werkzeug.exceptions import HTTPException, MethodNotAllowed
 
@@ -63,6 +64,20 @@ def register_error_handlers(app: Flask) -> None:
         response.status_code = status
         response.headers["Retry-After"] = str(BUSY_RETRY_AFTER_S)
         return response
+
+    @app.errorhandler(OperationalError)
+    def handle_db_timeout(error: OperationalError) -> Response:
+        # O PostgreSQL lança OperationalError quando o statement_timeout é atingido.
+        if "canceling statement due to statement timeout" in str(error).lower():
+            response, status = error_response(
+                "TEMPO_ESGOTADO",
+                "A busca demorou demais e foi cancelada. Tente refinar os filtros.",
+                HTTPStatus.GATEWAY_TIMEOUT,
+            )
+            response.status_code = status
+            return response
+        # Outros erros operacionais seguem para o handler genérico.
+        raise error
 
     @app.errorhandler(Exception)
     def handle_unexpected(error: Exception) -> tuple[Response, int]:

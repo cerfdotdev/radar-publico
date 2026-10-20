@@ -36,7 +36,10 @@ def init_db(app: Flask) -> None:
         timeout=app.config["DB_POOL_TIMEOUT_S"],
         # Descarta conexões quebradas (ex.: banco reiniciado) antes de entregá-las.
         check=ConnectionPool.check_connection,
-        kwargs={"connect_timeout": app.config["DB_CONNECT_TIMEOUT_S"]},
+        kwargs={
+            "connect_timeout": app.config["DB_CONNECT_TIMEOUT_S"],
+            "options": "-c statement_timeout=5000",
+        },
         name=POOL_NAME,
         open=False,
     )

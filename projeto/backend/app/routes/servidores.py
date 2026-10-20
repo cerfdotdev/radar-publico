@@ -1,4 +1,4 @@
-"""GET /api/servidores: busca de servidores ativos e aposentados (docs/api.md).
+"""GET /api/servidores e GET /api/servidores/<id>: busca e detalhe de vínculos (docs/api.md).
 
 Recomendações de desempenho seguidas (docs/banco.md): ids de cargo e órgão resolvidos
 antes, contagem limitada a 10.000 resultados e paginação só dentro desse limite.
@@ -13,12 +13,20 @@ from psycopg.rows import dict_row
 
 from app.db import get_db_connection
 from app.errors import ApiError
-from app.search_params import MAX_TOTAL, SearchParams, Situacao, parse_search_params
+from app.search_params import (
+    MAX_TOTAL,
+    SearchParams,
+    Situacao,
+    parse_search_params,
+    parse_servidor_id,
+)
 
 servidores_bp = Blueprint("servidores", __name__)
 
 # Uma linha a mais que o teto: basta para saber se o total passou de MAX_TOTAL.
 COUNT_LIMIT = MAX_TOTAL + 1
+# A busca por similaridade vem inteira, até 'limit' resultados, numa página só.
+SINGLE_PAGE = 1
 LIKE_ESCAPE = "\\"
 
 CARGO_LOOKUP = sql.SQL("SELECT id FROM cargo WHERE nome LIKE %s")
@@ -46,7 +54,8 @@ PAGE_QUERY = sql.SQL(
     """
 )
 
-# Busca por similaridade usando o índice trigram de servidor.nome
+# Similaridade: o LIKE do padrão usa o índice trigram de servidor.nome, e os filtros de
+# cargo, órgão, UF e situação entram no mesmo WHERE da busca normal.
 SIMILAR_QUERY = sql.SQL(
     """
     SELECT s.id, s.nome, s.situacao, c.nome AS cargo, o.nome AS orgao,
@@ -55,11 +64,25 @@ SIMILAR_QUERY = sql.SQL(
     FROM servidor s
     JOIN orgao o ON o.id = s.orgao_id
     LEFT JOIN cargo c ON c.id = s.cargo_id
-    WHERE s.nome LIKE %s
+    WHERE {where}
     ORDER BY similaridade DESC, s.nome, s.id
     LIMIT %s
     """
 )
+
+DETAIL_QUERY = sql.SQL(
+    """
+    SELECT s.id, s.nome, s.situacao, c.nome AS cargo, o.nome AS orgao,
+           o.sigla AS sigla_orgao, s.uf, s.valor, s.codigo_carreira,
+           s.tipo_aposentadoria, s.fundamento_legal, s.portaria, s.data_aposentadoria,
+           s.forma_ingresso, s.data_ingresso, s.referencia
+    FROM servidor s
+    JOIN orgao o ON o.id = s.orgao_id
+    LEFT JOIN cargo c ON c.id = s.cargo_id
+    WHERE s.id = %s
+    """
+)
+DATE_FIELDS = ("data_aposentadoria", "data_ingresso")
 
 
 def like_contains(text: str) -> str:
@@ -117,6 +140,11 @@ def build_filters(cur: Cursor, params: SearchParams) -> tuple[sql.Composable, li
             conditions.append(sql.SQL("{} = %s").format(sql.Identifier("s", column)))
             values.append(value)
 
+    if params.similar is not None:
+        # O '%' da entrada é o curinga; '_' e '\\' já foram recusados na validação.
+        conditions.append(sql.SQL("s.nome LIKE %s"))
+        values.append(params.similar)
+
     if params.situacao is not Situacao.TODOS:
         conditions.append(sql.SQL("s.situacao = %s"))
         values.append(params.situacao.value)
@@ -138,38 +166,17 @@ def serialize_similar(row: dict) -> dict:
     return result
 
 
+def serialize_detail(row: dict) -> dict:
+    """Linha do detalhe; datas em ISO (AAAA-MM-DD), como no contrato."""
+    dates = {field: row[field] and row[field].isoformat() for field in DATE_FIELDS}
+    return {**serialize(row), **dates}
+
+
 @servidores_bp.get("/servidores")
 def listar_servidores() -> Response:
-    """Busca servidores por nome exato, similar, cargo, órgão, UF e situação."""
+    """Busca servidores por nome exato ou parecido, cargo, órgão, UF e situação."""
     params = parse_search_params(request.args)
 
-    # --- Busca por similaridade (índice trigram, sem paginação) ---
-    if params.similar is not None:
-        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
-            cur.execute(SIMILAR_QUERY, (params.similar, params.similar, params.limit))
-            rows = cur.fetchall()
-
-        if not rows:
-            raise ApiError(
-                "NAO_ENCONTRADO",
-                "Nenhum servidor encontrado com nome parecido.",
-                HTTPStatus.NOT_FOUND,
-            )
-
-        return jsonify(
-            {
-                "data": [serialize_similar(row) for row in rows],
-                "meta": {
-                    "total": len(rows),
-                    "total_exato": True,
-                    "page": 1,
-                    "per_page": params.limit,
-                    "total_pages": 1,
-                },
-            }
-        )
-
-    # --- Busca normal com filtros (nome exato, cargo, órgão, UF) ---
     if params.uf is not None and params.situacao is Situacao.APOSENTADO:
         raise ApiError(
             "NAO_ENCONTRADO",
@@ -179,6 +186,8 @@ def listar_servidores() -> Response:
 
     with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
         where, values = build_filters(cur, params)
+        if params.similar is not None:
+            return buscar_similares(cur, params, where, values)
 
         cur.execute(COUNT_QUERY.format(where=where), (*values, COUNT_LIMIT))
         total_raw = cur.fetchone()["count"]
@@ -216,3 +225,45 @@ def listar_servidores() -> Response:
             },
         }
     )
+
+
+def buscar_similares(
+    cur: Cursor, params: SearchParams, where: sql.Composable, values: list
+) -> Response:
+    """Os nomes mais parecidos com o padrão, até 'limit', sem paginação."""
+    cur.execute(SIMILAR_QUERY.format(where=where), (params.similar, *values, params.limit))
+    rows = cur.fetchall()
+    if not rows:
+        raise ApiError(
+            "NAO_ENCONTRADO",
+            "Nenhum servidor encontrado com nome parecido.",
+            HTTPStatus.NOT_FOUND,
+        )
+
+    return jsonify(
+        {
+            "data": [serialize_similar(row) for row in rows],
+            "meta": {
+                "total": len(rows),
+                "total_exato": True,
+                "page": SINGLE_PAGE,
+                "per_page": params.limit,
+                "total_pages": SINGLE_PAGE,
+            },
+        }
+    )
+
+
+@servidores_bp.get("/servidores/<raw_id>")
+def detalhar_servidor(raw_id: str) -> Response:
+    """Detalhe de um vínculo, com os campos de carreira, aposentadoria e ingresso."""
+    # O id é conferido antes do banco: texto ou número fora do bigint dão 400, não 500.
+    servidor_id = parse_servidor_id(raw_id, request.args)
+    with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+        cur.execute(DETAIL_QUERY, (servidor_id,))
+        row = cur.fetchone()
+    if row is None:
+        raise ApiError(
+            "NAO_ENCONTRADO", f"Nenhum servidor com o id {servidor_id}.", HTTPStatus.NOT_FOUND
+        )
+    return jsonify({"data": serialize_detail(row)})

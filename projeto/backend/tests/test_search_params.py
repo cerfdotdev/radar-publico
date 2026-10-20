@@ -9,12 +9,14 @@ from app.errors import ApiError
 from app.search_params import (
     DEFAULT_PAGE,
     DEFAULT_PER_PAGE,
+    MAX_ID,
     MAX_PAGE,
     MAX_PER_PAGE,
     MAX_TEXT_LENGTH,
     Situacao,
     normalize_text,
     parse_search_params,
+    parse_servidor_id,
 )
 
 
@@ -124,3 +126,50 @@ def test_invalid_numbers(name, value):
 
 def test_invalid_situacao():
     assert error_code(uf="DF", situacao="foo") == "PARAMETRO_INVALIDO"
+
+
+@pytest.mark.parametrize(
+    "quoted",
+    ['"%MARIA%SILVA%"', "“%MARIA%SILVA%”", "”%MARIA%SILVA%”", ' "%maria%silva%" '],
+)
+def test_similar_tolerates_quotes_like_the_assignment(quoted):
+    assert parse(similar=quoted).similar == "%MARIA%SILVA%"
+
+
+def test_text_filters_tolerate_quotes():
+    params = parse(nome='"Maria da Silva"', cargo="“professor”", orgao='"INSS"')
+    assert (params.nome, params.cargo, params.orgao) == ("MARIA DA SILVA", "PROFESSOR", "INSS")
+
+
+@pytest.mark.parametrize("value", ['"', '""', '"MARIA', 'MA"RIA', '""MARIA""'])
+def test_only_one_pair_of_surrounding_quotes_is_removed(value):
+    assert error_code(nome=value) == "PARAMETRO_INVALIDO"
+
+
+@pytest.mark.parametrize("paging", [{"page": "1"}, {"per_page": "20"}])
+def test_similar_has_no_pages(paging):
+    with pytest.raises(ApiError) as caught:
+        parse(similar="%MARIA%", **paging)
+    assert caught.value.code == "PARAMETRO_INVALIDO"
+    assert caught.value.message.startswith(f"'{next(iter(paging))}' não pode ser usado com")
+
+
+@pytest.mark.parametrize(("raw", "expected"), [("1", 1), (" 42 ", 42), (str(MAX_ID), MAX_ID)])
+def test_servidor_id(raw, expected):
+    assert parse_servidor_id(raw, MultiDict()) == expected
+
+
+@pytest.mark.parametrize("raw", ["", "0", "-1", "abc", "1.0", "١", str(MAX_ID + 1)])
+def test_invalid_servidor_id(raw):
+    with pytest.raises(ApiError) as caught:
+        parse_servidor_id(raw, MultiDict())
+    assert (caught.value.code, caught.value.status) == (
+        "PARAMETRO_INVALIDO",
+        HTTPStatus.BAD_REQUEST,
+    )
+
+
+def test_servidor_id_rejects_query_parameters():
+    with pytest.raises(ApiError) as caught:
+        parse_servidor_id("1", MultiDict({"x": "1"}))
+    assert caught.value.code == "PARAMETRO_DESCONHECIDO"

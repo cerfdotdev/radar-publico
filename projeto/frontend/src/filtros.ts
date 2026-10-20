@@ -1,6 +1,6 @@
 // Validação dos filtros de docs/api.md, conferida antes de chamar a API.
 import { NOME_MAX_CHARS, NOME_MIN_CHARS, normalizarNome, SEQUENCIA_PROIBIDA, validarNome } from './nome'
-import type { Busca, CampoBusca, ModoBusca } from './types'
+import type { Busca, CampoBusca } from './types'
 
 /** `limit` da busca parecida: de 1 a 100, padrão 100 (docs/api.md). */
 export const LIMITE_MIN = 1
@@ -25,16 +25,6 @@ export interface ErroBusca {
 const SIMILAR_PERMITIDO = /^[A-Z .'%-]+$/
 const TEXTO_PERMITIDO = /^[A-Z0-9 /(),.'-]+$/
 const LETRA = /[A-Z]/g
-
-/**
- * A API ainda ignora cargo, órgão e UF quando recebe `similar` (a consulta por
- * semelhança só olha o nome). Enquanto for assim, a busca parecida não envia esses
- * filtros e o formulário os mostra desativados, para a tela não sugerir um filtro
- * que não foi aplicado.
- */
-export function aceitaFiltros(modo: ModoBusca): boolean {
-  return modo === 'exato'
-}
 
 /** Mensagem do erro do padrão de similaridade, ou null se pode ser enviado. */
 export function validarSimilar(termo: string): string | null {
@@ -104,9 +94,9 @@ export function validarUf(uf: string): string | null {
   return 'Escolha uma UF válida.'
 }
 
-/** Primeiro erro da busca, na ordem dos campos na tela, ou null se pode ser enviada. */
-export function validarBusca(busca: Busca): ErroBusca | null {
-  if (!aceitaFiltros(busca.modo)) {
+/** Erro do nome: o padrão parecido é obrigatório; o nome exato, só sem nenhum filtro. */
+function validarTermo(busca: Busca): ErroBusca | null {
+  if (busca.modo === 'similar') {
     const mensagem = validarSimilar(busca.termo)
     if (mensagem !== null) return { campo: 'termo', mensagem }
     const mensagemLimite = validarLimite(busca.limite)
@@ -118,11 +108,18 @@ export function validarBusca(busca: Busca): ErroBusca | null {
   if (semFiltro) {
     return { campo: 'termo', mensagem: 'Informe um nome ou pelo menos um filtro: cargo, órgão ou UF.' }
   }
+  if (busca.termo.trim() === '') return null
+  const mensagem = validarNome(busca.termo)
+  return mensagem === null ? null : { campo: 'termo', mensagem }
+}
 
-  if (busca.termo.trim() !== '') {
-    const mensagem = validarNome(busca.termo)
-    if (mensagem !== null) return { campo: 'termo', mensagem }
-  }
+/**
+ * Primeiro erro da busca, na ordem dos campos na tela, ou null se pode ser enviada.
+ * Cargo, órgão e UF valem nos dois modos: a API combina os filtros também com `similar`.
+ */
+export function validarBusca(busca: Busca): ErroBusca | null {
+  const erroTermo = validarTermo(busca)
+  if (erroTermo !== null) return erroTermo
 
   for (const [campo, valor, rotulo] of [
     ['cargo', busca.cargo, 'cargo'],

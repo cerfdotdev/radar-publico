@@ -14,23 +14,37 @@ export function temFiltros(busca: Busca): boolean {
   return busca.cargo !== '' || busca.orgao !== '' || busca.uf !== ''
 }
 
-/** O que foi buscado, para os títulos: ' para “Maria”, cargo “professor” em RJ'. */
-export function descreverBusca(busca: Busca): string {
-  const partes = [
-    busca.termo === '' ? null : `“${busca.termo}”`,
+function partesDosFiltros(busca: Busca): string[] {
+  return [
     busca.cargo === '' ? null : `cargo “${busca.cargo}”`,
     busca.orgao === '' ? null : `órgão “${busca.orgao}”`,
   ].filter((parte) => parte !== null)
+}
+
+function emUf(busca: Busca): string {
+  return busca.uf === '' ? '' : ` em ${busca.uf}`
+}
+
+/** O que foi buscado, para os títulos: ' para “Maria”, cargo “professor” em RJ'. */
+export function descreverBusca(busca: Busca): string {
+  const partes = [busca.termo === '' ? null : `“${busca.termo}”`, ...partesDosFiltros(busca)].filter(
+    (parte) => parte !== null,
+  )
   const para = partes.length === 0 ? '' : ` para ${partes.join(', ')}`
-  return busca.uf === '' ? para : `${para} em ${busca.uf}`
+  return `${para}${emUf(busca)}`
+}
+
+/** Padrão parecido e filtros aplicados: ' com “%MARIA%”, cargo “professor” em RJ'. */
+function descreverParecido(busca: Busca): string {
+  return ` com ${[`“${busca.termo}”`, ...partesDosFiltros(busca)].join(', ')}${emUf(busca)}`
 }
 
 export function tituloResultados(busca: Busca, meta: Meta): string {
   if (busca.modo === 'similar') {
     // A API devolve os mais parecidos primeiro, até o limite pedido, sem paginar.
     return meta.total === 1
-      ? `1 nome parecido com “${busca.termo}”`
-      : `Os ${formatInteger(meta.total)} nomes mais parecidos com “${busca.termo}”`
+      ? `1 nome parecido${descreverParecido(busca)}`
+      : `Os ${formatInteger(meta.total)} nomes mais parecidos${descreverParecido(busca)}`
   }
   if (totalLimitado(meta)) {
     return `Mais de ${formatInteger(TOTAL_CAP)} resultados${descreverBusca(busca)}`
@@ -57,7 +71,7 @@ export function tituloPaginaInexistente(pagina: number): string {
 }
 
 export function tituloVazio(busca: Busca): string {
-  if (busca.modo === 'similar') return `Nenhum nome parecido com “${busca.termo}”`
+  if (busca.modo === 'similar') return `Nenhum nome parecido${descreverParecido(busca)}`
   if (!temFiltros(busca)) return `Nenhum vínculo com o nome “${busca.termo}”`
   return `Nenhum vínculo encontrado${descreverBusca(busca)}`
 }

@@ -46,6 +46,21 @@ PAGE_QUERY = sql.SQL(
     """
 )
 
+# Busca por similaridade usando o índice trigram de servidor.nome
+SIMILAR_QUERY = sql.SQL(
+    """
+    SELECT s.id, s.nome, s.situacao, c.nome AS cargo, o.nome AS orgao,
+           o.sigla AS sigla_orgao, s.uf, s.valor,
+           similarity(s.nome, %s) AS similaridade
+    FROM servidor s
+    JOIN orgao o ON o.id = s.orgao_id
+    LEFT JOIN cargo c ON c.id = s.cargo_id
+    WHERE s.nome LIKE %s
+    ORDER BY similaridade DESC, s.nome, s.id
+    LIMIT %s
+    """
+)
+
 
 def like_contains(text: str) -> str:
     """Padrão LIKE de "contém", com % _ e \\ da entrada tratados como texto."""
@@ -114,11 +129,47 @@ def serialize(row: dict) -> dict:
     return {**row, "valor": float(valor) if valor is not None else None}
 
 
+def serialize_similar(row: dict) -> dict:
+    valor = row["valor"]
+    similaridade = row.get("similaridade")
+    result = {**row, "valor": float(valor) if valor is not None else None}
+    if similaridade is not None:
+        result["similaridade"] = round(float(similaridade), 4)
+    return result
+
+
 @servidores_bp.get("/servidores")
 def listar_servidores() -> Response:
-    """Busca servidores por nome exato, cargo, órgão, UF e situação, com paginação."""
+    """Busca servidores por nome exato, similar, cargo, órgão, UF e situação."""
     params = parse_search_params(request.args)
 
+    # --- Busca por similaridade (índice trigram, sem paginação) ---
+    if params.similar is not None:
+        with get_db_connection() as conn, conn.cursor(row_factory=dict_row) as cur:
+            cur.execute(SIMILAR_QUERY, (params.similar, params.similar, params.limit))
+            rows = cur.fetchall()
+
+        if not rows:
+            raise ApiError(
+                "NAO_ENCONTRADO",
+                "Nenhum servidor encontrado com nome parecido.",
+                HTTPStatus.NOT_FOUND,
+            )
+
+        return jsonify(
+            {
+                "data": [serialize_similar(row) for row in rows],
+                "meta": {
+                    "total": len(rows),
+                    "total_exato": True,
+                    "page": 1,
+                    "per_page": params.limit,
+                    "total_pages": 1,
+                },
+            }
+        )
+
+    # --- Busca normal com filtros (nome exato, cargo, órgão, UF) ---
     if params.uf is not None and params.situacao is Situacao.APOSENTADO:
         raise ApiError(
             "NAO_ENCONTRADO",

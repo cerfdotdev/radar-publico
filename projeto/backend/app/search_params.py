@@ -28,6 +28,11 @@ MAX_TOTAL = 10_000
 MAX_ECHOED_INPUT = 10
 MAX_PAGE = math.ceil(MAX_TOTAL / MIN_PER_PAGE)
 
+DEFAULT_LIMIT = 100
+MIN_LIMIT = 1
+MAX_LIMIT = 100
+MIN_SIMILAR_LETTERS = 3
+
 UFS = (
     "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA",
     "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
@@ -35,15 +40,17 @@ UFS = (
 
 # Depois da normalização: nomes só com letras, espaço, ' . -; cargo e órgão também
 # com dígitos, / ( ) e vírgula, que aparecem nos nomes reais.
+# Similar aceita '%' como curinga além dos mesmos caracteres do nome.
 NOME_PATTERN = re.compile(r"[A-Z .'-]+")
 CARGO_ORGAO_PATTERN = re.compile(r"[A-Z0-9 .'/(),-]+")
+SIMILAR_PATTERN = re.compile(r"[A-Z .'%-]+")
 FORBIDDEN_SEQUENCE = "--"
 
 SIMILARITY_PARAMS = ("similar", "limit")
 KNOWN_PARAMS = frozenset(
     {"nome", "cargo", "orgao", "uf", "situacao", "page", "per_page", *SIMILARITY_PARAMS}
 )
-FILTER_PARAMS = ("nome", "cargo", "orgao", "uf")
+FILTER_PARAMS = ("nome", "similar", "cargo", "orgao", "uf")
 
 
 class Situacao(StrEnum):
@@ -55,6 +62,8 @@ class Situacao(StrEnum):
 @dataclass(frozen=True)
 class SearchParams:
     nome: str | None
+    similar: str | None
+    limit: int
     cargo: str | None
     orgao: str | None
     uf: str | None
@@ -83,6 +92,25 @@ def parse_text(args: MultiDict, name: str, pattern: re.Pattern[str]) -> str | No
         raise invalid(f"'{name}' deve ter de {MIN_TEXT_LENGTH} a {MAX_TEXT_LENGTH} caracteres.")
     if not pattern.fullmatch(value) or FORBIDDEN_SEQUENCE in value:
         raise invalid(f"'{name}' contém caracteres não permitidos.")
+    return value
+
+
+def parse_similar(args: MultiDict) -> str | None:
+    """Valida e normaliza o padrão de similaridade; mantém '%' como curinga."""
+    raw = args.get("similar")
+    if raw is None:
+        return None
+    # Normaliza sem remover '%'; só remove acentos e padroniza caixa/espaços
+    decomposed = unicodedata.normalize("NFKD", raw)
+    without_accents = "".join(c for c in decomposed if not unicodedata.combining(c))
+    value = " ".join(without_accents.split()).upper()
+    if not MIN_TEXT_LENGTH <= len(value) <= MAX_TEXT_LENGTH:
+        raise invalid(f"'similar' deve ter de {MIN_TEXT_LENGTH} a {MAX_TEXT_LENGTH} caracteres.")
+    if not SIMILAR_PATTERN.fullmatch(value) or FORBIDDEN_SEQUENCE in value:
+        raise invalid("'similar' contém caracteres não permitidos.")
+    letters_count = sum(1 for c in value if c.isalpha())
+    if letters_count < MIN_SIMILAR_LETTERS:
+        raise invalid(f"'similar' precisa de pelo menos {MIN_SIMILAR_LETTERS} letras fora dos '%'.")
     return value
 
 
@@ -127,15 +155,23 @@ def parse_search_params(args: MultiDict) -> SearchParams:
     unknown = sorted(set(args) - KNOWN_PARAMS)
     if unknown:
         raise invalid(f"Parâmetro desconhecido: {', '.join(unknown)}.", "PARAMETRO_DESCONHECIDO")
-    if any(name in args for name in SIMILARITY_PARAMS):
-        raise invalid("A busca por nome parecido ainda não está disponível.")
+
+    if "nome" in args and "similar" in args:
+        raise invalid("Os parâmetros 'nome' e 'similar' não podem ser usados juntos.")
+
+    if "limit" in args and "similar" not in args:
+        raise invalid("'limit' só pode ser usado com 'similar'.")
+
     if not any(name in args for name in FILTER_PARAMS):
         raise invalid(
-            "Informe pelo menos um filtro: nome, cargo, orgao ou uf.", "FILTRO_OBRIGATORIO"
+            "Informe pelo menos um filtro: nome, similar, cargo, orgao ou uf.",
+            "FILTRO_OBRIGATORIO",
         )
 
     return SearchParams(
         nome=parse_text(args, "nome", NOME_PATTERN),
+        similar=parse_similar(args),
+        limit=parse_int(args, "limit", DEFAULT_LIMIT, MIN_LIMIT, MAX_LIMIT),
         cargo=parse_text(args, "cargo", CARGO_ORGAO_PATTERN),
         orgao=parse_text(args, "orgao", CARGO_ORGAO_PATTERN),
         uf=parse_uf(args),

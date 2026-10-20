@@ -1,12 +1,27 @@
+import { useState } from 'react'
 import './App.css'
 import { anunciar } from './mensagens'
 import { SearchForm } from './SearchForm'
 import { SearchResults } from './SearchResults'
 import { SiteHeader } from './SiteHeader'
+import type { Busca } from './types'
 import { useBuscaServidores } from './useBuscaServidores'
 
 export function App() {
   const { busca, state, buscar } = useBuscaServidores()
+  // Busca pedida pela área de resultados (página, tentar de novo): o foco vai para o
+  // título do novo resultado. Pelo formulário, o foco fica no campo.
+  const [focarResultados, setFocarResultados] = useState(false)
+
+  function buscarPeloFormulario(novaBusca: Busca) {
+    setFocarResultados(false)
+    buscar(novaBusca)
+  }
+
+  function navegarNosResultados(novaBusca: Busca) {
+    setFocarResultados(true)
+    buscar(novaBusca)
+  }
 
   return (
     <>
@@ -24,7 +39,7 @@ export function App() {
           busca={busca}
           ocupado={state.kind === 'loading'}
           erroExterno={state.kind === 'invalid' ? { campo: state.campo, mensagem: state.message } : null}
-          onBuscar={buscar}
+          onBuscar={buscarPeloFormulario}
         />
 
         {/* Região viva única e sempre presente: anuncia "Buscando…" e o resultado da busca. */}
@@ -32,7 +47,7 @@ export function App() {
           {anunciar(state)}
         </output>
 
-        <SearchResults state={state} />
+        <SearchResults state={state} onNavegar={navegarNosResultados} focarTitulo={focarResultados} />
 
         {/* Meses de referência dos arquivos carregados no banco (docs/dados.md). */}
         <footer className="nota-fonte">

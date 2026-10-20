@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { SEARCH_TIMEOUT_MS } from './api'
 import {
+  corpoDetalhe,
   corpoServidores,
   erroApi,
   fetchPendente,
@@ -29,6 +30,9 @@ const campoOrgao = () => screen.getByRole('textbox', { name: 'Órgão' })
 const campoUf = () => screen.getByRole('combobox', { name: /^UF/ })
 const botaoModo = (nome: 'Nome exato' | 'Nome parecido') => screen.getByRole('button', { name: nome })
 const tituloResultados = () => screen.getByRole('heading', { level: 2 })
+
+// URL do último fetch do mock global.
+const fetchMockUrl = () => String(vi.mocked(fetch).mock.lastCall?.[0])
 
 function abrirCom(url: string, arvore = <App />) {
   window.history.replaceState(null, '', url)
@@ -161,16 +165,99 @@ describe('Tela de busca (issue #11)', () => {
     abrirCom('/?nome=Maria')
     expect(await screen.findByText('Refine a busca')).toBeInTheDocument()
     expect(tituloResultados()).toHaveTextContent('Mais de 10.000 resultados para “Maria”')
-    expect(screen.getByText('Mostrando os 2 primeiros.')).toBeInTheDocument()
+    expect(
+      within(screen.getByRole('navigation', { name: 'Paginação' })).getByText(/Mostrando 1–2 de 10\.000/),
+    ).toBeInTheDocument()
     expect(regiaoViva()).toHaveTextContent('Mais de 10.000 resultados para “Maria”. Mostrando os 2 primeiros.')
   })
 
   it('total maior que a página: mostra o total exato e quantos estão na tela', async () => {
     fetchRespondendo(() => respostaJson(200, corpoServidores(undefined, { total: 2345, total_pages: 118 })))
     abrirCom('/?nome=Maria')
-    expect(await screen.findByText('Mostrando os 2 primeiros.')).toBeInTheDocument()
+    const paginacao = await screen.findByRole('navigation', { name: 'Paginação' })
+    expect(paginacao).toHaveTextContent('Mostrando 1–2 de 2.345 · página 1 de 118')
+    expect(regiaoViva()).toHaveTextContent('Mostrando os 2 primeiros.')
     expect(tituloResultados()).toHaveTextContent('2.345 resultados encontrados para “Maria”')
     expect(screen.queryByText('Refine a busca')).not.toBeInTheDocument()
+  })
+
+  it('resultado único mostra o detalhe do vínculo, sem tabela', async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) =>
+      Promise.resolve(
+        String(input).startsWith('/api/servidores/')
+          ? respostaJson(200, corpoDetalhe())
+          : respostaJson(200, corpoServidores([SERVIDOR_ATIVO])),
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    abrirCom('/?nome=Maria')
+
+    // Um só h1 na página: o nome fica abaixo do título dos resultados (h2) e as seções em h4.
+    expect(await screen.findByRole('heading', { level: 3, name: 'MARIA DA SILVA' })).toBeInTheDocument()
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+    expect(screen.getByRole('heading', { level: 4, name: 'Carreira' })).toBeInTheDocument()
+    expect(await screen.findByText('301005')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/servidores/1048213', expect.anything())
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.getByText('01/03/2010')).toBeInTheDocument()
+    expect(screen.getByText('Referência 05/2026')).toBeInTheDocument()
+    expect(screen.getByText(/CONCURSO PUBLICO/)).toBeInTheDocument()
+  })
+
+  it('vários resultados: página seguinte muda a URL e busca de novo', async () => {
+    const { pedidos } = fetchPendente()
+    abrirCom('/?nome=Maria')
+    await act(async () =>
+      pedidos[0].responder(
+        respostaJson(200, corpoServidores(undefined, { total: 45, total_pages: 3 })),
+      ),
+    )
+
+    // Na primeira página, "anterior" fica desativado e não aponta para a página 0.
+    expect(screen.getByRole('link', { name: 'Página anterior' })).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getByRole('link', { name: 'Página anterior' })).toHaveAttribute('href', '/?nome=Maria')
+
+    fireEvent.click(screen.getByRole('link', { name: 'Próxima página' }))
+    expect(pedidos[1].url).toBe('/api/servidores?nome=Maria&page=2')
+    expect(window.location.search).toBe('?nome=Maria&page=2')
+
+    await act(async () =>
+      pedidos[1].responder(
+        respostaJson(200, corpoServidores(undefined, { total: 45, total_pages: 3, page: 2 })),
+      ),
+    )
+    expect(screen.getByRole('link', { name: '2' })).toHaveAttribute('aria-current', 'page')
+    expect(
+      within(screen.getByRole('navigation', { name: 'Paginação' })).getByText(/Mostrando 21–22 de 45/),
+    ).toBeInTheDocument()
+    // O link clicado sumiu no carregamento: o foco vai para o título dos resultados.
+    expect(tituloResultados()).toHaveFocus()
+    expect(regiaoViva()).toHaveTextContent('45 resultados encontrados para “Maria”. Mostrando 21–22 de 45.')
+
+    // Celular: Anterior e Próxima, com links de verdade.
+    expect(screen.getByRole('link', { name: 'Anterior' })).toHaveAttribute('href', '/?nome=Maria')
+    expect(screen.getByRole('link', { name: 'Próxima' })).toHaveAttribute('href', '/?nome=Maria&page=3')
+
+    // Uma busca nova pelo formulário volta a deixar o foco no campo.
+    fireEvent.change(campoNome(), { target: { value: 'Joana' } })
+    campoNome().focus()
+    fireEvent.click(botaoBuscar())
+    await act(async () => pedidos[2].responder(respostaJson(200, corpoServidores(undefined, { total: 45, total_pages: 3 }))))
+    expect(campoNome()).toHaveFocus()
+  })
+
+  it('trocar itens por página volta para a primeira página', async () => {
+    const { pedidos } = fetchPendente()
+    abrirCom('/?nome=Maria&page=2')
+    await act(async () =>
+      pedidos[0].responder(
+        respostaJson(200, corpoServidores(undefined, { total: 45, total_pages: 3, page: 2 })),
+      ),
+    )
+
+    fireEvent.change(screen.getByLabelText('Resultados por página'), { target: { value: '50' } })
+    expect(pedidos[1].url).toBe('/api/servidores?nome=Maria&per_page=50')
+    expect(window.location.search).toBe('?nome=Maria&per_page=50')
   })
 
   it('404 NAO_ENCONTRADO mostra o estado vazio, não um erro', async () => {
@@ -392,6 +479,132 @@ describe('Nome parecido e filtros combinados (issue #20)', () => {
     expect(botaoModo('Nome exato')).toHaveAttribute('aria-pressed', 'true')
     expect(campoNome()).toHaveValue('Maria')
     expect(campoUf()).toHaveValue('RJ')
+  })
+})
+
+describe('Paginação, detalhe e estados (issue #21)', () => {
+  it('detalhe sem a rota /api/servidores/<id>: avisa, sem inventar campos "não informados"', async () => {
+    const { pedidos } = fetchPendente()
+    abrirCom('/?nome=Maria')
+    await act(async () => pedidos[0].responder(respostaJson(200, corpoServidores([SERVIDOR_APOSENTADO]))))
+
+    // Cabeçalho e vínculo saem da busca, na hora; o resto espera o detalhe.
+    expect(screen.getByRole('heading', { level: 3, name: 'MARIA DA SILVA' })).toBeInTheDocument()
+    expect(screen.getByText('MINISTERIO DA AGRICULTURA E PECUARIA')).toBeInTheDocument()
+    expect(screen.getByText('Carregando a ficha completa…')).toBeInTheDocument()
+    expect(pedidos[1].url).toBe('/api/servidores/1503377')
+
+    await act(async () => pedidos[1].responder(erroApi(404, 'ROTA_INEXISTENTE', 'Rota não encontrada.')))
+    expect(screen.getByText('Não foi possível carregar a ficha completa')).toBeInTheDocument()
+    expect(screen.queryByText('Carregando a ficha completa…')).not.toBeInTheDocument()
+    expect(screen.queryByText('Tipo')).not.toBeInTheDocument()
+    expect(screen.queryByText('Data da aposentadoria')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^Referência/)).not.toBeInTheDocument()
+    // A falha do detalhe não vira erro da busca.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(tituloResultados()).toHaveTextContent('1 resultado encontrado para “Maria”')
+  })
+
+  it('404 PAGINA_INEXISTENTE: estado próprio com link para a última página', async () => {
+    const { pedidos } = fetchPendente()
+    abrirCom('/?nome=Maria&page=40')
+    expect(pedidos[0].url).toBe('/api/servidores?nome=Maria&page=40')
+    await act(async () =>
+      pedidos[0].responder(
+        erroApi(404, 'PAGINA_INEXISTENTE', 'A página 40 não existe; esta busca tem 3 página(s).'),
+      ),
+    )
+
+    expect(screen.getByRole('heading', { level: 2, name: 'A página 40 não existe nesta busca' })).toBeInTheDocument()
+    expect(screen.getByText(/Esta busca tem 3 páginas\./)).toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(regiaoViva()).toHaveTextContent('A página 40 não existe nesta busca.')
+    const link = screen.getByRole('link', { name: 'Ir para a página 3' })
+    expect(link).toHaveAttribute('href', '/?nome=Maria&page=3')
+
+    fireEvent.click(link)
+    expect(pedidos[1].url).toBe('/api/servidores?nome=Maria&page=3')
+    expect(window.location.search).toBe('?nome=Maria&page=3')
+    await act(async () =>
+      pedidos[1].responder(respostaJson(200, corpoServidores(undefined, { total: 42, total_pages: 3, page: 3 }))),
+    )
+    expect(tituloResultados()).toHaveFocus()
+  })
+
+  it('PAGINA_INEXISTENTE sem o total na mensagem leva à primeira página', async () => {
+    fetchRespondendo(() => erroApi(404, 'PAGINA_INEXISTENTE', 'Página inexistente.'))
+    abrirCom('/?cargo=professor&page=9')
+    expect(await screen.findByRole('link', { name: 'Ir para a primeira página' })).toHaveAttribute(
+      'href',
+      '/?cargo=professor',
+    )
+  })
+
+  it('página e itens por página fora da faixa na URL valem o padrão', () => {
+    const { pedidos } = fetchPendente()
+    abrirCom('/?nome=Maria&page=0&per_page=500')
+    expect(pedidos[0].url).toBe('/api/servidores?nome=Maria')
+  })
+
+  it('busca parecida não pagina: sem seletor por página e sem paginação', async () => {
+    fetchRespondendo(() =>
+      respostaJson(
+        200,
+        corpoServidores(
+          [
+            { ...SERVIDOR_ATIVO, similaridade: 1 },
+            { ...SERVIDOR_APOSENTADO, similaridade: 0.8 },
+          ],
+          { per_page: 100 },
+        ),
+      ),
+    )
+    abrirCom('/?similar=%25MARIA%25&limit=100&page=2')
+    expect(await screen.findByRole('table')).toBeInTheDocument()
+    expect(fetchMockUrl()).toBe('/api/servidores?similar=%25MARIA%25&limit=100')
+    expect(screen.queryByRole('navigation', { name: 'Paginação' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Resultados por página')).not.toBeInTheDocument()
+  })
+
+  it('504 explica a causa provável e "Tentar de novo" refaz a busca sem empilhar histórico', async () => {
+    const fetchMock = fetchRespondendo(() => erroApi(504, 'TEMPO_ESGOTADO', 'A busca passou do tempo limite.'))
+    abrirCom('/?nome=Maria')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Acrescente outra parte do nome ou outro filtro')
+    const inicio = window.history.length
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/servidores?nome=Maria', expect.anything())
+    expect(window.history.length).toBe(inicio)
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+  })
+
+  it('429 não oferece "Tentar de novo" na hora: o aviso diz quando buscar', async () => {
+    fetchRespondendo(() => erroApi(429, 'MUITAS_REQUISICOES', 'Muitas requisições.', { 'Retry-After': '3' }))
+    abrirCom('/?nome=Maria')
+    expect(await screen.findByText('Muitas buscas em pouco tempo')).toBeInTheDocument()
+    expect(regiaoViva()).toHaveTextContent('Você pode buscar de novo em 3 segundos.')
+    expect(screen.queryByRole('button', { name: 'Tentar de novo' })).not.toBeInTheDocument()
+  })
+
+  it('nome exato sem resultado oferece a busca parecida já montada', async () => {
+    const { pedidos } = fetchPendente()
+    abrirCom('/?nome=Jo%C3%A3o+da+Silva+Xavier')
+    await act(async () => pedidos[0].responder(erroApi(404, 'NAO_ENCONTRADO', 'Nenhum servidor encontrado.')))
+
+    const link = screen.getByRole('link', { name: 'Buscar nomes parecidos: %JOAO%SILVA%XAVIER%' })
+    expect(link).toHaveAttribute('href', '/?similar=%25JOAO%25SILVA%25XAVIER%25&limit=100')
+    fireEvent.click(link)
+    expect(pedidos[1].url).toBe('/api/servidores?similar=%25JOAO%25SILVA%25XAVIER%25&limit=100')
+    expect(botaoModo('Nome parecido')).toHaveAttribute('aria-pressed', 'true')
+    expect(campoNome()).toHaveValue('%JOAO%SILVA%XAVIER%')
+  })
+
+  it('sem resultado com filtros, não sugere a busca parecida (ela não aplicaria os filtros)', async () => {
+    fetchRespondendo(() => erroApi(404, 'NAO_ENCONTRADO', 'Nenhum servidor encontrado.'))
+    abrirCom('/?nome=Maria+Silva&uf=RJ')
+    expect(await screen.findByRole('heading', { level: 2 })).toHaveTextContent('Nenhum vínculo encontrado')
+    expect(screen.queryByRole('link', { name: /Buscar nomes parecidos/ })).not.toBeInTheDocument()
   })
 })
 

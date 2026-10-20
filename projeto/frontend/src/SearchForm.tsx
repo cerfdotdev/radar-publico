@@ -80,6 +80,7 @@ export function SearchForm({ busca, ocupado, erroExterno, onBuscar }: SearchForm
       termo: limparNome(form.termo),
       cargo: limparNome(form.cargo),
       orgao: limparNome(form.orgao),
+      pagina: 1,
     }
     const erroNovo = validarBusca(normalizada)
     if (erroNovo !== null) {

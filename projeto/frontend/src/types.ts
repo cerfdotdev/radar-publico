@@ -15,6 +15,10 @@ export interface Busca {
   cargo: string
   orgao: string
   uf: string
+  /** Página da lista de resultados (a partir de 1). */
+  pagina: number
+  /** Itens por página, de 1 a 100. */
+  porPagina: number
 }
 
 /** Campo do formulário que recebe um erro de validação, local ou da API. */
@@ -34,6 +38,18 @@ export interface Servidor {
   valor: number | null
   /** Só na busca por `similar`: semelhança com o padrão, de 0 a 1. */
   similaridade?: number
+}
+
+/** GET /api/servidores/<id>: dados da lista mais os campos do vínculo. */
+export interface ServidorDetalhe extends Servidor {
+  codigo_carreira: string | null
+  tipo_aposentadoria: string | null
+  fundamento_legal: string | null
+  portaria: string | null
+  data_aposentadoria: string | null
+  forma_ingresso: string | null
+  data_ingresso: string | null
+  referencia: string | null
 }
 
 export interface Meta {

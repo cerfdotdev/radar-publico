@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { buscarServidores, parseServidoresResponse, SEARCH_TIMEOUT_MS, type SearchOutcome } from './api'
+import { buscarServidor, buscarServidores, parseServidoresResponse, SEARCH_TIMEOUT_MS, type SearchOutcome } from './api'
 import {
+  corpoDetalhe,
   corpoServidores,
   erroApi,
   fetchPendente,
@@ -9,6 +10,7 @@ import {
   respostaTexto,
   SERVIDOR_APOSENTADO,
   SERVIDOR_ATIVO,
+  SERVIDOR_DETALHE,
 } from './testUtils'
 
 afterEach(() => {
@@ -109,6 +111,16 @@ describe('buscarServidores', () => {
     fetchRespondendo(() => resposta)
     const resultado = await buscarServidores({ cargo: 'pofessor', orgao: 'XYZ' }, new AbortController().signal)
     expect(resultado).toEqual({ kind: 'invalid', ...esperado })
+  })
+
+  it('404 PAGINA_INEXISTENTE traz a última página da mensagem, quando ela diz', async () => {
+    expect(
+      await buscarCom(erroApi(404, 'PAGINA_INEXISTENTE', 'A página 9 não existe; esta busca tem 1 página(s).')),
+    ).toEqual({ kind: 'no-page', ultimaPagina: 1 })
+    expect(await buscarCom(erroApi(404, 'PAGINA_INEXISTENTE', 'Página inexistente.'))).toEqual({
+      kind: 'no-page',
+      ultimaPagina: null,
+    })
   })
 
   it('400 vira erro de campo com a mensagem da API', async () => {
@@ -219,5 +231,34 @@ describe('parseServidoresResponse', () => {
     ['similaridade em texto', corpoServidores([{ ...SERVIDOR_ATIVO, similaridade: '0,82' as unknown as number }])],
   ])('recusa %s', (_caso, corpo) => {
     expect(parseServidoresResponse(JSON.parse(JSON.stringify(corpo)))).toBeNull()
+  })
+})
+
+describe('buscarServidor (detalhe)', () => {
+  it('pede /api/servidores/<id> e confere os campos do detalhe', async () => {
+    const fetchMock = fetchRespondendo(() => respostaJson(200, corpoDetalhe()))
+    const resultado = await buscarServidor(SERVIDOR_DETALHE.id, new AbortController().signal)
+    expect(fetchMock).toHaveBeenCalledWith(`/api/servidores/${SERVIDOR_DETALHE.id}`, expect.anything())
+    expect(resultado).toEqual({ kind: 'ok', servidor: SERVIDOR_DETALHE })
+  })
+
+  it.each([
+    ['campo do detalhe ausente', respostaJson(200, corpoDetalhe({ ...SERVIDOR_DETALHE, portaria: undefined as unknown as null }))],
+    ['data em número', respostaJson(200, corpoDetalhe({ ...SERVIDOR_DETALHE, data_ingresso: 20100301 as unknown as string }))],
+    ['lista no lugar do item', respostaJson(200, corpoServidores())],
+  ])('%s é resposta inesperada', async (_caso, resposta) => {
+    fetchRespondendo(() => resposta)
+    const resultado = await buscarServidor(1, new AbortController().signal)
+    expect(resultado).toMatchObject({ kind: 'error', falha: { titulo: 'Resposta inesperada da API' } })
+  })
+
+  it('erro HTTP e falha de rede viram falha, sem rejeitar', async () => {
+    fetchRespondendo(() => erroApi(404, 'ROTA_INEXISTENTE', 'Rota não encontrada.'))
+    expect(await buscarServidor(1, new AbortController().signal)).toMatchObject({ kind: 'error' })
+    vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))))
+    expect(await buscarServidor(1, new AbortController().signal)).toMatchObject({
+      kind: 'error',
+      falha: { titulo: 'Não foi possível conectar à API' },
+    })
   })
 })

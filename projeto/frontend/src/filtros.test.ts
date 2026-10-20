@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LIMITE_MAX, LIMITE_MIN, validarBusca, validarSimilar, validarTexto } from './filtros'
+import { LIMITE_MAX, LIMITE_MIN, padraoParecido, validarBusca, validarSimilar, validarTexto } from './filtros'
 import { NOME_MAX_CHARS } from './nome'
 import type { Busca } from './types'
 import { BUSCA_VAZIA } from './useBuscaServidores'
@@ -67,5 +67,17 @@ describe('validarBusca', () => {
     expect(validarBusca(busca({ modo: 'similar', cargo: 'professor' }))?.campo).toBe('termo')
     expect(validarBusca(busca({ modo: 'similar', termo: '%MARIA%', limite: LIMITE_MIN, cargo: 'a', uf: 'XX' }))).toBeNull()
     expect(validarBusca(busca({ modo: 'similar', termo: '%MARIA%', limite: LIMITE_MAX }))).toBeNull()
+  })
+})
+
+describe('padraoParecido (sugestão do estado vazio)', () => {
+  it('monta o padrão sem acento e sem conectivos', () => {
+    expect(padraoParecido('João da Silva Xavier')).toBe('%JOAO%SILVA%XAVIER%')
+    expect(padraoParecido("Ana  D'Ávila dos Santos")).toBe("%ANA%D'AVILA%SANTOS%")
+  })
+
+  it('não sugere padrão que a API recusaria', () => {
+    expect(padraoParecido('Da Do')).toBeNull()
+    expect(padraoParecido('Al')).toBeNull()
   })
 })

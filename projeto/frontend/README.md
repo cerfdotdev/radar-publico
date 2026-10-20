@@ -52,17 +52,19 @@ projeto/frontend/
 │   ├── api.ts               # GET /api/servidores: requisição, tempo limite, validação da resposta e erros
 │   ├── App.css              # Estilos dos componentes (classes de docs/design/componentes.css)
 │   ├── App.tsx              # Tela de busca: topo, formulário, região viva, resultados e fonte dos dados
+│   ├── DetalheServidor.tsx  # Ficha do vínculo quando a busca acha um só (GET /api/servidores/<id>)
 │   ├── filtros.ts           # Validação do nome parecido, do limite, de cargo, órgão e UF (regras do backend)
 │   ├── format.ts            # Números em pt-BR (valores e contagens)
 │   ├── index.css            # Tokens globais do Design System (OKLCH, tipografia)
 │   ├── main.tsx             # Ponto de entrada React e fontes IBM Plex
 │   ├── mensagens.ts         # Textos dos resultados e da região viva
 │   ├── NaoInformado.tsx     # Travessão de campo null, com "não informado" para leitores de tela
+│   ├── Paginacao.tsx        # Páginas da busca: números no desktop, Anterior/Próxima no celular
 │   ├── nome.ts              # Normalização e validação do nome (mesmas regras do backend)
 │   ├── ResultsList.tsx      # Resultados em lista (celular)
 │   ├── ResultsTable.tsx     # Resultados em tabela (desktop)
 │   ├── SearchForm.tsx       # Nome exato ou parecido, limite, filtros e erro no próprio campo
-│   ├── SearchResults.tsx    # Um componente por estado: carregando, vazio, erro, resultados
+│   ├── SearchResults.tsx    # Um componente por estado: carregando, vazio, página inexistente, erro, resultados
 │   ├── Semelhanca.tsx       # Barra e número da semelhança na busca parecida
 │   ├── SiteHeader.tsx       # Topo com a marca
 │   ├── SituacaoPill.tsx     # Pílula Ativo/Aposentado com marcador
@@ -135,7 +137,7 @@ O serviço estará acessível na porta 8080, pronto para se comunicar com o back
 - **Cancelamento e tempo limite:** cada busca tem o próprio `AbortController`; trocar de busca ou sair da tela cancela a anterior, e uma resposta atrasada nunca sobrescreve a atual. O navegador desiste em `SEARCH_TIMEOUT_MS` (20 s), acima dos 15 s do nginx, para o 504 do nginx chegar antes.
 - **Respostas:** o corpo é conferido contra o contrato antes de ir para a tela. `404 NAO_ENCONTRADO` é o estado "nenhum vínculo"; 429 e 503 viram aviso informativo com os segundos do `Retry-After`; 502, 504, 500, falha de rede, resposta sem JSON e resposta fora do formato têm mensagens próprias.
 - **Acessibilidade:** uma região viva (`<output>`) sempre presente anuncia "Buscando…" e o resultado; durante a busca o botão fica `aria-disabled` e o campo só leitura, sem perder o foco.
-- **Fica para depois:** menu do celular; paginação, detalhe e contagem regressiva do `Retry-After` (#21). Enquanto não há paginação, a tela diz quantos dos resultados estão sendo mostrados.
+- **Fica para depois:** menu do celular e contagem regressiva do `Retry-After` com o botão que se reabilita sozinho.
 
 ## 5. Nome parecido e filtros combinados (issue #20)
 
@@ -143,3 +145,9 @@ O serviço estará acessível na porta 8080, pronto para se comunicar com o back
 - **Filtros:** cargo (parte do nome), órgão (parte do nome ou sigla) e UF se combinam com o nome exato numa requisição só, e também valem sozinhos. Tudo fica na URL (`?nome=...&cargo=...&orgao=...&uf=...`). No celular, os filtros ficam atrás do botão "Filtros", com a contagem dos preenchidos.
 - **Busca parecida sem filtros:** a API ainda ignora cargo, órgão e UF quando recebe `similar`. Enquanto for assim, o modo parecido não os envia e o formulário os mostra desativados, com o motivo, sem perder o que foi digitado (`aceitaFiltros` em `filtros.ts`).
 - **Erros no campo:** a validação local e os erros da API marcam o campo certo e levam o foco até ele: `404 CARGO_NAO_ENCONTRADO` e `ORGAO_NAO_ENCONTRADO` no cargo e no órgão, `UF_INVALIDA` na UF e o parâmetro citado no 400 (`'limit'`, `'similar'`...). O formulário usa `noValidate`, para o `min`/`max` do limite não barrar o envio com o balão do navegador.
+
+## 6. Paginação, detalhe e estados (issue #21)
+
+- **Paginação:** `page` e `per_page` (20, 50 ou 100) ficam na URL; os números de página são links de verdade, e o clique comum troca a página sem recarregar. Depois de trocar de página, o foco vai para o título dos resultados. Página ou itens fora da faixa na URL valem o padrão. A busca parecida não pagina: a API devolve tudo de uma vez, até o limite.
+- **Resultado único:** mostra a ficha do vínculo. Cabeçalho e vínculo saem da própria busca; carreira, aposentadoria e ingresso vêm de `GET /api/servidores/<id>` e só aparecem quando chegam. Se o detalhe falhar, um aviso diz que a ficha completa não carregou, sem mostrar campos como "não informados".
+- **Estados (docs/design/estados.html):** `404 PAGINA_INEXISTENTE` explica e leva à última página válida (o total vem da mensagem da API; sem ele, à primeira); nome exato sem resultado oferece a busca parecida já montada (`%JOAO%SILVA%XAVIER%`); 504 explica a causa provável; erros em tom de erro têm "Tentar de novo".

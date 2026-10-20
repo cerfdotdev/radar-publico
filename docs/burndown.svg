@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="674" viewBox="0 0 960 674" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-labelledby="titulo descricao">
+<title id="titulo">Burndown — Radar Público</title>
+<desc id="descricao">Concluído = issue fechada (closedAt), não o merge do PR. Sprints: Sprint 1 em 18/10 e Sprint 2 em 19/10; fim planejado em 20/10 00:00. Planejado: 97 pts em 27 issues criadas até o fim da Sprint 1 (cadastradas no Project em 18/10 22:30–22:33); a linha real começa nesse cadastro. Escopo adicionado depois: +13 pts (#52, #53 e #54, criadas em 20/10). PR mergeado dentro da sprint, issue fechada só depois do fim (15 pts): #13 (PR #44 em 19/10 22:11); #14, #15 e #16 (PR #38 em 19/10 18:23). Fechadas em 20/10; o gráfico usa o fechamento.</desc>
+<rect x="0.5" y="0.5" width="959.0" height="673.0" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+<text x="24.0" y="34.0" font-size="18" font-weight="600" fill="#1f2328">Burndown — Radar Público</text>
+<text x="24.0" y="56.0" font-size="13" fill="#59636e">Pontos restantes a cada fechamento de issue, de 18/10 00:00 a 20/10 10:57 (horário de Brasília)</text>
+<line x1="24" y1="78" x2="46" y2="78" stroke="#2a78d6" stroke-width="2.5"/>
+<text x="54.0" y="82.0" font-size="12" fill="#1f2328">Restante (real)</text>
+<line x1="181.0" y1="78" x2="203.0" y2="78" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="6 4"/>
+<text x="211.0" y="82.0" font-size="12" fill="#1f2328">Ideal</text>
+<line x1="272.0" y1="78" x2="294.0" y2="78" stroke="#eb6834" stroke-width="1.5"/>
+<text x="302.0" y="82.0" font-size="12" fill="#1f2328">Escopo total</text>
+<rect x="686.0" y="120" width="142.0" height="330" fill="#f6f8fa"/>
+<line x1="64" y1="450.0" x2="828" y2="450.0" stroke="#eaeef2"/>
+<text x="56.0" y="453.7" font-size="11" fill="#59636e" text-anchor="end">0</text>
+<line x1="64" y1="395.0" x2="828" y2="395.0" stroke="#eaeef2"/>
+<text x="56.0" y="398.7" font-size="11" fill="#59636e" text-anchor="end">20</text>
+<line x1="64" y1="340.0" x2="828" y2="340.0" stroke="#eaeef2"/>
+<text x="56.0" y="343.7" font-size="11" fill="#59636e" text-anchor="end">40</text>
+<line x1="64" y1="285.0" x2="828" y2="285.0" stroke="#eaeef2"/>
+<text x="56.0" y="288.7" font-size="11" fill="#59636e" text-anchor="end">60</text>
+<line x1="64" y1="230.0" x2="828" y2="230.0" stroke="#eaeef2"/>
+<text x="56.0" y="233.7" font-size="11" fill="#59636e" text-anchor="end">80</text>
+<line x1="64" y1="175.0" x2="828" y2="175.0" stroke="#eaeef2"/>
+<text x="56.0" y="178.7" font-size="11" fill="#59636e" text-anchor="end">100</text>
+<line x1="64" y1="120.0" x2="828" y2="120.0" stroke="#eaeef2"/>
+<text x="56.0" y="123.7" font-size="11" fill="#59636e" text-anchor="end">120</text>
+<text x="64.0" y="112.0" font-size="11" fill="#59636e">pontos</text>
+<text x="219.5" y="112.0" font-size="12" fill="#59636e" text-anchor="middle">Sprint 1 · 18/10</text>
+<text x="530.5" y="112.0" font-size="12" fill="#59636e" text-anchor="middle">Sprint 2 · 19/10</text>
+<text x="757.0" y="112.0" font-size="12" fill="#59636e" text-anchor="middle">após as sprints</text>
+<line x1="64.0" y1="120" x2="64.0" y2="450" stroke="#8c959f"/>
+<line x1="375.0" y1="120" x2="375.0" y2="450" stroke="#8c959f"/>
+<line x1="686.0" y1="120" x2="686.0" y2="450" stroke="#8c959f"/>
+<line x1="64" y1="450" x2="828" y2="450" stroke="#8c959f"/>
+<text x="64.0" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">00h</text>
+<text x="64.0" y="484.0" font-size="11" fill="#1f2328" text-anchor="middle">18/10</text>
+<text x="141.7" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">06h</text>
+<text x="219.5" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">12h</text>
+<text x="297.2" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">18h</text>
+<text x="375.0" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">00h</text>
+<text x="375.0" y="484.0" font-size="11" fill="#1f2328" text-anchor="middle">19/10</text>
+<text x="452.7" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">06h</text>
+<text x="530.5" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">12h</text>
+<text x="608.2" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">18h</text>
+<text x="686.0" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">00h</text>
+<text x="686.0" y="484.0" font-size="11" fill="#1f2328" text-anchor="middle">20/10</text>
+<text x="763.7" y="468.0" font-size="11" fill="#59636e" text-anchor="middle">06h</text>
+<text x="836.0" y="468.0" font-size="11" fill="#59636e">agora</text>
+<text x="836.0" y="484.0" font-size="11" fill="#1f2328">20/10 10:57</text>
+<line x1="64.0" y1="183.2" x2="686.0" y2="450.0" stroke="#6e7781" stroke-width="1.5" stroke-dasharray="6 4"/>
+<path d="M356.2,183.2H363.3V183.2H364.2V183.2H364.2V183.2H385.2V183.2H387.0V183.2H391.0V183.2H605.6V183.2H613.4V183.2H814.1V183.2H814.1V183.2H814.2V183.2H814.2V183.2H814.2V183.2H814.2V183.2H814.2V183.2H814.5V183.2H816.3V183.2H820.4V183.2H821.2V169.5H822.0V161.2H822.2V147.5H828.0" fill="none" stroke="#eb6834" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M356.2,183.2H363.3V191.5H364.2V205.2H364.2V235.5H385.2V243.8H387.0V249.3H391.0V257.5H605.6V271.2H613.4V285.0H814.1V298.8H814.1V307.0H814.2V320.8H814.2V326.2H814.2V331.8H814.2V345.5H814.2V359.2H814.5V373.0H816.3V386.8H820.4V395.0H821.2V381.2H822.0V373.0H822.2V359.2H828.0" fill="none" stroke="#2a78d6" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="356.2" cy="183.2" r="4" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="348.2" y="175.2" font-size="12" fill="#59636e" text-anchor="end" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" paint-order="stroke">backlog cadastrado (18/10 22:30–22:33)</text>
+<text x="813.2" y="139.5" font-size="12" fill="#59636e" text-anchor="end" stroke="#ffffff" stroke-width="4" stroke-linejoin="round" paint-order="stroke">+13 pts: #52, #53 e #54 (20/10 10:26–10:30)</text>
+<circle cx="828.0" cy="359.2" r="4" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="836.0" y="363.2" font-size="12" fill="#1f2328">33 restantes</text>
+<circle cx="828.0" cy="147.5" r="4" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="836.0" y="151.5" font-size="12" fill="#59636e">110 no escopo</text>
+<text x="24.0" y="516.0" font-size="12" fill="#59636e">Concluído = issue fechada (closedAt), não o merge do PR. Sprints: Sprint 1 em 18/10 e Sprint 2 em 19/10; fim planejado em 20/10</text>
+<text x="24.0" y="534.0" font-size="12" fill="#59636e">00:00.</text>
+<text x="24.0" y="552.0" font-size="12" fill="#59636e">Planejado: 97 pts em 27 issues criadas até o fim da Sprint 1 (cadastradas no Project em 18/10 22:30–22:33); a linha real começa</text>
+<text x="24.0" y="570.0" font-size="12" fill="#59636e">nesse cadastro.</text>
+<text x="24.0" y="588.0" font-size="12" fill="#59636e">Escopo adicionado depois: +13 pts (#52, #53 e #54, criadas em 20/10).</text>
+<text x="24.0" y="606.0" font-size="12" fill="#59636e">PR mergeado dentro da sprint, issue fechada só depois do fim (15 pts): #13 (PR #44 em 19/10 22:11); #14, #15 e #16 (PR #38 em</text>
+<text x="24.0" y="624.0" font-size="12" fill="#59636e">19/10 18:23). Fechadas em 20/10; o gráfico usa o fechamento.</text>
+<text x="24.0" y="642.0" font-size="12" fill="#59636e">Horário de Brasília (America/Sao_Paulo). Gerado em 20/10/2026 10:57 por python3 scripts/burndown.py.</text>
+</svg>
